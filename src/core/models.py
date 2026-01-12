@@ -244,6 +244,28 @@ class AdjustmentParams:
         gains = df[gain_col].astype(float)
         mae = df[mae_col].astype(float)
 
+        # Diagnostic logging for adjustment calculation
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "DIAGNOSTIC (adjust): Raw gains from '%s' - min=%.6f, max=%.6f, mean=%.6f, "
+            "sample first 5: %s",
+            gain_col,
+            gains.min(),
+            gains.max(),
+            gains.mean(),
+            gains.head(5).tolist(),
+        )
+        logger.info(
+            "DIAGNOSTIC (adjust): MAE from '%s' - min=%.6f, max=%.6f, mean=%.6f, "
+            "sample first 5: %s",
+            mae_col,
+            mae.min(),
+            mae.max(),
+            mae.mean(),
+            mae.head(5).tolist(),
+        )
+
         # Convert gains from decimal to percentage format for adjustment
         gains_pct = gains * 100
 

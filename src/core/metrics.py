@@ -99,13 +99,41 @@ class MetricsCalculator:
         # Apply adjustments if provided
         if adjustment_params is not None and mae_col is not None:
             gains = adjustment_params.calculate_adjusted_gains(df, gain_col, mae_col)
-            logger.debug(
-                "Applied adjustments: stop_loss=%.1f%%, efficiency=%.1f%%",
+            logger.info(
+                "Applied adjustments: stop_loss=%.1f%%, efficiency=%.1f%% - "
+                "DIAGNOSTIC: adjusted gains min=%.6f, max=%.6f, mean=%.6f, "
+                "sample first 5: %s",
                 adjustment_params.stop_loss,
                 adjustment_params.efficiency,
+                gains.min(),
+                gains.max(),
+                gains.mean(),
+                gains.head(5).tolist(),
             )
         else:
             gains = df[gain_col].astype(float)
+
+        # Diagnostic logging for data investigation
+        logger.info(
+            "DIAGNOSTIC: Raw gains from '%s' - min=%.6f, max=%.6f, mean=%.6f, "
+            "sample first 5: %s",
+            gain_col,
+            gains.min(),
+            gains.max(),
+            gains.mean(),
+            gains.head(5).tolist(),
+        )
+        if mae_col and mae_col in df.columns:
+            mae_values = df[mae_col].astype(float)
+            logger.info(
+                "DIAGNOSTIC: MAE from '%s' - min=%.6f, max=%.6f, mean=%.6f, "
+                "sample first 5: %s",
+                mae_col,
+                mae_values.min(),
+                mae_values.max(),
+                mae_values.mean(),
+                mae_values.head(5).tolist(),
+            )
 
         # Classify wins/losses based on adjusted gain sign
         # Note: Always use adjusted gains for classification per FR15c
