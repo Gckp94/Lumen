@@ -11,7 +11,6 @@ import pandas as pd
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
@@ -34,6 +33,7 @@ from src.core.first_trigger import FirstTriggerEngine
 from src.core.metrics import MetricsCalculator
 from src.core.models import AdjustmentParams, ColumnMapping, DetectionResult, TradingMetrics
 from src.ui.components.metric_card import MetricCard
+from src.ui.components.no_scroll_widgets import NoScrollComboBox
 from src.ui.constants import Colors, Fonts, Spacing
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ class ColumnConfigPanel(QWidget):
         grid.setColumnStretch(1, 1)  # Make dropdown column stretch
 
         # Required columns
-        self._combos: dict[str, QComboBox] = {}
+        self._combos: dict[str, NoScrollComboBox] = {}
         self._status_labels: dict[str, QLabel] = {}
         self._preview_labels: dict[str, QLabel] = {}
 
@@ -246,7 +246,7 @@ class ColumnConfigPanel(QWidget):
         grid.addWidget(label, row, 0)
 
         # Combo box
-        combo = QComboBox()
+        combo = NoScrollComboBox()
         combo.setObjectName(f"{field_name}_combo")
         combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         combo.setStyleSheet(
@@ -1110,7 +1110,7 @@ class DataInputTab(QWidget):
         sheet_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 13px;")
         self._sheet_label = sheet_label
 
-        self._sheet_selector = QComboBox()
+        self._sheet_selector = NoScrollComboBox()
         self._sheet_selector.setObjectName("sheet_selector")
         self._sheet_selector.setStyleSheet(
             f"""
