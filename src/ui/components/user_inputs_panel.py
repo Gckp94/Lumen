@@ -2,13 +2,13 @@
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QDoubleSpinBox,
     QGridLayout,
     QLabel,
     QWidget,
 )
 
 from src.core.models import AdjustmentParams, MetricsUserInputs
+from src.ui.components.no_scroll_widgets import NoScrollDoubleSpinBox
 from src.ui.constants import Animation, Colors, Fonts, Spacing
 
 
@@ -157,7 +157,7 @@ class UserInputsPanel(QWidget):
         decimals: int,
         prefix: str = "",
         suffix: str = "",
-    ) -> QDoubleSpinBox:
+    ) -> NoScrollDoubleSpinBox:
         """Create a configured spinbox.
 
         Args:
@@ -170,9 +170,9 @@ class UserInputsPanel(QWidget):
             suffix: Optional suffix string.
 
         Returns:
-            Configured QDoubleSpinBox.
+            Configured NoScrollDoubleSpinBox.
         """
-        spin = QDoubleSpinBox()
+        spin = NoScrollDoubleSpinBox()
         spin.setRange(min_val, max_val)
         spin.setValue(default)
         spin.setSingleStep(step)
