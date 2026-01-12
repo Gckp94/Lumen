@@ -109,11 +109,13 @@ class FilterEngine:
         mask = pd.Series(True, index=df.index)
 
         if start_time is not None:
-            start = dt_time.fromisoformat(start_time)
+            # Handle both string and datetime.time inputs
+            start = start_time if isinstance(start_time, dt_time) else dt_time.fromisoformat(start_time)
             mask &= time_series >= start
 
         if end_time is not None:
-            end = dt_time.fromisoformat(end_time)
+            # Handle both string and datetime.time inputs
+            end = end_time if isinstance(end_time, dt_time) else dt_time.fromisoformat(end_time)
             mask &= time_series <= end
 
         return df[mask].copy()
