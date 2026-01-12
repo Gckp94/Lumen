@@ -5,7 +5,6 @@ from typing import Literal
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtWidgets import (
-    QComboBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -14,6 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.models import FilterCriteria
+from src.ui.components.no_scroll_widgets import NoScrollComboBox
 from src.ui.constants import Colors, Spacing
 
 
@@ -57,13 +57,13 @@ class FilterRow(QWidget):
         layout.setSpacing(Spacing.SM)
 
         # Column dropdown
-        self._column_combo = QComboBox()
+        self._column_combo = NoScrollComboBox()
         self._column_combo.addItems(self._columns)
         self._column_combo.setMinimumWidth(100)
         layout.addWidget(self._column_combo)
 
         # Operator dropdown
-        self._operator_combo = QComboBox()
+        self._operator_combo = NoScrollComboBox()
         self._operator_combo.addItems(["between", "not between"])
         self._operator_combo.setMinimumWidth(100)
         layout.addWidget(self._operator_combo)

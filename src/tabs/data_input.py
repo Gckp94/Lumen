@@ -11,7 +11,6 @@ import pandas as pd
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
     QHBoxLayout,
@@ -33,7 +32,7 @@ from src.core.first_trigger import FirstTriggerEngine
 from src.core.metrics import MetricsCalculator
 from src.core.models import AdjustmentParams, ColumnMapping, DetectionResult, TradingMetrics
 from src.ui.components.metric_card import MetricCard
-from src.ui.components.no_scroll_widgets import NoScrollComboBox
+from src.ui.components.no_scroll_widgets import NoScrollComboBox, NoScrollDoubleSpinBox
 from src.ui.constants import Colors, Fonts, Spacing
 
 logger = logging.getLogger(__name__)
@@ -805,7 +804,7 @@ class AdjustmentInputsPanel(QWidget):
 
         # Stop Loss %
         stop_loss_label = QLabel("Stop Loss %")
-        self._stop_loss_spin = QDoubleSpinBox()
+        self._stop_loss_spin = NoScrollDoubleSpinBox()
         self._stop_loss_spin.setObjectName("stop_loss_spin")
         self._stop_loss_spin.setRange(0.0, 100.0)
         self._stop_loss_spin.setValue(8.0)
@@ -817,7 +816,7 @@ class AdjustmentInputsPanel(QWidget):
 
         # Efficiency %
         efficiency_label = QLabel("Efficiency %")
-        self._efficiency_spin = QDoubleSpinBox()
+        self._efficiency_spin = NoScrollDoubleSpinBox()
         self._efficiency_spin.setObjectName("efficiency_spin")
         self._efficiency_spin.setRange(0.0, 100.0)
         self._efficiency_spin.setValue(5.0)

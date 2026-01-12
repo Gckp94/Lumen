@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QButtonGroup,
-    QComboBox,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -25,6 +24,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.ui.components.no_scroll_widgets import NoScrollComboBox
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
 
 if TYPE_CHECKING:
@@ -358,7 +358,7 @@ class ExportDialog(QDialog):
         label = QLabel("Resolution:")
         layout.addWidget(label)
 
-        self._resolution_combo = QComboBox()
+        self._resolution_combo = NoScrollComboBox()
         self._resolution_combo.addItem(
             ExportResolution.HD_1080P.label, ExportResolution.HD_1080P
         )

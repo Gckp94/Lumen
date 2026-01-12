@@ -10,7 +10,6 @@ import pyqtgraph as pg  # type: ignore[import-untyped]
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -19,6 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.ui.components.no_scroll_widgets import NoScrollComboBox
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
 
 if TYPE_CHECKING:
@@ -503,7 +503,7 @@ class _HistogramPanel(QWidget):
         controls_layout.setSpacing(Spacing.MD)
 
         # Binning dropdown
-        self._bin_combo = QComboBox()
+        self._bin_combo = NoScrollComboBox()
         for label in DistributionHistogram.BIN_SIZE_OPTIONS:
             self._bin_combo.addItem(label)
         self._bin_combo.setCurrentText("Auto")

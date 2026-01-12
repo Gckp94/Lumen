@@ -9,7 +9,6 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -17,6 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.ui.components.no_scroll_widgets import NoScrollDoubleSpinBox
 from src.ui.constants import Animation, Colors, Spacing
 
 
@@ -80,7 +80,7 @@ class AxisControlPanel(QWidget):
         x_label.setFixedWidth(20)
         x_row.addWidget(x_label)
 
-        self._x_min = QDoubleSpinBox()
+        self._x_min = NoScrollDoubleSpinBox()
         self._x_min.setRange(-1e9, 1e9)
         self._x_min.setDecimals(0)
         self._x_min.setFixedWidth(80)
@@ -90,7 +90,7 @@ class AxisControlPanel(QWidget):
         x_to_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         x_row.addWidget(x_to_label)
 
-        self._x_max = QDoubleSpinBox()
+        self._x_max = NoScrollDoubleSpinBox()
         self._x_max.setRange(-1e9, 1e9)
         self._x_max.setDecimals(0)
         self._x_max.setFixedWidth(80)
@@ -106,7 +106,7 @@ class AxisControlPanel(QWidget):
         y_label.setFixedWidth(20)
         y_row.addWidget(y_label)
 
-        self._y_min = QDoubleSpinBox()
+        self._y_min = NoScrollDoubleSpinBox()
         self._y_min.setRange(-1e9, 1e9)
         self._y_min.setDecimals(2)
         self._y_min.setFixedWidth(80)
@@ -116,7 +116,7 @@ class AxisControlPanel(QWidget):
         y_to_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         y_row.addWidget(y_to_label)
 
-        self._y_max = QDoubleSpinBox()
+        self._y_max = NoScrollDoubleSpinBox()
         self._y_max.setRange(-1e9, 1e9)
         self._y_max.setDecimals(2)
         self._y_max.setFixedWidth(80)

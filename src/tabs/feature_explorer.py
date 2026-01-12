@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -25,6 +24,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from src.ui.components.no_scroll_widgets import NoScrollComboBox
 
 from src.core.app_state import AppState
 from src.core.exceptions import ExportError
@@ -158,7 +159,7 @@ class FeatureExplorerTab(QWidget):
         layout.addWidget(label)
 
         # Column selector dropdown
-        self._column_selector = QComboBox()
+        self._column_selector = NoScrollComboBox()
         self._column_selector.setStyleSheet(f"""
             QComboBox {{
                 background-color: {Colors.BG_SURFACE};
