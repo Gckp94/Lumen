@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 from src.core.models import FilterCriteria
 from src.ui.components.date_range_filter import DateRangeFilter
 from src.ui.components.filter_chip import FilterChip
+from src.ui.components.time_range_filter import TimeRangeFilter
 from src.ui.components.filter_row import FilterRow
 from src.ui.components.toggle_switch import ToggleSwitch
 from src.ui.constants import Colors, Limits, Spacing
@@ -26,12 +27,15 @@ class FilterPanel(QWidget):
         filters_cleared: Signal emitted when all filters are cleared.
         date_range_changed: Signal emitted when date range changes.
             Args: (start: str | None, end: str | None, all_dates: bool)
+        time_range_changed: Signal emitted when time range changes.
+            Args: (start: str | None, end: str | None, all_times: bool)
     """
 
     filters_applied = pyqtSignal(list)  # list[FilterCriteria]
     filters_cleared = pyqtSignal()
     first_trigger_toggled = pyqtSignal(bool)
     date_range_changed = pyqtSignal(object, object, bool)  # start, end, all_dates
+    time_range_changed = pyqtSignal(object, object, bool)  # start, end, all_times
 
     def __init__(
         self,
@@ -53,6 +57,10 @@ class FilterPanel(QWidget):
         self._date_start: str | None = None
         self._date_end: str | None = None
         self._all_dates: bool = True
+        # Time range state
+        self._time_start: str | None = None
+        self._time_end: str | None = None
+        self._all_times_time: bool = True
         self._setup_ui()
         self._apply_style()
 
@@ -77,6 +85,11 @@ class FilterPanel(QWidget):
         self._date_range_filter = DateRangeFilter()
         self._date_range_filter.date_range_changed.connect(self._on_date_range_changed)
         layout.addWidget(self._date_range_filter)
+
+        # Time range filter
+        self._time_range_filter = TimeRangeFilter()
+        self._time_range_filter.time_range_changed.connect(self._on_time_range_changed)
+        layout.addWidget(self._time_range_filter)
 
         # Chips area for active filters
         self._chips_frame = QFrame()
@@ -237,6 +250,21 @@ class FilterPanel(QWidget):
         self._all_dates = all_dates
         self.date_range_changed.emit(start, end, all_dates)
 
+    def _on_time_range_changed(
+        self, start: str | None, end: str | None, all_times: bool
+    ) -> None:
+        """Handle time range filter change.
+
+        Args:
+            start: Start time string (HH:MM:SS) or None.
+            end: End time string (HH:MM:SS) or None.
+            all_times: Whether 'All Times' is checked.
+        """
+        self._time_start = start
+        self._time_end = end
+        self._all_times_time = all_times
+        self.time_range_changed.emit(start, end, all_times)
+
     def _on_remove_row(self, row: FilterRow) -> None:
         """Handle remove row request.
 
@@ -281,6 +309,12 @@ class FilterPanel(QWidget):
         self._date_start = None
         self._date_end = None
         self._all_dates = True
+
+        # Reset time range filter
+        self._time_range_filter.reset()
+        self._time_start = None
+        self._time_end = None
+        self._all_times_time = True
 
         self._active_filters.clear()
         self._add_btn.setEnabled(True)
@@ -337,3 +371,12 @@ class FilterPanel(QWidget):
             Tuple of (start_iso, end_iso, all_dates).
         """
         return (self._date_start, self._date_end, self._all_dates)
+
+    def get_time_range(self) -> tuple[str | None, str | None, bool]:
+        """Get current time range filter values.
+
+        Returns:
+            Tuple of (start_time, end_time, all_times).
+            Times are HH:MM:SS strings or None if all_times=True.
+        """
+        return self._time_range_filter.get_range()
