@@ -234,6 +234,67 @@ class TestMatchColumn:
         assert status == "missing"
 
 
+class TestAutoDetectionPriority:
+    """Tests for column auto-detection preferring exact/shorter matches."""
+
+    def test_prefers_exact_match_over_substring(self) -> None:
+        """Should prefer 'gain_pct' over 'gain_pct_from_low'."""
+        mapper = ColumnMapper()
+        columns = [
+            "ticker",
+            "date",
+            "time",
+            "gain_pct_from_low",  # Longer, appears first
+            "gain_pct",  # Exact match, appears second
+            "mae_pct",
+        ]
+
+        result = mapper.auto_detect(columns)
+
+        assert result.mapping is not None
+        assert result.mapping.gain_pct == "gain_pct", (
+            f"Expected 'gain_pct' but got '{result.mapping.gain_pct}'. "
+            "Auto-detection should prefer shorter/exact matches."
+        )
+
+    def test_prefers_shorter_match_when_both_contain_pattern(self) -> None:
+        """Should prefer shorter column name when multiple contain pattern."""
+        mapper = ColumnMapper()
+        columns = [
+            "ticker",
+            "date",
+            "trigger_time_et",  # Longer
+            "time",  # Shorter, exact
+            "gain_pct",
+            "mae_pct",
+        ]
+
+        result = mapper.auto_detect(columns)
+
+        assert result.mapping is not None
+        assert result.mapping.time == "time", (
+            f"Expected 'time' but got '{result.mapping.time}'. "
+            "Auto-detection should prefer shorter matches."
+        )
+
+    def test_exact_pattern_match_takes_priority(self) -> None:
+        """Exact pattern match should beat substring match."""
+        mapper = ColumnMapper()
+        columns = [
+            "my_ticker_symbol",  # Contains 'ticker'
+            "ticker",  # Exact match
+            "date",
+            "time",
+            "gain_pct",
+            "mae_pct",
+        ]
+
+        result = mapper.auto_detect(columns)
+
+        assert result.mapping is not None
+        assert result.mapping.ticker == "ticker"
+
+
 class TestDuplicateValidation:
     """Tests for duplicate column validation."""
 

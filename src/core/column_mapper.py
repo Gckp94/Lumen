@@ -89,7 +89,12 @@ class ColumnMapper:
         )
 
     def _match_column(self, columns: list[str], patterns: list[str]) -> tuple[str | None, str]:
-        """Match a column using case-insensitive substring matching.
+        """Match a column using case-insensitive matching with priority rules.
+
+        Priority order:
+        1. Exact match (case-insensitive)
+        2. Substring match - prefer shorter column names
+        3. Reverse substring match (guessed)
 
         Args:
             columns: List of column names to search.
@@ -102,18 +107,25 @@ class ColumnMapper:
         """
         columns_lower = {col.lower(): col for col in columns}
 
-        # First pass: exact match (case-insensitive)
+        # First pass: exact match (case-insensitive) - highest priority
         for pattern in patterns:
             if pattern.lower() in columns_lower:
                 return columns_lower[pattern.lower()], "detected"
 
         # Second pass: substring match (pattern appears in column name)
+        # Collect all matches, then prefer shorter column names
+        substring_matches: list[str] = []
         for pattern in patterns:
             for col_lower, col_original in columns_lower.items():
                 if pattern.lower() in col_lower:
-                    return col_original, "detected"
+                    substring_matches.append(col_original)
 
-        # Third pass: column name appears in pattern (guessed)
+        if substring_matches:
+            # Sort by length (prefer shorter names) then alphabetically for consistency
+            substring_matches.sort(key=lambda x: (len(x), x.lower()))
+            return substring_matches[0], "detected"
+
+        # Third pass: column name appears in pattern (guessed) - lowest priority
         for pattern in patterns:
             for col_lower, col_original in columns_lower.items():
                 if col_lower in pattern.lower():
