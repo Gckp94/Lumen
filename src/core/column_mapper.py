@@ -131,7 +131,10 @@ class ColumnMapper:
         Returns:
             MD5 hash string.
         """
-        key = str(file_path) + (sheet or "")
+        # Normalize path: resolve to absolute, convert to lowercase for case-insensitive matching
+        # Use as_posix() to normalize separators, then lowercase for Windows compatibility
+        normalized_path = file_path.resolve().as_posix().lower()
+        key = normalized_path + (sheet or "")
         return hashlib.md5(key.encode()).hexdigest()
 
     def save_mapping(
