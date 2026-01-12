@@ -321,3 +321,48 @@ class TestFilterEngineDateRange:
         )
 
         assert len(result) == 2
+
+
+class TestApplyTimeRange:
+    """Tests for apply_time_range method."""
+
+    def test_returns_original_if_no_bounds(self, sample_trades: pd.DataFrame) -> None:
+        """Should return original df if no start or end time."""
+        result = FilterEngine.apply_time_range(sample_trades, "time", None, None)
+        assert len(result) == len(sample_trades)
+
+    def test_filters_by_start_time(self, sample_trades: pd.DataFrame) -> None:
+        """Should filter rows with time >= start_time."""
+        result = FilterEngine.apply_time_range(sample_trades, "time", "10:00:00", None)
+        # sample_trades has times: 09:30:00, 10:00:00, 09:35:00, 11:00:00, 14:30:00
+        # Times >= 10:00:00: 10:00:00, 11:00:00, 14:30:00
+        assert len(result) == 3
+        # Verify all times are >= 10:00:00
+        for t in result["time"]:
+            assert t >= "10:00:00"
+
+    def test_filters_by_end_time(self, sample_trades: pd.DataFrame) -> None:
+        """Should filter rows with time <= end_time."""
+        result = FilterEngine.apply_time_range(sample_trades, "time", None, "10:00:00")
+        # sample_trades has times: 09:30:00, 10:00:00, 09:35:00, 11:00:00, 14:30:00
+        # Times <= 10:00:00: 09:30:00, 10:00:00, 09:35:00
+        assert len(result) == 3
+        # Verify all times are <= 10:00:00
+        for t in result["time"]:
+            assert t <= "10:00:00"
+
+    def test_filters_by_range(self, sample_trades: pd.DataFrame) -> None:
+        """Should filter rows within time range."""
+        result = FilterEngine.apply_time_range(sample_trades, "time", "09:30:00", "10:00:00")
+        # sample_trades has times: 09:30:00, 10:00:00, 09:35:00, 11:00:00, 14:30:00
+        # Times in [09:30:00, 10:00:00]: 09:30:00, 10:00:00, 09:35:00
+        assert len(result) == 3
+        # Verify all times are within range
+        for t in result["time"]:
+            assert t >= "09:30:00"
+            assert t <= "10:00:00"
+
+    def test_returns_original_if_column_missing(self, sample_trades: pd.DataFrame) -> None:
+        """Should return original df if time column doesn't exist."""
+        result = FilterEngine.apply_time_range(sample_trades, "nonexistent", "09:30:00", "10:00:00")
+        assert len(result) == len(sample_trades)

@@ -1,6 +1,7 @@
 """Filter engine for bounds-based DataFrame filtering."""
 
 import logging
+from datetime import time as dt_time
 
 import pandas as pd
 
@@ -74,4 +75,45 @@ class FilterEngine:
             mask &= col <= pd.Timestamp(end)
 
         logger.debug("Date filter: %d rows match out of %d", mask.sum(), len(df))
+        return df[mask].copy()
+
+    @staticmethod
+    def apply_time_range(
+        df: pd.DataFrame,
+        time_col: str,
+        start_time: str | None,
+        end_time: str | None,
+    ) -> pd.DataFrame:
+        """Filter DataFrame by time-of-day range.
+
+        Args:
+            df: DataFrame to filter.
+            time_col: Column containing time values.
+            start_time: Start time in HH:MM:SS format, or None for no lower bound.
+            end_time: End time in HH:MM:SS format, or None for no upper bound.
+
+        Returns:
+            Filtered DataFrame.
+        """
+        if start_time is None and end_time is None:
+            return df.copy()
+
+        if time_col not in df.columns:
+            logger.warning("Time column '%s' not found, skipping time filter", time_col)
+            return df.copy()
+
+        # Convert time column to comparable format
+        # Handle various time formats: "HH:MM:SS", "HH:MM", datetime objects
+        time_series = pd.to_datetime(df[time_col], format="mixed", errors="coerce").dt.time
+
+        mask = pd.Series(True, index=df.index)
+
+        if start_time is not None:
+            start = dt_time.fromisoformat(start_time)
+            mask &= time_series >= start
+
+        if end_time is not None:
+            end = dt_time.fromisoformat(end_time)
+            mask &= time_series <= end
+
         return df[mask].copy()
