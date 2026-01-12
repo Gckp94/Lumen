@@ -77,6 +77,10 @@ class FeatureExplorerTab(QWidget):
         self._date_start: str | None = None
         self._date_end: str | None = None
         self._all_dates: bool = True
+        # Time range filter state
+        self._time_start: str | None = None
+        self._time_end: str | None = None
+        self._all_times: bool = True
         self._setup_ui()
         self._connect_signals()
         self._show_empty_state()
@@ -260,6 +264,7 @@ class FeatureExplorerTab(QWidget):
         self._filter_panel.filters_cleared.connect(self._on_filters_cleared)
         self._filter_panel.first_trigger_toggled.connect(self._on_first_trigger_toggled)
         self._filter_panel.date_range_changed.connect(self._on_date_range_changed)
+        self._filter_panel.time_range_changed.connect(self._on_time_range_changed)
 
         # Export button
         self._export_button.clicked.connect(self._on_export_clicked)
@@ -522,6 +527,26 @@ class FeatureExplorerTab(QWidget):
         else:
             logger.info(f"Date range filter: {start} to {end}")
 
+    def _on_time_range_changed(
+        self, start: str | None, end: str | None, all_times: bool
+    ) -> None:
+        """Handle time range filter change.
+
+        Args:
+            start: Start time (HH:MM:SS) or None.
+            end: End time (HH:MM:SS) or None.
+            all_times: Whether "All Times" is checked.
+        """
+        self._time_start = start
+        self._time_end = end
+        self._all_times = all_times
+        self._apply_current_filters()
+        self._update_filter_summary()
+        if all_times:
+            logger.info("Time range filter: All Times")
+        else:
+            logger.info("Time range filter: %s to %s", start, end)
+
     def _update_filter_summary(self) -> None:
         """Update filter summary display in bottom bar with date details."""
         filter_count = len(self._app_state.filters)
@@ -561,6 +586,19 @@ class FeatureExplorerTab(QWidget):
                 start=self._date_start,
                 end=self._date_end,
                 all_dates=self._all_dates,
+            )
+
+        # Apply time range filter
+        if (
+            not self._all_times
+            and self._app_state.column_mapping is not None
+            and self._app_state.column_mapping.time is not None
+        ):
+            df = FilterEngine.apply_time_range(
+                df,
+                self._app_state.column_mapping.time,
+                self._time_start,
+                self._time_end,
             )
 
         # Apply feature filters if any
