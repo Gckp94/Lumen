@@ -969,11 +969,9 @@ class MetricsPanel(QWidget):
         else:
             self._cards["avg_loser"].update_value(None)
 
-        # R:R Ratio: two decimals + :1
+        # R:R Ratio: two decimals
         if metrics.rr_ratio is not None:
             self._cards["rr_ratio"].update_value(metrics.rr_ratio, format_spec=".2f")
-            current_text = self._cards["rr_ratio"]._value_widget.text()
-            self._cards["rr_ratio"]._value_widget.setText(f"{current_text}:1")
         else:
             self._cards["rr_ratio"].update_value(None)
 

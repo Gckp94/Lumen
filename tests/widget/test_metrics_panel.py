@@ -162,8 +162,8 @@ class TestMetricsPanelFormatting:
         assert "-" in text
         assert "%" in text
 
-    def test_rr_ratio_with_colon_one(self, qtbot: QtBot) -> None:
-        """R:R ratio displays with :1 suffix."""
+    def test_rr_ratio_format(self, qtbot: QtBot) -> None:
+        """R:R ratio displays as decimal without :1 suffix."""
         panel = MetricsPanel()
         qtbot.addWidget(panel)
 
@@ -179,8 +179,7 @@ class TestMetricsPanelFormatting:
         panel.update_metrics(metrics)
 
         text = panel._cards["rr_ratio"]._value_widget.text()
-        assert "2.00" in text
-        assert ":1" in text
+        assert text == "2.00"
 
     def test_ev_signed_percent(self, qtbot: QtBot) -> None:
         """EV displays with sign and percent."""
