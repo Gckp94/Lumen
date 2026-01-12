@@ -35,12 +35,13 @@ class TestMetricsCalculator:
     def test_avg_winner_loser(self) -> None:
         """Avg winner/loser calculations."""
         calc = MetricsCalculator()
+        # User data is in decimal format: 0.02 = 2%, 0.04 = 4%, etc.
         df = pd.DataFrame({
-            "gain_pct": [2.0, 4.0, -1.0, -3.0],  # avg_win=3.0, avg_lose=-2.0
+            "gain_pct": [0.02, 0.04, -0.01, -0.03],  # avg_win=3.0%, avg_lose=-2.0%
         })
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
-        assert metrics.avg_winner == 3.0
-        assert metrics.avg_loser == -2.0
+        assert metrics.avg_winner == pytest.approx(3.0)  # 3.0%
+        assert metrics.avg_loser == pytest.approx(-2.0)  # -2.0%
 
     def test_rr_ratio(self) -> None:
         """R:R ratio calculation."""
@@ -54,10 +55,11 @@ class TestMetricsCalculator:
     def test_ev_calculation(self) -> None:
         """EV calculation."""
         calc = MetricsCalculator()
-        # 60% win rate, avg_win=2.0, avg_lose=-1.0
-        # EV = (0.6 * 2.0) + (0.4 * -1.0) = 1.2 - 0.4 = 0.8
+        # 60% win rate, avg_win=2.0%, avg_lose=-1.0%
+        # EV = (0.6 * 2.0) + (0.4 * -1.0) = 1.2 - 0.4 = 0.8%
+        # User data is in decimal format: 0.02 = 2%, etc.
         df = pd.DataFrame({
-            "gain_pct": [2.0, 2.0, 2.0, -1.0, -1.0],  # 3 wins, 2 losses
+            "gain_pct": [0.02, 0.02, 0.02, -0.01, -0.01],  # 3 wins, 2 losses
         })
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
         assert metrics.ev == pytest.approx(0.8)
@@ -90,8 +92,9 @@ class TestMetricsCalculator:
     def test_no_winners(self) -> None:
         """All losers edge case."""
         calc = MetricsCalculator()
+        # User data is in decimal format: -0.01 = -1%, etc.
         df = pd.DataFrame({
-            "gain_pct": [-1.0, -2.0, -3.0],
+            "gain_pct": [-0.01, -0.02, -0.03],
         })
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
@@ -100,7 +103,7 @@ class TestMetricsCalculator:
         assert metrics.winner_count == 0
         assert metrics.loser_count == 3
         assert metrics.avg_winner is None
-        assert metrics.avg_loser == -2.0
+        assert metrics.avg_loser == pytest.approx(-2.0)  # -2.0%
         assert metrics.rr_ratio is None
         assert metrics.ev is None
         assert metrics.kelly is None
@@ -108,8 +111,9 @@ class TestMetricsCalculator:
     def test_no_losers(self) -> None:
         """All winners edge case."""
         calc = MetricsCalculator()
+        # User data is in decimal format: 0.01 = 1%, etc.
         df = pd.DataFrame({
-            "gain_pct": [1.0, 2.0, 3.0],
+            "gain_pct": [0.01, 0.02, 0.03],
         })
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
@@ -117,7 +121,7 @@ class TestMetricsCalculator:
         assert metrics.win_rate == 100.0
         assert metrics.winner_count == 3
         assert metrics.loser_count == 0
-        assert metrics.avg_winner == 2.0
+        assert metrics.avg_winner == pytest.approx(2.0)  # 2.0%
         assert metrics.avg_loser is None
         assert metrics.rr_ratio is None
 
@@ -242,10 +246,13 @@ class TestMetricsCalculatorExtended:
 
     @pytest.fixture
     def known_trades_df(self) -> pd.DataFrame:
-        """DataFrame with known expected metric values."""
+        """DataFrame with known expected metric values.
+
+        User data is in decimal format: 0.05 = 5%, etc.
+        """
         return pd.DataFrame({
-            "gain_pct": [5.0, 10.0, 15.0, 8.0, 12.0, -3.0, -5.0, -4.0, -6.0, -2.0],
-            "mae_pct": [1.0, 2.0, 3.0, 1.5, 2.5, 3.0, 5.0, 4.0, 6.0, 2.0],
+            "gain_pct": [0.05, 0.10, 0.15, 0.08, 0.12, -0.03, -0.05, -0.04, -0.06, -0.02],
+            "mae_pct": [0.01, 0.02, 0.03, 0.015, 0.025, 0.03, 0.05, 0.04, 0.06, 0.02],
         })
 
     def test_edge_equals_ev_times_trades(self, known_trades_df: pd.DataFrame) -> None:
@@ -253,7 +260,7 @@ class TestMetricsCalculatorExtended:
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
-        # Expected: EV=3.0, trades=10, Edge=30.0
+        # Expected: EV=3.0%, trades=10, Edge=30.0%
         assert metrics.edge == pytest.approx(30.0, abs=0.01)
         assert metrics.edge == pytest.approx(
             metrics.ev * metrics.num_trades, abs=0.001
@@ -313,20 +320,22 @@ class TestMetricsCalculatorExtended:
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
-        # Winners: [5.0, 10.0, 15.0, 8.0, 12.0] -> sorted: [5,8,10,12,15] -> median=10.0
-        assert metrics.median_winner == pytest.approx(10.0, abs=0.01)
-        # Losers: [-3.0, -5.0, -4.0, -6.0, -2.0] -> sorted: [-6,-5,-4,-3,-2] -> median=-4.0
-        assert metrics.median_loser == pytest.approx(-4.0, abs=0.01)
+        # Winners: [0.05, 0.10, 0.15, 0.08, 0.12] -> sorted: [0.05,0.08,0.10,0.12,0.15] -> median=0.10 (10%)
+        # Note: median_winner/median_loser are NOT multiplied by 100 (they come from raw gains)
+        assert metrics.median_winner == pytest.approx(0.10, abs=0.001)
+        # Losers: [-0.03, -0.05, -0.04, -0.06, -0.02] -> sorted -> median=-0.04 (-4%)
+        assert metrics.median_loser == pytest.approx(-0.04, abs=0.001)
 
     def test_distribution_min_max(self, known_trades_df: pd.DataFrame) -> None:
         """Min/max for winner and loser distributions."""
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
-        assert metrics.winner_min == pytest.approx(5.0, abs=0.01)
-        assert metrics.winner_max == pytest.approx(15.0, abs=0.01)
-        assert metrics.loser_min == pytest.approx(-6.0, abs=0.01)  # Most negative
-        assert metrics.loser_max == pytest.approx(-2.0, abs=0.01)  # Least negative
+        # Note: winner_min/max and loser_min/max are NOT multiplied by 100 (raw gains)
+        assert metrics.winner_min == pytest.approx(0.05, abs=0.001)
+        assert metrics.winner_max == pytest.approx(0.15, abs=0.001)
+        assert metrics.loser_min == pytest.approx(-0.06, abs=0.001)  # Most negative
+        assert metrics.loser_max == pytest.approx(-0.02, abs=0.001)  # Least negative
 
     def test_edge_none_when_ev_none(self) -> None:
         """Edge is None when EV cannot be calculated."""
@@ -436,20 +445,21 @@ class TestMetricsCalculatorWithAdjustments:
         from src.core.models import AdjustmentParams
 
         calc = MetricsCalculator()
+        # User data is in decimal format: 0.20 = 20%, etc.
         df = pd.DataFrame({
-            "gain_pct": [20.0, 10.0, -2.0, 5.0],
-            "mae_pct": [3.0, 10.0, 5.0, 12.0],
+            "gain_pct": [0.20, 0.10, -0.02, 0.05],
+            "mae_pct": [0.03, 0.10, 0.05, 0.12],
         })
 
-        params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+        params = AdjustmentParams(stop_loss=0.08, efficiency=0.05)
         metrics, _, _ = calc.calculate(
             df, "gain_pct", derived=True,
             adjustment_params=params, mae_col="mae_pct"
         )
 
-        # Winner: 15.0
-        # Losers: -13.0, -7.0, -13.0, avg = -11.0
-        assert metrics.avg_winner == 15.0
+        # Winner: 0.15 (15%) -> displayed as 15.0%
+        # Losers: -0.13, -0.07, -0.13, avg = -0.11 -> displayed as -11.0%
+        assert metrics.avg_winner == pytest.approx(15.0)
         assert metrics.avg_loser == pytest.approx(-11.0)
 
     def test_no_adjustment_without_params(self) -> None:
@@ -494,43 +504,45 @@ class TestMetricsCalculatorWithAdjustments:
         from src.core.models import AdjustmentParams
 
         calc = MetricsCalculator()
-        # mae = 8.0 == stop_loss = 8.0, so stop NOT triggered
+        # User data is in decimal format: 0.10 = 10%, 0.08 = 8%, etc.
+        # mae = 0.08 == stop_loss = 0.08, so stop NOT triggered
         df = pd.DataFrame({
-            "gain_pct": [10.0],
-            "mae_pct": [8.0],
+            "gain_pct": [0.10],
+            "mae_pct": [0.08],
         })
 
-        params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+        params = AdjustmentParams(stop_loss=0.08, efficiency=0.05)
         metrics, _, _ = calc.calculate(
             df, "gain_pct", derived=True,
             adjustment_params=params, mae_col="mae_pct"
         )
 
-        # adj_gain = 10 - 5 = 5 (win)
+        # adj_gain = 0.10 - 0.05 = 0.05 (5%) -> displayed as 5.0%
         assert metrics.winner_count == 1
-        assert metrics.avg_winner == 5.0
+        assert metrics.avg_winner == pytest.approx(5.0)
 
     def test_adjustment_all_stops_hit(self) -> None:
         """All trades hit stop loss."""
         from src.core.models import AdjustmentParams
 
         calc = MetricsCalculator()
+        # User data is in decimal format: 0.20 = 20%, etc.
         df = pd.DataFrame({
-            "gain_pct": [20.0, 15.0, 10.0],
-            "mae_pct": [15.0, 12.0, 9.0],  # All > 8
+            "gain_pct": [0.20, 0.15, 0.10],
+            "mae_pct": [0.15, 0.12, 0.09],  # All > 0.08 stop_loss
         })
 
-        params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+        params = AdjustmentParams(stop_loss=0.08, efficiency=0.05)
         metrics, _, _ = calc.calculate(
             df, "gain_pct", derived=True,
             adjustment_params=params, mae_col="mae_pct"
         )
 
-        # All: -8 - 5 = -13 (all losers)
+        # All: -0.08 - 0.05 = -0.13 (-13%) -> displayed as -13.0%
         assert metrics.winner_count == 0
         assert metrics.loser_count == 3
         assert metrics.win_rate == 0.0
-        assert metrics.avg_loser == -13.0
+        assert metrics.avg_loser == pytest.approx(-13.0)
 
     def test_winner_classification_uses_adjusted_gains(self) -> None:
         """Winners should be classified by adjusted gain sign, not raw Win/Loss column.
@@ -957,7 +969,8 @@ class TestFilteredMetricsEdgeCases:
     def test_calculate_single_row_returns_valid_metrics(self) -> None:
         """Single row filtered result returns valid metrics (some fields None)."""
         calc = MetricsCalculator()
-        df = pd.DataFrame({"gain_pct": [5.0]})  # Single winner
+        # User data is in decimal format: 0.05 = 5%
+        df = pd.DataFrame({"gain_pct": [0.05]})  # Single winner
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
         # Valid for single row
@@ -965,7 +978,7 @@ class TestFilteredMetricsEdgeCases:
         assert metrics.win_rate == 100.0
         assert metrics.winner_count == 1
         assert metrics.loser_count == 0
-        assert metrics.avg_winner == 5.0
+        assert metrics.avg_winner == pytest.approx(5.0)  # 5.0%
         assert metrics.avg_loser is None  # No losers
         # Std requires 2+ values
         assert metrics.winner_std is None
@@ -979,7 +992,8 @@ class TestFilteredMetricsEdgeCases:
     def test_calculate_single_row_loser_returns_valid_metrics(self) -> None:
         """Single losing row returns valid metrics."""
         calc = MetricsCalculator()
-        df = pd.DataFrame({"gain_pct": [-3.0]})  # Single loser
+        # User data is in decimal format: -0.03 = -3%
+        df = pd.DataFrame({"gain_pct": [-0.03]})  # Single loser
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
         assert metrics.num_trades == 1
@@ -987,17 +1001,17 @@ class TestFilteredMetricsEdgeCases:
         assert metrics.winner_count == 0
         assert metrics.loser_count == 1
         assert metrics.avg_winner is None
-        assert metrics.avg_loser == -3.0
+        assert metrics.avg_loser == pytest.approx(-3.0)  # -3.0%
         assert metrics.max_consecutive_wins == 0
         assert metrics.max_consecutive_losses == 1
-        assert metrics.max_loss_pct == pytest.approx(-3.0, abs=0.01)
+        assert metrics.max_loss_pct == pytest.approx(-0.03, abs=0.001)  # Raw value, not percentage
 
     def test_calculate_filtered_subset_matches_expected(self) -> None:
         """Filtered subset calculates correct metrics."""
         calc = MetricsCalculator()
-        # Simulating a filtered subset with specific expected values
+        # User data is in decimal format: 0.10 = 10%, etc.
         df = pd.DataFrame({
-            "gain_pct": [10.0, 5.0, -2.0, -4.0],  # 2 wins, 2 losses
+            "gain_pct": [0.10, 0.05, -0.02, -0.04],  # 2 wins, 2 losses
         })
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
@@ -1006,30 +1020,32 @@ class TestFilteredMetricsEdgeCases:
         assert metrics.win_rate == 50.0
         assert metrics.winner_count == 2
         assert metrics.loser_count == 2
-        assert metrics.avg_winner == pytest.approx(7.5)  # (10 + 5) / 2
-        assert metrics.avg_loser == pytest.approx(-3.0)  # (-2 + -4) / 2
+        assert metrics.avg_winner == pytest.approx(7.5)  # (10 + 5) / 2 = 7.5%
+        assert metrics.avg_loser == pytest.approx(-3.0)  # (-2 + -4) / 2 = -3.0%
         assert metrics.rr_ratio == pytest.approx(2.5)  # 7.5 / 3.0
-        # EV = (0.5 * 7.5) + (0.5 * -3.0) = 2.25
+        # EV = (0.5 * 7.5) + (0.5 * -3.0) = 2.25%
         assert metrics.ev == pytest.approx(2.25)
 
     def test_calculate_filtered_all_winners(self) -> None:
         """Filtered result with all winners."""
         calc = MetricsCalculator()
-        df = pd.DataFrame({"gain_pct": [1.0, 2.0, 3.0]})
+        # User data is in decimal format: 0.01 = 1%, etc.
+        df = pd.DataFrame({"gain_pct": [0.01, 0.02, 0.03]})
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
         assert metrics.num_trades == 3
         assert metrics.win_rate == 100.0
         assert metrics.winner_count == 3
         assert metrics.loser_count == 0
-        assert metrics.avg_winner == pytest.approx(2.0)
+        assert metrics.avg_winner == pytest.approx(2.0)  # 2.0%
         assert metrics.avg_loser is None
         assert metrics.max_loss_pct is None
 
     def test_calculate_filtered_all_losers(self) -> None:
         """Filtered result with all losers."""
         calc = MetricsCalculator()
-        df = pd.DataFrame({"gain_pct": [-1.0, -2.0, -3.0]})
+        # User data is in decimal format: -0.01 = -1%, etc.
+        df = pd.DataFrame({"gain_pct": [-0.01, -0.02, -0.03]})
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
         assert metrics.num_trades == 3
@@ -1037,8 +1053,8 @@ class TestFilteredMetricsEdgeCases:
         assert metrics.winner_count == 0
         assert metrics.loser_count == 3
         assert metrics.avg_winner is None
-        assert metrics.avg_loser == pytest.approx(-2.0)
-        assert metrics.max_loss_pct == pytest.approx(-3.0)
+        assert metrics.avg_loser == pytest.approx(-2.0)  # -2.0%
+        assert metrics.max_loss_pct == pytest.approx(-0.03, abs=0.001)  # Raw value
 
 
 class TestCalculateSuggestedBins:

@@ -129,13 +129,13 @@ class MetricsCalculator:
         if num_trades > 0:
             win_rate = (winner_count / num_trades) * 100
 
-        # Averages
+        # Averages (multiply by 100 to convert decimal to percentage format)
         avg_winner: float | None = None
         avg_loser: float | None = None
         if winner_count > 0:
-            avg_winner = sum(winner_gains) / winner_count
+            avg_winner = (sum(winner_gains) / winner_count) * 100
         if loser_count > 0:
-            avg_loser = sum(loser_gains) / loser_count
+            avg_loser = (sum(loser_gains) / loser_count) * 100
 
         # R:R Ratio
         rr_ratio: float | None = None
