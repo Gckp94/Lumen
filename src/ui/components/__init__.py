@@ -16,6 +16,11 @@ from src.ui.components.filter_panel import FilterPanel
 from src.ui.components.filter_row import FilterRow
 from src.ui.components.metric_card import MetricCard
 from src.ui.components.metrics_grid import MetricsGrid
+from src.ui.components.no_scroll_widgets import (
+    NoScrollComboBox,
+    NoScrollDoubleSpinBox,
+    NoScrollSpinBox,
+)
 from src.ui.components.toast import Toast
 from src.ui.components.toggle_switch import ToggleSwitch
 from src.ui.components.user_inputs_panel import UserInputsPanel
@@ -38,6 +43,9 @@ __all__ = [
     "HistogramDialog",
     "MetricCard",
     "MetricsGrid",
+    "NoScrollComboBox",
+    "NoScrollDoubleSpinBox",
+    "NoScrollSpinBox",
     "Toast",
     "ToggleSwitch",
     "UserInputsPanel",
