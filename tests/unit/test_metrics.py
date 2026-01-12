@@ -321,21 +321,22 @@ class TestMetricsCalculatorExtended:
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
         # Winners: [0.05, 0.10, 0.15, 0.08, 0.12] -> sorted: [0.05,0.08,0.10,0.12,0.15] -> median=0.10 (10%)
-        # Note: median_winner/median_loser are NOT multiplied by 100 (they come from raw gains)
-        assert metrics.median_winner == pytest.approx(0.10, abs=0.001)
+        # Multiplied by 100 for percentage format: 0.10 * 100 = 10.0%
+        assert metrics.median_winner == pytest.approx(10.0, abs=0.1)
         # Losers: [-0.03, -0.05, -0.04, -0.06, -0.02] -> sorted -> median=-0.04 (-4%)
-        assert metrics.median_loser == pytest.approx(-0.04, abs=0.001)
+        # Multiplied by 100 for percentage format: -0.04 * 100 = -4.0%
+        assert metrics.median_loser == pytest.approx(-4.0, abs=0.1)
 
     def test_distribution_min_max(self, known_trades_df: pd.DataFrame) -> None:
         """Min/max for winner and loser distributions."""
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
-        # Note: winner_min/max and loser_min/max are NOT multiplied by 100 (raw gains)
-        assert metrics.winner_min == pytest.approx(0.05, abs=0.001)
-        assert metrics.winner_max == pytest.approx(0.15, abs=0.001)
-        assert metrics.loser_min == pytest.approx(-0.06, abs=0.001)  # Most negative
-        assert metrics.loser_max == pytest.approx(-0.02, abs=0.001)  # Least negative
+        # Multiplied by 100 for percentage format
+        assert metrics.winner_min == pytest.approx(5.0, abs=0.1)   # 0.05 * 100 = 5.0%
+        assert metrics.winner_max == pytest.approx(15.0, abs=0.1)  # 0.15 * 100 = 15.0%
+        assert metrics.loser_min == pytest.approx(-6.0, abs=0.1)   # -0.06 * 100 = -6.0% (Most negative)
+        assert metrics.loser_max == pytest.approx(-2.0, abs=0.1)   # -0.02 * 100 = -2.0% (Least negative)
 
     def test_edge_none_when_ev_none(self) -> None:
         """Edge is None when EV cannot be calculated."""
@@ -696,7 +697,8 @@ class TestMetricsCalculatorMaxLoss:
             "gain_pct": [5.0, -2.0, 10.0, -6.0, -3.0],
         })
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
-        assert metrics.max_loss_pct == pytest.approx(-6.0, abs=0.01)
+        # Multiplied by 100 for percentage format: -6.0 * 100 = -600.0%
+        assert metrics.max_loss_pct == pytest.approx(-600.0, abs=0.01)
 
     def test_max_loss_pct_none_when_no_losers(self) -> None:
         """Max loss % is None when there are no losers."""
@@ -723,7 +725,8 @@ class TestMetricsCalculatorMaxLoss:
             adjustment_params=params, mae_col="mae_pct"
         )
         # No stop loss triggered (all MAE < stop_loss), max_loss = -8.0
-        assert metrics.max_loss_pct == pytest.approx(-8.0, abs=0.01)
+        # Multiplied by 100 for percentage format: -8.0 * 100 = -800.0%
+        assert metrics.max_loss_pct == pytest.approx(-800.0, abs=0.01)
 
     def test_max_loss_pct_capped_by_stop_loss(self) -> None:
         """Max loss capped at stop_loss when MAE exceeds threshold."""
@@ -743,7 +746,8 @@ class TestMetricsCalculatorMaxLoss:
             adjustment_params=params, mae_col="mae_pct"
         )
         # Trade 1 capped to -5%, Trade 2 stays -6%, max_loss = -6%
-        assert metrics.max_loss_pct == pytest.approx(-6.0, abs=0.01)
+        # Multiplied by 100 for percentage format: -6.0 * 100 = -600.0%
+        assert metrics.max_loss_pct == pytest.approx(-600.0, abs=0.01)
 
     def test_max_loss_pct_all_trades_capped(self) -> None:
         """All losses capped by stop_loss."""
@@ -760,7 +764,8 @@ class TestMetricsCalculatorMaxLoss:
             adjustment_params=params, mae_col="mae_pct"
         )
         # All trades capped to -5%, so max_loss = -5%
-        assert metrics.max_loss_pct == pytest.approx(-5.0, abs=0.01)
+        # Multiplied by 100 for percentage format: -5.0 * 100 = -500.0%
+        assert metrics.max_loss_pct == pytest.approx(-500.0, abs=0.01)
 
     def test_max_loss_pct_equals_loser_min(self) -> None:
         """Max loss % equals loser_min (same calculation)."""
@@ -1004,7 +1009,8 @@ class TestFilteredMetricsEdgeCases:
         assert metrics.avg_loser == pytest.approx(-3.0)  # -3.0%
         assert metrics.max_consecutive_wins == 0
         assert metrics.max_consecutive_losses == 1
-        assert metrics.max_loss_pct == pytest.approx(-0.03, abs=0.001)  # Raw value, not percentage
+        # Multiplied by 100 for percentage format: -0.03 * 100 = -3.0%
+        assert metrics.max_loss_pct == pytest.approx(-3.0, abs=0.1)
 
     def test_calculate_filtered_subset_matches_expected(self) -> None:
         """Filtered subset calculates correct metrics."""
@@ -1054,7 +1060,8 @@ class TestFilteredMetricsEdgeCases:
         assert metrics.loser_count == 3
         assert metrics.avg_winner is None
         assert metrics.avg_loser == pytest.approx(-2.0)  # -2.0%
-        assert metrics.max_loss_pct == pytest.approx(-0.03, abs=0.001)  # Raw value
+        # Multiplied by 100 for percentage format: -0.03 * 100 = -3.0%
+        assert metrics.max_loss_pct == pytest.approx(-3.0, abs=0.1)
 
 
 class TestCalculateSuggestedBins:

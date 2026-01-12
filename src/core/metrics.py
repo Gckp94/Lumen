@@ -153,13 +153,13 @@ class MetricsCalculator:
             kelly = (win_rate / 100) - ((1 - win_rate / 100) / rr_ratio)
             kelly = kelly * 100  # Convert to percentage
 
-        # Standard deviations (vectorized)
+        # Standard deviations (vectorized, multiply by 100 for percentage format)
         winner_std: float | None = None
         loser_std: float | None = None
         if winner_count > 1:
-            winner_std = float(pd.Series(winner_gains).std())
+            winner_std = float(pd.Series(winner_gains).std()) * 100
         if loser_count > 1:
-            loser_std = float(pd.Series(loser_gains).std())
+            loser_std = float(pd.Series(loser_gains).std()) * 100
 
         # Extended metrics (Story 3.2 - metrics 8-12)
         # Edge = EV * num_trades
@@ -186,27 +186,27 @@ class MetricsCalculator:
                         (kelly_decimal**2) * combined_variance / 2
                     )
 
-        # Median calculations (vectorized)
+        # Median calculations (vectorized, multiply by 100 for percentage format)
         median_winner: float | None = None
         median_loser: float | None = None
         if winner_count > 0:
             winner_median = pd.Series(winner_gains).median()
-            median_winner = winner_median if pd.notna(winner_median) else None
+            median_winner = float(winner_median) * 100 if pd.notna(winner_median) else None
         if loser_count > 0:
             loser_median = pd.Series(loser_gains).median()
-            median_loser = loser_median if pd.notna(loser_median) else None
+            median_loser = float(loser_median) * 100 if pd.notna(loser_median) else None
 
-        # Distribution min/max (Story 3.2 - metrics 24-25 prep)
+        # Distribution min/max (Story 3.2 - metrics 24-25 prep, multiply by 100 for percentage format)
         winner_min: float | None = None
         winner_max: float | None = None
         loser_min: float | None = None
         loser_max: float | None = None
         if winner_count > 0:
-            winner_min = min(winner_gains)
-            winner_max = max(winner_gains)
+            winner_min = min(winner_gains) * 100
+            winner_max = max(winner_gains) * 100
         if loser_count > 0:
-            loser_min = min(loser_gains)  # Most negative
-            loser_max = max(loser_gains)  # Least negative
+            loser_min = min(loser_gains) * 100  # Most negative
+            loser_max = max(loser_gains) * 100  # Least negative
 
         # Streak & Loss Metrics (Story 3.3 - metrics 13-15)
         max_consecutive_wins, max_consecutive_losses = self._calculate_streaks(winners_mask)
