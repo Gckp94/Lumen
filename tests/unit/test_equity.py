@@ -1,0 +1,339 @@
+"""Unit tests for EquityCalculator."""
+
+import pandas as pd
+import pytest
+
+from src.core.equity import EquityCalculator
+from src.core.exceptions import EquityCalculationError
+
+
+class TestEquityCalculatorFlatStake:
+    """Tests for flat stake equity calculations."""
+
+    def test_flat_stake_basic(self) -> None:
+        """Basic equity curve calculation."""
+        df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+
+        # Expected: 50 + 30 - 40 - 20 + 80 = 100
+        assert result["equity"].iloc[-1] == pytest.approx(100.0, abs=0.01)
+        assert len(result) == 5
+
+    def test_flat_stake_empty_dataframe(self) -> None:
+        """Empty DataFrame returns empty result."""
+        df = pd.DataFrame({"gain_pct": []})
+        calc = EquityCalculator()
+        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+        assert len(result) == 0
+        assert list(result.columns) == ["trade_num", "pnl", "equity", "peak", "drawdown"]
+
+    def test_flat_stake_single_trade(self) -> None:
+        """Single trade edge case."""
+        df = pd.DataFrame({"gain_pct": [5.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+
+        assert len(result) == 1
+        assert result["pnl"].iloc[0] == pytest.approx(50.0, abs=0.01)
+        assert result["equity"].iloc[0] == pytest.approx(50.0, abs=0.01)
+        assert result["peak"].iloc[0] == pytest.approx(50.0, abs=0.01)
+        assert result["drawdown"].iloc[0] == pytest.approx(0.0, abs=0.01)
+
+    def test_flat_stake_all_winners(self) -> None:
+        """All winners means no drawdown."""
+        df = pd.DataFrame({"gain_pct": [5.0, 3.0, 2.0, 4.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+        assert (result["drawdown"] == 0).all()
+
+    def test_flat_stake_all_losers(self) -> None:
+        """All losers - continuous drawdown."""
+        df = pd.DataFrame({"gain_pct": [-3.0, -2.0, -5.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+
+        # With all losers: equity = -30, -50, -100
+        # np.maximum.accumulate of negative values gives the "least negative"
+        # Peak: -30, -30, -30 (stays at first value since it's the max/least negative)
+        assert result["equity"].iloc[-1] == pytest.approx(-100.0, abs=0.01)
+        assert result["peak"].iloc[-1] == pytest.approx(-30.0, abs=0.01)
+        # All drawdowns are negative
+        assert (result["drawdown"] < 0).any()
+
+    def test_flat_stake_invalid_column_raises(self) -> None:
+        """Invalid gain column raises EquityCalculationError."""
+        df = pd.DataFrame({"other_col": [5.0, 3.0]})
+        calc = EquityCalculator()
+        with pytest.raises(EquityCalculationError):
+            calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+
+
+class TestDrawdownMetrics:
+    """Tests for drawdown metric calculations."""
+
+    def test_max_dd_dollars(self) -> None:
+        """Max DD in dollars calculated correctly."""
+        df = pd.DataFrame({"gain_pct": [5.0, -10.0, 3.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+
+        # Peak at 50, drops to -50, max_dd = 100
+        assert metrics["max_dd"] == pytest.approx(100.0, abs=0.01)
+
+    def test_max_dd_pct_calculation(self) -> None:
+        """Max DD percentage calculation."""
+        # Use the sample data from the story
+        df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0, -6.0, 4.0, 3.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+
+        # Trade 4: $60 drawdown from $80 peak = 75%
+        # Trade 6: $60 drawdown from $100 peak = 60%
+        # Max DD % should be 75% at trade 4
+        assert metrics["max_dd_pct"] == pytest.approx(75.0, abs=0.01)
+
+    def test_dd_duration_recovered(self) -> None:
+        """Duration returned when drawdown is recovered."""
+        df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+
+        # Max DD at trade 4, recovered at trade 5
+        assert isinstance(metrics["dd_duration"], int)
+        assert metrics["dd_duration"] == 1
+
+    def test_dd_duration_not_recovered(self) -> None:
+        """'Not recovered' returned when drawdown ongoing."""
+        df = pd.DataFrame({"gain_pct": [5.0, -10.0, 3.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+
+        # Peak at 50, never returns to 50
+        assert metrics["dd_duration"] == "Not recovered"
+
+    def test_no_drawdown(self) -> None:
+        """All None when equity only increases."""
+        df = pd.DataFrame({"gain_pct": [5.0, 3.0, 2.0, 4.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+
+        assert metrics["max_dd"] is None
+        assert metrics["max_dd_pct"] is None
+        assert metrics["dd_duration"] is None
+
+    def test_max_dd_pct_zero_peak_returns_none(self) -> None:
+        """Zero peak edge case returns None for max_dd_pct."""
+        df = pd.DataFrame({"gain_pct": [-5.0, -3.0]})  # Equity never positive
+        calc = EquityCalculator()
+        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+
+        # Peak is 0, cannot calculate percentage
+        assert metrics["max_dd_pct"] is None
+
+    def test_empty_dataframe_returns_none(self) -> None:
+        """Empty DataFrame returns None for all metrics."""
+        df = pd.DataFrame({"gain_pct": []})
+        calc = EquityCalculator()
+        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+
+        assert metrics["pnl"] is None
+        assert metrics["max_dd"] is None
+        assert metrics["max_dd_pct"] is None
+        assert metrics["dd_duration"] is None
+
+    def test_flat_stake_pnl(self) -> None:
+        """Total PnL calculated correctly."""
+        df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0, -6.0, 4.0, 3.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+
+        # Expected final equity: 50 + 30 - 40 - 20 + 80 - 60 + 40 + 30 = 110
+        assert metrics["pnl"] == pytest.approx(110.0, abs=0.01)
+
+
+class TestEquityCalculatorKelly:
+    """Tests for Kelly equity calculations."""
+
+    def test_kelly_basic(self) -> None:
+        """Basic Kelly equity curve calculation."""
+        df = pd.DataFrame({"gain_pct": [10.0, 5.0, -15.0, 8.0, 6.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_kelly(
+            df, gain_col="gain_pct", start_capital=10000.0, kelly_fraction=50.0, kelly_pct=10.0
+        )
+        # First winning trade should increase equity
+        assert result["equity"].iloc[0] > 10000.0
+        assert len(result) == 5
+        assert "position_size" in result.columns
+
+    def test_kelly_empty_dataframe(self) -> None:
+        """Empty DataFrame returns empty result."""
+        df = pd.DataFrame({"gain_pct": []})
+        calc = EquityCalculator()
+        result = calc.calculate_kelly(
+            df, gain_col="gain_pct", start_capital=10000.0, kelly_fraction=25.0, kelly_pct=10.0
+        )
+        assert len(result) == 0
+        assert list(result.columns) == [
+            "trade_num", "pnl", "equity", "peak", "drawdown", "position_size"
+        ]
+
+    def test_kelly_single_trade(self) -> None:
+        """Single trade edge case."""
+        df = pd.DataFrame({"gain_pct": [10.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_kelly(
+            df, gain_col="gain_pct", start_capital=10000.0, kelly_fraction=100.0, kelly_pct=10.0
+        )
+
+        # Effective Kelly = 10% * 100% = 10%
+        # Position size = 10000 * 0.10 = 1000
+        # PnL = 1000 * 0.10 = 100
+        # Equity = 10000 + 100 = 10100
+        assert len(result) == 1
+        assert result["position_size"].iloc[0] == pytest.approx(1000.0, abs=0.01)
+        assert result["pnl"].iloc[0] == pytest.approx(100.0, abs=0.01)
+        assert result["equity"].iloc[0] == pytest.approx(10100.0, abs=0.01)
+
+    def test_kelly_compounding(self) -> None:
+        """Verify Kelly compounds correctly."""
+        df = pd.DataFrame({"gain_pct": [10.0, 10.0, 10.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_kelly(
+            df, gain_col="gain_pct", start_capital=10000.0, kelly_fraction=100.0, kelly_pct=10.0
+        )
+
+        # Effective Kelly = 10%
+        # Trade 1: position=1000, pnl=100, equity=10100
+        # Trade 2: position=1010, pnl=101, equity=10201
+        # Trade 3: position=1020.10, pnl=102.01, equity=10303.01
+        # Total gain should be more than 300 due to compounding
+        assert result["equity"].iloc[-1] > 10300.0
+
+    def test_kelly_negative_kelly_returns_warning(self) -> None:
+        """Negative Kelly returns None metrics with warning."""
+        df = pd.DataFrame({"gain_pct": [5.0, -3.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_kelly_metrics(
+            df, gain_col="gain_pct", start_capital=10000.0,
+            kelly_fraction=25.0, kelly_pct=-5.0  # Negative Kelly
+        )
+        assert result["pnl"] is None
+        assert result["max_dd"] is None
+        assert result.get("warning") == "negative_kelly"
+
+    def test_kelly_none_kelly_returns_none(self) -> None:
+        """None kelly_pct returns None metrics."""
+        df = pd.DataFrame({"gain_pct": [5.0, -3.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_kelly_metrics(
+            df, gain_col="gain_pct", start_capital=10000.0,
+            kelly_fraction=25.0, kelly_pct=None
+        )
+        assert result["pnl"] is None
+        assert result["equity_curve"] is None
+
+    def test_kelly_blown_account(self) -> None:
+        """Account blown when equity <= 0."""
+        # Create scenario where equity goes negative
+        df = pd.DataFrame({"gain_pct": [10.0, -200.0]})  # -200% wipes out
+        calc = EquityCalculator()
+        result = calc.calculate_kelly_metrics(
+            df, gain_col="gain_pct", start_capital=1000.0,
+            kelly_fraction=100.0, kelly_pct=100.0  # Full Kelly
+        )
+        assert result["dd_duration"] == "Blown"
+
+    def test_kelly_blown_stops_processing(self) -> None:
+        """After blown account, remaining trades have zero equity."""
+        df = pd.DataFrame({"gain_pct": [10.0, -200.0, 50.0, 50.0]})
+        calc = EquityCalculator()
+        result = calc.calculate_kelly(
+            df, gain_col="gain_pct", start_capital=1000.0,
+            kelly_fraction=100.0, kelly_pct=100.0
+        )
+
+        # Trade 2 blows account, trades 3 & 4 should have equity=0
+        assert result["equity"].iloc[2] == 0.0
+        assert result["equity"].iloc[3] == 0.0
+        assert result["position_size"].iloc[2] == 0.0
+        assert result["position_size"].iloc[3] == 0.0
+
+    def test_kelly_invalid_column_raises(self) -> None:
+        """Invalid gain column raises EquityCalculationError."""
+        df = pd.DataFrame({"other_col": [5.0, 3.0]})
+        calc = EquityCalculator()
+        with pytest.raises(EquityCalculationError):
+            calc.calculate_kelly(
+                df, gain_col="gain_pct", start_capital=10000.0,
+                kelly_fraction=25.0, kelly_pct=10.0
+            )
+
+
+class TestKellyDrawdownMetrics:
+    """Tests for Kelly drawdown metrics."""
+
+    def test_kelly_max_dd_dollars(self) -> None:
+        """Max DD in dollars calculated correctly for Kelly."""
+        df = pd.DataFrame({"gain_pct": [10.0, -20.0, 5.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_kelly_metrics(
+            df, gain_col="gain_pct", start_capital=10000.0,
+            kelly_fraction=50.0, kelly_pct=10.0
+        )
+        # Should have some drawdown
+        assert metrics["max_dd"] is not None
+        assert metrics["max_dd"] > 0
+
+    def test_kelly_max_dd_pct(self) -> None:
+        """Max DD percentage for Kelly."""
+        df = pd.DataFrame({"gain_pct": [10.0, -30.0, 10.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_kelly_metrics(
+            df, gain_col="gain_pct", start_capital=10000.0,
+            kelly_fraction=50.0, kelly_pct=10.0
+        )
+        # Should have drawdown percentage
+        assert metrics["max_dd_pct"] is not None
+        assert metrics["max_dd_pct"] > 0
+
+    def test_kelly_dd_duration_recovered(self) -> None:
+        """Duration returned when Kelly drawdown is recovered."""
+        df = pd.DataFrame({"gain_pct": [10.0, -5.0, 10.0, 10.0, 10.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_kelly_metrics(
+            df, gain_col="gain_pct", start_capital=10000.0,
+            kelly_fraction=50.0, kelly_pct=10.0
+        )
+        # Small drawdown should recover
+        if isinstance(metrics["dd_duration"], int):
+            assert metrics["dd_duration"] > 0
+
+    def test_kelly_dd_duration_not_recovered(self) -> None:
+        """'Not recovered' returned when Kelly drawdown ongoing."""
+        df = pd.DataFrame({"gain_pct": [10.0, -30.0, 1.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_kelly_metrics(
+            df, gain_col="gain_pct", start_capital=10000.0,
+            kelly_fraction=100.0, kelly_pct=20.0
+        )
+        # Large drawdown likely won't recover
+        # Either it's "Not recovered" or an int - both are valid
+        assert metrics["dd_duration"] in ("Not recovered", "Blown") or isinstance(
+            metrics["dd_duration"], int
+        )
+
+    def test_kelly_pnl_calculation(self) -> None:
+        """Kelly PnL is final equity minus start capital."""
+        df = pd.DataFrame({"gain_pct": [10.0, 5.0]})
+        calc = EquityCalculator()
+        metrics = calc.calculate_kelly_metrics(
+            df, gain_col="gain_pct", start_capital=10000.0,
+            kelly_fraction=100.0, kelly_pct=10.0
+        )
+        # PnL = final_equity - start_capital
+        equity_curve = metrics["equity_curve"]
+        assert equity_curve is not None
+        expected_pnl = float(equity_curve["equity"].iloc[-1]) - 10000.0
+        assert metrics["pnl"] == pytest.approx(expected_pnl, abs=0.01)

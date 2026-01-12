@@ -1,0 +1,68 @@
+# Quality Gate: 3.6 - Distribution Statistics Display
+schema: 1
+story: "3.6"
+story_title: "Distribution Statistics Display (24-25)"
+gate: PASS
+status_reason: "All 4 acceptance criteria fully implemented with comprehensive test coverage (34 tests). Clean implementation following project patterns."
+reviewer: "Quinn (Test Architect)"
+updated: "2026-01-11T12:00:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+quality_score: 100
+expires: "2026-01-25T00:00:00Z"
+
+evidence:
+  tests_reviewed: 34
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "Display-only component, no user input processing"
+  performance:
+    status: PASS
+    notes: "Numpy-optimized bin calculation"
+  reliability:
+    status: PASS
+    notes: "Comprehensive edge case handling (empty, single, identical values)"
+  maintainability:
+    status: PASS
+    notes: "Follows established component patterns (MetricCard), clean separation of concerns"
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor: []
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Consider lazy numpy import at module level since numpy is already a project dependency"
+      refs: ["src/core/metrics.py:calculate_suggested_bins"]
+
+test_coverage:
+  unit:
+    count: 8
+    class: "TestCalculateSuggestedBins"
+    file: "tests/unit/test_metrics.py"
+  widget:
+    count: 20
+    classes:
+      - "TestDistributionCardDisplay"
+      - "TestDistributionCardStats"
+      - "TestDistributionCardSignals"
+      - "TestDistributionCardProperties"
+      - "TestDistributionCardStyling"
+      - "TestDistributionCardNoneHandling"
+    file: "tests/widget/test_distribution_card.py"
+  integration:
+    count: 6
+    class: "TestPnLStatsTabDistributionCards"
+    file: "tests/widget/test_pnl_stats.py"

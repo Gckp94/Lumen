@@ -1,0 +1,1 @@
+"""Lumen - Trading Analytics Application."""

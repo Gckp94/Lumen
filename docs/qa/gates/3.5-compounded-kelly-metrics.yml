@@ -1,0 +1,62 @@
+schema: 1
+story: "3.5"
+story_title: "Compounded Kelly Metrics (20-23)"
+gate: CONCERNS
+status_reason: "All acceptance criteria met with 93 passing tests. Minor linting issues (10 style violations) should be addressed."
+reviewer: "Quinn (Test Architect)"
+updated: "2026-01-11T12:00:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "STYLE-001"
+    severity: low
+    finding: "Line too long in equity.py:287 (102 > 100 chars)"
+    suggested_action: "Break line to comply with 100 char limit"
+    suggested_owner: dev
+  - id: "STYLE-002"
+    severity: low
+    finding: "Line too long in pnl_stats.py:267 (101 > 100 chars)"
+    suggested_action: "Break line to comply with 100 char limit"
+    suggested_owner: dev
+  - id: "STYLE-003"
+    severity: low
+    finding: "8 isinstance() calls in metrics.py use old (X, Y) syntax"
+    suggested_action: "Update to modern X | Y union syntax (UP038)"
+    suggested_owner: dev
+
+quality_score: 90  # 100 - (0*20 FAILs) - (1*10 CONCERNS) = 90
+expires: "2026-01-25T00:00:00Z"
+
+evidence:
+  tests_reviewed: 93
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "No external input handling, numerical calculations only"
+  performance:
+    status: PASS
+    notes: "O(n) complexity, efficient numpy operations"
+  reliability:
+    status: PASS
+    notes: "All edge cases handled (negative Kelly, blown account, empty data)"
+  maintainability:
+    status: PASS
+    notes: "Clean code, follows Story 3.4 patterns, comprehensive docstrings"
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Fix 10 linting issues (2 line length, 8 isinstance syntax)"
+      refs: ["src/core/equity.py:287", "src/tabs/pnl_stats.py:267", "src/core/metrics.py"]
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 3 }
+  recommendations:
+    must_fix: []
+    monitor: ["Style violations should be addressed in cleanup commit"]

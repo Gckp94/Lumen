@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+*.egg
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyQt
+*.qmlc
+*.jsc
+
+# Lumen cache
+.lumen_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+# Note: *.spec files are NOT ignored - lumen.spec is configuration and should be tracked
+
+# Test/coverage artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# uv lock file is version controlled

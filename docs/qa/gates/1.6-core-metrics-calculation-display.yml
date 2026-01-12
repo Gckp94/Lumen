@@ -1,0 +1,67 @@
+# Quality Gate: Story 1.6 - Core Metrics Calculation & Display
+schema: 1
+story: "1.6"
+story_title: "Core Metrics Calculation & Display"
+gate: PASS
+status_reason: "All 12 acceptance criteria (7 original + 5 retrofit AC8-12) met. 424 tests pass. Retrofit adds efficiency/stop-loss adjustments."
+reviewer: "Quinn (Test Architect)"
+updated: "2026-01-11T12:00:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+quality_score: 100
+expires: "2026-01-25T12:00:00Z"
+
+evidence:
+  tests_reviewed: 59
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    ac_gaps: []
+  retrofit_verified:
+    adjustment_params_dataclass: true
+    adjustment_inputs_panel: true
+    metrics_calculator_integration: true
+    debounce_timer: true
+    appstate_integration: true
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "No security-sensitive code - user inputs bounded by QDoubleSpinBox (0-100)"
+  performance:
+    status: PASS
+    notes: "Vectorized adjustment calculations. Performance test passes (<100ms for 100k rows)"
+  reliability:
+    status: PASS
+    notes: "All edge cases handled. 300ms debounce prevents UI lag."
+  maintainability:
+    status: PASS
+    notes: "Clean code structure, comprehensive type hints, proper logging"
+
+recommendations:
+  immediate: []
+  future: []
+
+test_summary:
+  total_tests: 59
+  unit_tests: 31
+  widget_tests: 28
+  all_passing: true
+  lint_clean: true
+  typecheck_clean: true
+
+verification_commands:
+  - "uv run pytest tests/unit/test_metrics.py tests/unit/test_models.py tests/widget/test_adjustment_inputs_panel.py tests/widget/test_metrics_panel.py tests/widget/test_data_input_tab.py -v"
+  - "uv run ruff check src/ tests/"
+  - "uv run mypy src/ --config-file=pyproject.toml"
+
+review_history:
+  - date: "2026-01-10"
+    gate: PASS
+    notes: "Original implementation review - AC1-7 met"
+  - date: "2026-01-11"
+    gate: PASS
+    notes: "Retrofit review - AC8-12 (efficiency/stop-loss adjustments) verified"
