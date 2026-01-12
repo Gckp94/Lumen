@@ -6,6 +6,7 @@ from src.ui.components.chart_canvas import ChartCanvas
 from src.ui.components.comparison_grid import ComparisonGrid
 from src.ui.components.comparison_ribbon import ComparisonRibbon
 from src.ui.components.date_range_filter import DateRangeFilter
+from src.ui.components.time_range_filter import TimeRangeFilter
 from src.ui.components.distribution_card import DistributionCard
 from src.ui.components.distribution_histogram import DistributionHistogram, HistogramDialog
 from src.ui.components.empty_state import EmptyState
@@ -32,6 +33,7 @@ __all__ = [
     "ComparisonGrid",
     "ComparisonRibbon",
     "DateRangeFilter",
+    "TimeRangeFilter",
     "DistributionCard",
     "DistributionHistogram",
     "EmptyState",
