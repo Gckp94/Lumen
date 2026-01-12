@@ -130,12 +130,32 @@ class MetricsCalculator:
             win_rate = (winner_count / num_trades) * 100
 
         # Averages (multiply by 100 to convert decimal to percentage format)
+        # Expected input: 0.05 means 5% gain, -0.03 means 3% loss
         avg_winner: float | None = None
         avg_loser: float | None = None
         if winner_count > 0:
-            avg_winner = (sum(winner_gains) / winner_count) * 100
+            raw_avg_winner = sum(winner_gains) / winner_count
+            # Heuristic: if raw average magnitude > 1, data might already be in percentage format
+            # (e.g., 5.0 for 5% instead of 0.05 for 5%)
+            if abs(raw_avg_winner) > 1:
+                logger.warning(
+                    "Gain values appear large (avg_winner=%.4f). "
+                    "Expected decimal format (0.05 for 5%%). "
+                    "Data may already be in percentage format.",
+                    raw_avg_winner,
+                )
+            avg_winner = raw_avg_winner * 100
         if loser_count > 0:
-            avg_loser = (sum(loser_gains) / loser_count) * 100
+            raw_avg_loser = sum(loser_gains) / loser_count
+            # Same heuristic for losers
+            if abs(raw_avg_loser) > 1:
+                logger.warning(
+                    "Gain values appear large (avg_loser=%.4f). "
+                    "Expected decimal format (-0.03 for -3%%). "
+                    "Data may already be in percentage format.",
+                    raw_avg_loser,
+                )
+            avg_loser = raw_avg_loser * 100
 
         # R:R Ratio
         rr_ratio: float | None = None

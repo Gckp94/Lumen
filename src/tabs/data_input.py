@@ -940,6 +940,16 @@ class MetricsPanel(QWidget):
                 card.update_value(None)
             return
 
+        # Debug logging to help diagnose display issues
+        logger.debug(
+            "MetricsPanel update - win_rate=%.4f, avg_winner=%.4f, avg_loser=%.4f, ev=%.4f, kelly=%.4f",
+            metrics.win_rate if metrics.win_rate else 0,
+            metrics.avg_winner if metrics.avg_winner else 0,
+            metrics.avg_loser if metrics.avg_loser else 0,
+            metrics.ev if metrics.ev else 0,
+            metrics.kelly if metrics.kelly else 0,
+        )
+
         # Trades: integer with thousands separator
         self._cards["trades"].update_value(metrics.num_trades)
 
