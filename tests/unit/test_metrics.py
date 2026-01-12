@@ -446,20 +446,24 @@ class TestMetricsCalculatorWithAdjustments:
         from src.core.models import AdjustmentParams
 
         calc = MetricsCalculator()
-        # User data is in decimal format: 0.20 = 20%, etc.
+        # Gains in decimal format (0.20 = 20%), MAE in percentage format (3.0 = 3%)
+        # Trade 1: 20% gain, 3% MAE < 8% stop -> 20% - 5% = 15%
+        # Trade 2: 10% gain, 10% MAE > 8% stop -> -8% - 5% = -13%
+        # Trade 3: -2% gain, 5% MAE < 8% stop -> -2% - 5% = -7%
+        # Trade 4: 5% gain, 12% MAE > 8% stop -> -8% - 5% = -13%
         df = pd.DataFrame({
             "gain_pct": [0.20, 0.10, -0.02, 0.05],
-            "mae_pct": [0.03, 0.10, 0.05, 0.12],
+            "mae_pct": [3.0, 10.0, 5.0, 12.0],  # Percentage format
         })
 
-        params = AdjustmentParams(stop_loss=0.08, efficiency=0.05)
+        params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)  # Percentage format
         metrics, _, _ = calc.calculate(
             df, "gain_pct", derived=True,
             adjustment_params=params, mae_col="mae_pct"
         )
 
-        # Winner: 0.15 (15%) -> displayed as 15.0%
-        # Losers: -0.13, -0.07, -0.13, avg = -0.11 -> displayed as -11.0%
+        # Winner: 15% -> displayed as 15.0%
+        # Losers: -13%, -7%, -13%, avg = -11%
         assert metrics.avg_winner == pytest.approx(15.0)
         assert metrics.avg_loser == pytest.approx(-11.0)
 
@@ -505,20 +509,20 @@ class TestMetricsCalculatorWithAdjustments:
         from src.core.models import AdjustmentParams
 
         calc = MetricsCalculator()
-        # User data is in decimal format: 0.10 = 10%, 0.08 = 8%, etc.
-        # mae = 0.08 == stop_loss = 0.08, so stop NOT triggered
+        # Gains in decimal format (0.10 = 10%), MAE in percentage format (8.0 = 8%)
+        # mae = 8.0 == stop_loss = 8.0, so stop NOT triggered (uses <=)
         df = pd.DataFrame({
             "gain_pct": [0.10],
-            "mae_pct": [0.08],
+            "mae_pct": [8.0],  # Percentage format
         })
 
-        params = AdjustmentParams(stop_loss=0.08, efficiency=0.05)
+        params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)  # Percentage format
         metrics, _, _ = calc.calculate(
             df, "gain_pct", derived=True,
             adjustment_params=params, mae_col="mae_pct"
         )
 
-        # adj_gain = 0.10 - 0.05 = 0.05 (5%) -> displayed as 5.0%
+        # adj_gain = 10% - 5% = 5% -> displayed as 5.0%
         assert metrics.winner_count == 1
         assert metrics.avg_winner == pytest.approx(5.0)
 
@@ -527,19 +531,20 @@ class TestMetricsCalculatorWithAdjustments:
         from src.core.models import AdjustmentParams
 
         calc = MetricsCalculator()
-        # User data is in decimal format: 0.20 = 20%, etc.
+        # Gains in decimal format (0.20 = 20%), MAE in percentage format (15.0 = 15%)
+        # All MAE values > 8% stop_loss
         df = pd.DataFrame({
             "gain_pct": [0.20, 0.15, 0.10],
-            "mae_pct": [0.15, 0.12, 0.09],  # All > 0.08 stop_loss
+            "mae_pct": [15.0, 12.0, 9.0],  # All > 8% stop_loss, percentage format
         })
 
-        params = AdjustmentParams(stop_loss=0.08, efficiency=0.05)
+        params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)  # Percentage format
         metrics, _, _ = calc.calculate(
             df, "gain_pct", derived=True,
             adjustment_params=params, mae_col="mae_pct"
         )
 
-        # All: -0.08 - 0.05 = -0.13 (-13%) -> displayed as -13.0%
+        # All: -8% - 5% = -13% -> displayed as -13.0%
         assert metrics.winner_count == 0
         assert metrics.loser_count == 3
         assert metrics.win_rate == 0.0
@@ -553,12 +558,13 @@ class TestMetricsCalculatorWithAdjustments:
         """
         from src.core.models import AdjustmentParams
 
-        # Trade that was a "Win" but MAE exceeded stop loss
-        # Original: gain=+10%, mae=10%, stop_loss=8%, efficiency=5%
-        # Adjusted: -8% - 5% = -13% (should be classified as LOSS)
+        # Gains in decimal format (0.10 = 10%), MAE in percentage format (10.0 = 10%)
+        # Trade 1: 10% gain, 10% MAE > 8% stop -> -8% - 5% = -13% (LOSS)
+        # Trade 2: 5% gain, 2% MAE < 8% stop -> 5% - 5% = 0% (LOSS with default breakeven_is_win=False)
+        # Trade 3: -3% loss, 2% MAE < 8% stop -> -3% - 5% = -8% (LOSS)
         df = pd.DataFrame({
-            "gain_pct": [10.0, 5.0, -3.0],
-            "mae_pct": [10.0, 2.0, 2.0],  # First trade exceeds 8% stop
+            "gain_pct": [0.10, 0.05, -0.03],  # Decimal format
+            "mae_pct": [10.0, 2.0, 2.0],  # Percentage format, first exceeds 8% stop
             "win_loss": ["W", "W", "L"],
         })
 
@@ -573,7 +579,7 @@ class TestMetricsCalculatorWithAdjustments:
             mae_col="mae_pct",
         )
 
-        # After adjustment: [-13.0, 0.0, -8.0]
+        # After adjustment: [-13%, 0%, -8%]
         # Winners (>0): none
         # Losers (<=0): all 3
         assert metrics.winner_count == 0
@@ -763,22 +769,21 @@ class TestMetricsCalculatorMaxLoss:
     def test_max_loss_pct_all_trades_capped(self) -> None:
         """All losses capped by stop_loss.
 
-        User data is in decimal format: -0.10 = -10%, etc.
+        Gains in decimal format (-0.10 = -10%), MAE in percentage format (15.0 = 15%).
         """
         from src.core.models import AdjustmentParams
 
         calc = MetricsCalculator()
         df = pd.DataFrame({
-            "gain_pct": [-0.10, -0.08, -0.12],  # All big losses
-            "mae_pct": [0.15, 0.10, 0.20],     # All exceed stop_loss=5%
+            "gain_pct": [-0.10, -0.08, -0.12],  # All big losses in decimal format
+            "mae_pct": [15.0, 10.0, 20.0],     # All exceed stop_loss=5%, percentage format
         })
-        params = AdjustmentParams(stop_loss=0.05, efficiency=0.0)
+        params = AdjustmentParams(stop_loss=5.0, efficiency=0.0)  # Percentage format
         metrics, _, _ = calc.calculate(
             df, "gain_pct", derived=True,
             adjustment_params=params, mae_col="mae_pct"
         )
         # All trades capped to -5%, so max_loss = -5%
-        # Multiplied by 100 for percentage format: -0.05 * 100 = -5.0%
         assert metrics.max_loss_pct == pytest.approx(-5.0, abs=0.01)
 
     def test_max_loss_pct_equals_loser_min(self) -> None:

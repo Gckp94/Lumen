@@ -26,7 +26,11 @@ def load_fonts(app: QApplication) -> bool:
     font_dir = Path(__file__).parent.parent.parent / "assets" / "fonts"
 
     if not font_dir.exists():
-        logger.warning("Font directory not found: %s", font_dir)
+        logger.info(
+            "Custom fonts directory not found at %s - using system fonts. "
+            "This is normal if no custom fonts have been configured.",
+            font_dir
+        )
         return False
 
     fonts_loaded = 0
@@ -41,7 +45,7 @@ def load_fonts(app: QApplication) -> bool:
     if fonts_loaded > 0:
         logger.info("Loaded %d custom fonts", fonts_loaded)
     else:
-        logger.warning("No custom fonts loaded, using system defaults")
+        logger.info("No custom fonts found in %s - using system fonts", font_dir)
 
     return fonts_loaded > 0
 

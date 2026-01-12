@@ -1542,20 +1542,29 @@ class DataInputTab(QWidget):
             total_rows,
         )
 
-        # Calculate metrics (3-tuple: metrics, flat_equity, kelly_equity)
+        # Get current adjustment params (default: 8% stop-loss, 5% efficiency)
+        adjustment_params = self._adjustment_panel.get_params()
+        self._pending_adjustment_params = adjustment_params
+
+        # Calculate metrics WITH adjustment params (3-tuple: metrics, flat_equity, kelly_equity)
         metrics, _, _ = self._metrics_calculator.calculate(
             df=baseline_df,
             gain_col=mapping.gain_pct,
             win_loss_col=mapping.win_loss,
             derived=mapping.win_loss_derived,
             breakeven_is_win=mapping.breakeven_is_win,
+            adjustment_params=adjustment_params,
+            mae_col=mapping.mae_pct,
             date_col=mapping.date,
             time_col=mapping.time,
         )
 
-        # Get current adjustment params
-        adjustment_params = self._adjustment_panel.get_params()
-        self._pending_adjustment_params = adjustment_params
+        # Add adjusted_gain_pct column to baseline_df for Feature Explorer chart use
+        if mapping.mae_pct is not None:
+            adjusted_gains = adjustment_params.calculate_adjusted_gains(
+                baseline_df, mapping.gain_pct, mapping.mae_pct
+            )
+            baseline_df["adjusted_gain_pct"] = adjusted_gains
 
         # Update AppState if available
         if self._app_state is not None:
@@ -1635,6 +1644,13 @@ class DataInputTab(QWidget):
             logger.warning("Cannot recalculate metrics: baseline data not available")
             return
 
+        # Update adjusted_gain_pct column in baseline_df
+        if mapping.mae_pct is not None:
+            adjusted_gains = self._pending_adjustment_params.calculate_adjusted_gains(
+                baseline_df, mapping.gain_pct, mapping.mae_pct
+            )
+            baseline_df["adjusted_gain_pct"] = adjusted_gains
+
         # Recalculate baseline metrics with adjustment params (3-tuple)
         metrics, _, _ = self._metrics_calculator.calculate(
             df=baseline_df,
@@ -1648,8 +1664,10 @@ class DataInputTab(QWidget):
             time_col=mapping.time,
         )
 
-        # Update AppState
+        # Update AppState and re-emit data_loaded so Feature Explorer sees updated column
+        self._app_state.baseline_df = baseline_df
         self._app_state.baseline_metrics = metrics
+        self._app_state.data_loaded.emit(baseline_df)
         self._app_state.baseline_calculated.emit(metrics)
 
         # Update metrics display
