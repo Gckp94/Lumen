@@ -212,12 +212,16 @@ class AdjustmentParams:
     def calculate_adjusted_gain(self, gain_pct: float, mae_pct: float) -> float:
         """Calculate efficiency-adjusted gain for a single trade.
 
+        Note: This method expects PERCENTAGE format inputs (20 = 20%).
+        For decimal-format inputs (0.20 = 20%), use calculate_adjusted_gains()
+        which is the preferred method for production use with DataFrames.
+
         Args:
-            gain_pct: Original gain percentage (whole number, e.g., 20 = 20%).
-            mae_pct: Maximum adverse excursion percentage.
+            gain_pct: Original gain in percentage format (e.g., 20 for 20%).
+            mae_pct: Maximum adverse excursion in percentage format (e.g., 8 for 8%).
 
         Returns:
-            Efficiency-adjusted gain percentage.
+            Efficiency-adjusted gain in percentage format.
         """
         # Step 1: Stop loss adjustment
         stop_adjusted = -self.stop_loss if mae_pct > self.stop_loss else gain_pct
