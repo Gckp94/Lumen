@@ -231,20 +231,27 @@ class AdjustmentParams:
 
         Args:
             df: DataFrame with trade data.
-            gain_col: Column name for gain percentage.
-            mae_col: Column name for MAE percentage.
+            gain_col: Column name for gain percentage (decimal format, e.g., 0.20 = 20%).
+            mae_col: Column name for MAE percentage (percentage format, e.g., 27 = 27%).
 
         Returns:
-            Series of efficiency-adjusted gain percentages.
+            Series of efficiency-adjusted gain percentages (decimal format).
         """
         gains = df[gain_col].astype(float)
         mae = df[mae_col].astype(float)
 
-        # Step 1: Stop loss adjustment (vectorized)
-        stop_adjusted = gains.where(mae <= self.stop_loss, -self.stop_loss)
+        # Convert gains from decimal to percentage format for adjustment
+        gains_pct = gains * 100
 
-        # Step 2: Efficiency adjustment
-        return stop_adjusted - self.efficiency
+        # Step 1: Stop loss adjustment (vectorized)
+        # If MAE > stop_loss, gain becomes -stop_loss (in percentage)
+        stop_adjusted = gains_pct.where(mae <= self.stop_loss, -self.stop_loss)
+
+        # Step 2: Efficiency adjustment (in percentage)
+        adjusted_pct = stop_adjusted - self.efficiency
+
+        # Convert back to decimal format for MetricsCalculator compatibility
+        return adjusted_pct / 100
 
 
 @dataclass

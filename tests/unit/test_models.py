@@ -420,25 +420,30 @@ class TestAdjustmentParams:
         assert result == -7.0
 
     def test_calculate_adjusted_gains_vectorized(self) -> None:
-        """Calculate adjusted gains for DataFrame (vectorized)."""
+        """Calculate adjusted gains for DataFrame (vectorized).
+
+        Note: gain_pct is in decimal format (0.20 = 20%), while mae_pct and
+        stop_loss/efficiency are in percentage format (8.0 = 8%).
+        """
         import pandas as pd
 
         from src.core.models import AdjustmentParams
 
         params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
         df = pd.DataFrame({
-            "gain_pct": [20.0, 10.0, -2.0, 5.0],
+            # Gains in decimal format: 0.20 = 20%, 0.10 = 10%, etc.
+            "gain_pct": [0.20, 0.10, -0.02, 0.05],
             "mae_pct": [3.0, 10.0, 5.0, 12.0],
         })
 
         result = params.calculate_adjusted_gains(df, "gain_pct", "mae_pct")
 
-        # Expected:
-        # Row 0: mae(3) <= 8, stop_adj=20, eff_adj=15
-        # Row 1: mae(10) > 8, stop_adj=-8, eff_adj=-13
-        # Row 2: mae(5) <= 8, stop_adj=-2, eff_adj=-7
-        # Row 3: mae(12) > 8, stop_adj=-8, eff_adj=-13
-        assert list(result) == [15.0, -13.0, -7.0, -13.0]
+        # Expected (all results in decimal format):
+        # Row 0: mae(3) <= 8, gain 20% - 5% eff = 15% -> 0.15
+        # Row 1: mae(10) > 8, stop -8% - 5% eff = -13% -> -0.13
+        # Row 2: mae(5) <= 8, gain -2% - 5% eff = -7% -> -0.07
+        # Row 3: mae(12) > 8, stop -8% - 5% eff = -13% -> -0.13
+        assert list(result) == [0.15, -0.13, -0.07, -0.13]
 
     def test_calculate_adjusted_gains_empty_dataframe(self) -> None:
         """Calculate adjusted gains for empty DataFrame."""
