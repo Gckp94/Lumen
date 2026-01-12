@@ -151,6 +151,43 @@ class TestColumnConfigPanel:
         assert panel._status_labels["gain_pct"].text() == "✓"
         assert panel._status_labels["mae_pct"].text() == "✓"
 
+    def test_status_indicator_updates_on_manual_selection(
+        self, qtbot: QtBot, sample_dataframe: pd.DataFrame
+    ) -> None:
+        """Status indicator updates to checkmark when user manually selects a column."""
+        panel = ColumnConfigPanel()
+        qtbot.addWidget(panel)
+
+        # Set up with win_loss as missing (not auto-detected)
+        detection_result = DetectionResult(
+            mapping=None,
+            statuses={
+                "ticker": "detected",
+                "date": "detected",
+                "time": "detected",
+                "gain_pct": "detected",
+                "mae_pct": "detected",
+                "win_loss": "missing",  # Not auto-detected
+            },
+            all_required_detected=True,
+        )
+        panel.set_columns(list(sample_dataframe.columns), sample_dataframe, detection_result)
+
+        # Initially win_loss should show ✗ (not auto-detected)
+        assert panel._status_labels["win_loss"].text() == "✗"
+
+        # Manually select a column for win_loss
+        panel._combos["win_loss"].setCurrentText("ticker")
+
+        # Status should now show ✓ (valid selection)
+        assert panel._status_labels["win_loss"].text() == "✓"
+
+        # Clear the selection
+        panel._combos["win_loss"].setCurrentText("")
+
+        # Status should return to ✗ (no selection)
+        assert panel._status_labels["win_loss"].text() == "✗"
+
     def test_preview_updates_on_selection(
         self, qtbot: QtBot, sample_dataframe: pd.DataFrame
     ) -> None:

@@ -386,6 +386,27 @@ class ColumnConfigPanel(QWidget):
                 label.setText("✗")
                 label.setStyleSheet(f"color: {Colors.SIGNAL_CORAL}; font-size: 14px;")
 
+    def _update_single_status_indicator(self, field_name: str) -> None:
+        """Update status indicator for a single field based on current selection.
+
+        Args:
+            field_name: The field name (e.g., 'ticker', 'win_loss')
+        """
+        if field_name not in self._status_labels:
+            return
+
+        label = self._status_labels[field_name]
+        combo = self._combos.get(field_name)
+
+        if combo and combo.currentText():
+            # User has selected a column - show as valid
+            label.setText("✓")
+            label.setStyleSheet(f"color: {Colors.SIGNAL_CYAN}; font-size: 14px;")
+        else:
+            # No selection - show as missing
+            label.setText("✗")
+            label.setStyleSheet(f"color: {Colors.SIGNAL_CORAL}; font-size: 14px;")
+
     def _update_all_previews(self) -> None:
         """Update all preview labels."""
         for field_name in self._combos:
@@ -419,6 +440,7 @@ class ColumnConfigPanel(QWidget):
         for field_name, combo in self._combos.items():
             if combo is sender:
                 self._update_preview(field_name)
+                self._update_single_status_indicator(field_name)
                 break
         self._validate()
 
