@@ -641,6 +641,8 @@ class EquityChart(QWidget):
                 self._baseline_curve.setData(x=x_data, y=self._baseline_equity)
                 if self._baseline_peak is not None:
                     self._peak_curve.setData(x=x_data, y=self._baseline_peak)
+                    # Refresh FillBetweenItem after curves have new data
+                    self._drawdown_fill.setCurves(self._baseline_curve, self._peak_curve)
 
         # Replot filtered curve
         if self._filtered_equity is not None:

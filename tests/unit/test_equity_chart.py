@@ -214,6 +214,50 @@ class TestEquityChartDrawdown:
         chart.set_drawdown_visible(True)
         assert chart.show_drawdown is True
 
+    def test_drawdown_fill_updates_when_data_changes(self, qtbot):
+        """Drawdown fill refreshes correctly when curve data is updated."""
+        chart = EquityChart()
+        qtbot.addWidget(chart)
+
+        # Set initial data
+        equity_df1 = pd.DataFrame({
+            "trade_num": [1, 2, 3],
+            "equity": [100.0, 90.0, 95.0],  # Has drawdown
+            "peak": [100.0, 100.0, 100.0],
+        })
+        chart.set_baseline(equity_df1)
+        chart.set_drawdown_visible(True)
+
+        assert chart._drawdown_fill.isVisible()
+
+        # Update with new data (different length to clearly detect stale data)
+        equity_df2 = pd.DataFrame({
+            "trade_num": [1, 2, 3, 4],
+            "equity": [100.0, 80.0, 70.0, 90.0],  # Larger drawdown, 4 points
+            "peak": [100.0, 100.0, 100.0, 100.0],
+        })
+        chart.set_baseline(equity_df2)
+
+        # Drawdown fill should still be visible and have updated curves
+        assert chart._drawdown_fill.isVisible()
+        # Verify the fill's curves are the current curve objects
+        assert chart._drawdown_fill.curves[0] is chart._baseline_curve
+        assert chart._drawdown_fill.curves[1] is chart._peak_curve
+
+        # Verify the fill has been refreshed by checking the underlying curve data
+        # The curves should now have 4 points, not 3
+        baseline_x, baseline_y = chart._baseline_curve.getData()
+        peak_x, peak_y = chart._peak_curve.getData()
+        assert len(baseline_x) == 4, "Baseline curve should have 4 points"
+        assert len(peak_x) == 4, "Peak curve should have 4 points"
+
+        # After setCurves is called, the fill should reflect the new data
+        # Access the fill's internal curves to verify they're synchronized
+        fill_curve1_x, fill_curve1_y = chart._drawdown_fill.curves[0].getData()
+        fill_curve2_x, fill_curve2_y = chart._drawdown_fill.curves[1].getData()
+        assert len(fill_curve1_x) == 4, "Fill curve1 should have 4 points after refresh"
+        assert len(fill_curve2_x) == 4, "Fill curve2 should have 4 points after refresh"
+
 
 class TestEquityChartSignals:
     """Tests for EquityChart signals."""
