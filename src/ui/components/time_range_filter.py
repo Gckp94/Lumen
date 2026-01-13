@@ -50,6 +50,7 @@ class TimeRangeFilter(QWidget):
         self._start_time.setDisplayFormat("HH:mm:ss")
         self._start_time.setTime(QTime(9, 30, 0))
         self._start_time.setEnabled(False)  # Disabled when All Times checked
+        self._start_time.setToolTip("Type digits: 040000 for 04:00:00, or use arrows")
         layout.addWidget(self._start_time)
 
         # "to" label
@@ -61,6 +62,7 @@ class TimeRangeFilter(QWidget):
         self._end_time.setDisplayFormat("HH:mm:ss")
         self._end_time.setTime(QTime(16, 0, 0))
         self._end_time.setEnabled(False)
+        self._end_time.setToolTip("Type digits: 160000 for 16:00:00, or use arrows")
         layout.addWidget(self._end_time)
 
         # All Times checkbox
