@@ -15,9 +15,8 @@ from src.ui.components.date_range_filter import DateRangeFilter
 from src.ui.components.filter_chip import FilterChip
 from src.ui.components.time_range_filter import TimeRangeFilter
 from src.ui.components.column_filter_panel import ColumnFilterPanel
-from src.ui.components.filter_row import FilterRow
 from src.ui.components.toggle_switch import ToggleSwitch
-from src.ui.constants import Colors, Limits, Spacing
+from src.ui.constants import Colors, Spacing
 
 
 class FilterPanel(QWidget):
@@ -51,7 +50,6 @@ class FilterPanel(QWidget):
         """
         super().__init__(parent)
         self._columns = columns or []
-        self._filter_rows: list[FilterRow] = []
         self._filter_chips: list[FilterChip] = []
         self._active_filters: list[FilterCriteria] = []
         # Date range state
@@ -100,18 +98,11 @@ class FilterPanel(QWidget):
         self._chips_layout.addStretch()
         layout.addWidget(self._chips_frame)
 
-        # Column filter panel (new scrollable inline filter system)
+        # Column filter panel (scrollable inline filter system)
         self._column_filter_panel = ColumnFilterPanel(columns=self._columns)
         self._column_filter_panel.setMinimumHeight(200)
         self._column_filter_panel.setMaximumHeight(300)
         layout.addWidget(self._column_filter_panel)
-
-        # Filter rows container (legacy - to be removed in Task 4)
-        self._rows_container = QWidget()
-        self._rows_layout = QVBoxLayout(self._rows_container)
-        self._rows_layout.setContentsMargins(0, 0, 0, 0)
-        self._rows_layout.setSpacing(Spacing.XS)
-        layout.addWidget(self._rows_container)
 
         # First trigger toggle (above buttons)
         self._first_trigger_toggle = ToggleSwitch(
@@ -124,10 +115,6 @@ class FilterPanel(QWidget):
         # Button row
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(Spacing.SM)
-
-        self._add_btn = QPushButton("+ Add Filter")
-        self._add_btn.clicked.connect(self._on_add_filter)
-        btn_layout.addWidget(self._add_btn)
 
         self._apply_btn = QPushButton("Apply Filters")
         self._apply_btn.clicked.connect(self._on_apply_filters)
@@ -179,68 +166,7 @@ class FilterPanel(QWidget):
                 color: {Colors.TEXT_DISABLED};
             }}
         """
-        self._add_btn.setStyleSheet(secondary_btn_style)
         self._clear_btn.setStyleSheet(secondary_btn_style)
-
-    def _get_used_columns(self) -> set[str]:
-        """Get columns already used in filter rows.
-
-        Returns:
-            Set of column names currently in use.
-        """
-        used = set()
-        for row in self._filter_rows:
-            col = row.get_column()
-            if col:
-                used.add(col)
-        return used
-
-    def _get_available_columns(self) -> list[str]:
-        """Get columns not yet used in filter rows.
-
-        Returns:
-            List of available column names.
-        """
-        used = self._get_used_columns()
-        return [c for c in self._columns if c not in used]
-
-    def _on_add_filter(self) -> None:
-        """Handle add filter button click."""
-        if len(self._filter_rows) >= Limits.MAX_FILTERS:
-            return
-
-        available = self._get_available_columns()
-        if not available:
-            return  # No columns left to filter
-
-        row = FilterRow(available)
-        row.remove_requested.connect(lambda: self._on_remove_row(row))
-        row.column_changed.connect(self._on_filter_column_changed)
-        self._filter_rows.append(row)
-        self._rows_layout.addWidget(row)
-
-        # Disable add button if at max or no more columns available
-        if (
-            len(self._filter_rows) >= Limits.MAX_FILTERS
-            or len(self._get_available_columns()) == 0
-        ):
-            self._add_btn.setEnabled(False)
-
-    def _on_filter_column_changed(self, old_column: str, new_column: str) -> None:
-        """Handle column selection change in a filter row.
-
-        Args:
-            old_column: Previously selected column.
-            new_column: Newly selected column.
-        """
-        # Update availability: old_column is now available, new_column is used
-        # No need to actively update other rows' dropdowns since they're only
-        # updated when adding new filters. This keeps the UI simple.
-        # Re-check add button state
-        if len(self._get_available_columns()) == 0:
-            self._add_btn.setEnabled(False)
-        elif len(self._filter_rows) < Limits.MAX_FILTERS:
-            self._add_btn.setEnabled(True)
 
     def _on_date_range_changed(
         self, start: str | None, end: str | None, all_dates: bool
@@ -272,31 +198,9 @@ class FilterPanel(QWidget):
         self._all_times_time = all_times
         self.time_range_changed.emit(start, end, all_times)
 
-    def _on_remove_row(self, row: FilterRow) -> None:
-        """Handle remove row request.
-
-        Args:
-            row: The FilterRow to remove.
-        """
-        if row in self._filter_rows:
-            self._filter_rows.remove(row)
-            row.deleteLater()
-
-        # Re-enable add button if under limits and columns available
-        if len(self._filter_rows) < Limits.MAX_FILTERS and self._get_available_columns():
-            self._add_btn.setEnabled(True)
-
     def _on_apply_filters(self) -> None:
         """Handle apply filters button click."""
-        # Get criteria from new ColumnFilterPanel
         criteria_list = self._column_filter_panel.get_active_criteria()
-
-        # Also collect from legacy FilterRow system (for backward compatibility)
-        for row in self._filter_rows:
-            criteria = row.get_criteria()
-            if criteria is not None:
-                criteria_list.append(criteria)
-
         self._active_filters = criteria_list
         self._update_chips()
         self.filters_applied.emit(criteria_list)
@@ -305,11 +209,6 @@ class FilterPanel(QWidget):
         """Handle clear all filters button click."""
         # Clear column filter panel
         self._column_filter_panel.clear_all()
-
-        # Clear filter rows (legacy)
-        for row in self._filter_rows[:]:
-            row.deleteLater()
-        self._filter_rows.clear()
 
         # Clear chips
         for chip in self._filter_chips[:]:
@@ -329,7 +228,6 @@ class FilterPanel(QWidget):
         self._all_times_time = True
 
         self._active_filters.clear()
-        self._add_btn.setEnabled(True)
         self.filters_cleared.emit()
 
     def _update_chips(self) -> None:
@@ -374,9 +272,6 @@ class FilterPanel(QWidget):
         """
         self._columns = columns
         self._column_filter_panel.set_columns(columns)
-        # Legacy: update existing FilterRow instances
-        for row in self._filter_rows:
-            row.set_columns(columns)
 
     def get_date_range(self) -> tuple[str | None, str | None, bool]:
         """Get current date range.
