@@ -378,3 +378,44 @@ class TestKellyDateColumn:
 
         assert "date" in result.columns
         assert len(result["date"]) == 3
+
+
+class TestMaxDrawdownDollarVsPercent:
+    """Tests for max DD dollar vs max DD percent occurring at different points."""
+
+    def test_max_dd_dollar_is_max_dollar_amount(self) -> None:
+        """Max DD ($) should be the largest dollar drawdown, not at max % point."""
+        calc = EquityCalculator()
+
+        # Scenario: max % drawdown at different point than max $ drawdown
+        equity_df = pd.DataFrame({
+            "trade_num": [1, 2, 3, 4, 5],
+            "equity": [100.0, 50.0, 200.0, 150.0, 180.0],  # Point 2: 50% DD, $50. Point 4: 25% DD, $50
+            "peak": [100.0, 100.0, 200.0, 200.0, 200.0],
+            "drawdown": [0.0, -50.0, 0.0, -50.0, -20.0],  # Max $ DD is $50 at both points 2 and 4
+        })
+
+        max_dd_dollars, max_dd_pct, _ = calc.calculate_drawdown_metrics(equity_df)
+
+        # Max % is at point 2 (50%)
+        assert max_dd_pct == 50.0
+        # Max $ should be 50 (same in this case)
+        assert max_dd_dollars == 50.0
+
+    def test_max_dd_dollar_differs_from_max_pct_point(self) -> None:
+        """When max $ and max % are at different points, both should be correct."""
+        calc = EquityCalculator()
+
+        equity_df = pd.DataFrame({
+            "trade_num": [1, 2, 3, 4, 5, 6],
+            "equity": [100.0, 40.0, 150.0, 1000.0, 700.0, 900.0],
+            "peak": [100.0, 100.0, 150.0, 1000.0, 1000.0, 1000.0],
+            "drawdown": [0.0, -60.0, 0.0, 0.0, -300.0, -100.0],
+        })
+
+        max_dd_dollars, max_dd_pct, _ = calc.calculate_drawdown_metrics(equity_df)
+
+        # Max % is at point 2: 60% (60/100)
+        assert max_dd_pct == 60.0
+        # Max $ is at point 5: $300
+        assert max_dd_dollars == 300.0

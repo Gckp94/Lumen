@@ -93,7 +93,7 @@ class EquityCalculator:
 
         Returns:
             Tuple of (max_dd_dollars, max_dd_pct, dd_duration)
-            - max_dd_dollars: Absolute value of maximum drawdown in dollars
+            - max_dd_dollars: Maximum drawdown in absolute dollar terms
             - max_dd_pct: Maximum drawdown as percentage of peak at that point
             - dd_duration: int (trading days) or "Not recovered"
 
@@ -117,19 +117,20 @@ class EquityCalculator:
         with np.errstate(divide="ignore", invalid="ignore"):
             drawdown_pct: np.ndarray = np.where(peak > 0, (drawdown / peak) * -100.0, 0.0)
 
-        # Find index of maximum percentage drawdown
+        # Find maximum DOLLAR drawdown (most negative drawdown value)
+        max_dd_dollar_idx = int(np.argmin(drawdown))  # argmin because drawdown is negative
+        max_dd_dollars = float(abs(drawdown[max_dd_dollar_idx]))
+
+        # Find maximum PERCENTAGE drawdown
         max_dd_pct_idx = int(np.argmax(drawdown_pct))
         max_dd_pct_value: float | None = float(drawdown_pct[max_dd_pct_idx])
         peak_at_max_dd = float(peak[max_dd_pct_idx])
-
-        # Get dollar amount at that point
-        max_dd_dollars = float(abs(drawdown[max_dd_pct_idx]))
 
         # Edge case: if peak is zero or negative, percentage is undefined
         if peak_at_max_dd <= 0:
             max_dd_pct_value = None
 
-        # Calculate drawdown duration
+        # Calculate drawdown duration (from max percentage drawdown point)
         dd_duration: int | str | None
         recovered = False
         for i in range(max_dd_pct_idx + 1, len(equity)):
