@@ -443,6 +443,8 @@ class EquityChart(QWidget):
         self._filtered_curve.setData([], [])
         self._peak_curve.setData([], [])
         self._baseline_data = None
+        self._baseline_dates = None
+        self._filtered_dates = None
         self._drawdown_fill.setVisible(False)
 
     def auto_range(self) -> None:
@@ -491,6 +493,8 @@ class _ChartPanel(QWidget):
             parent: Optional parent widget.
         """
         super().__init__(parent)
+        self._baseline_dates: np.ndarray | None = None
+        self._filtered_dates: np.ndarray | None = None
         self._setup_ui(title)
 
     def _setup_ui(self, title: str) -> None:
@@ -582,4 +586,6 @@ class _ChartPanel(QWidget):
 
     def clear(self) -> None:
         """Clear the chart."""
+        self._baseline_dates = None
+        self._filtered_dates = None
         self.chart.clear()
