@@ -36,6 +36,7 @@ class FilterPanel(QWidget):
     first_trigger_toggled = pyqtSignal(bool)
     date_range_changed = pyqtSignal(object, object, bool)  # start, end, all_dates
     time_range_changed = pyqtSignal(object, object, bool)  # start, end, all_times
+    single_filter_applied = pyqtSignal(object)  # Emits single FilterCriteria
 
     def __init__(
         self,
@@ -102,6 +103,9 @@ class FilterPanel(QWidget):
         self._column_filter_panel = ColumnFilterPanel(columns=self._columns)
         self._column_filter_panel.setMinimumHeight(200)
         self._column_filter_panel.setMaximumHeight(300)
+        self._column_filter_panel.single_filter_applied.connect(
+            self._on_single_filter_applied
+        )
         layout.addWidget(self._column_filter_panel)
 
         # First trigger toggle (above buttons)
@@ -197,6 +201,14 @@ class FilterPanel(QWidget):
         self._time_end = end
         self._all_times_time = all_times
         self.time_range_changed.emit(start, end, all_times)
+
+    def _on_single_filter_applied(self, criteria: FilterCriteria) -> None:
+        """Handle single filter applied from column row.
+
+        Args:
+            criteria: The FilterCriteria to apply.
+        """
+        self.single_filter_applied.emit(criteria)
 
     def _on_apply_filters(self) -> None:
         """Handle apply filters button click."""

@@ -23,10 +23,12 @@ class ColumnFilterRow(QWidget):
     Attributes:
         values_changed: Signal emitted when min/max values change.
         operator_changed: Signal emitted when operator toggles.
+        apply_clicked: Signal emitted with column name when apply button clicked.
     """
 
     values_changed = pyqtSignal()
     operator_changed = pyqtSignal()
+    apply_clicked = pyqtSignal(str)  # Emits column name when clicked
 
     def __init__(
         self,
@@ -84,6 +86,34 @@ class ColumnFilterRow(QWidget):
         self._indicator = QLabel()
         self._indicator.setFixedSize(8, 8)
         layout.addWidget(self._indicator)
+
+        # Apply button (for applying this single filter)
+        self._apply_btn = QPushButton()
+        self._apply_btn.setFixedSize(20, 20)
+        self._apply_btn.setToolTip("Apply this filter only")
+        self._apply_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._apply_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                border: none;
+                border-radius: 4px;
+                font-size: 14px;
+                color: {Colors.SIGNAL_CYAN};
+            }}
+            QPushButton:hover {{
+                background: {Colors.BG_BORDER};
+            }}
+            QPushButton:pressed {{
+                background: {Colors.BG_ELEVATED};
+            }}
+            QPushButton:disabled {{
+                color: {Colors.TEXT_DISABLED};
+            }}
+        """)
+        self._apply_btn.setText("\u25b6")
+        self._apply_btn.setEnabled(False)
+        self._apply_btn.clicked.connect(self._on_apply_clicked)
+        layout.addWidget(self._apply_btn)
 
         layout.addStretch()
 
@@ -156,8 +186,9 @@ class ColumnFilterRow(QWidget):
         self.values_changed.emit()
 
     def _update_indicator(self) -> None:
-        """Update the active indicator based on input state."""
-        if self.has_values():
+        """Update the active indicator and apply button based on input state."""
+        has_vals = self.has_values()
+        if has_vals:
             self._indicator.setStyleSheet(f"""
                 QLabel {{
                     background-color: {Colors.SIGNAL_AMBER};
@@ -170,6 +201,12 @@ class ColumnFilterRow(QWidget):
                     background-color: transparent;
                 }
             """)
+        # Enable/disable apply button based on whether filter has values
+        self._apply_btn.setEnabled(has_vals)
+
+    def _on_apply_clicked(self) -> None:
+        """Emit apply signal with column name."""
+        self.apply_clicked.emit(self._column_name)
 
     def _toggle_operator(self) -> None:
         """Toggle between 'between' and 'not_between' operators."""

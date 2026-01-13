@@ -96,3 +96,39 @@ class TestColumnFilterRow:
 
         assert row._min_input.text() == ""
         assert row._max_input.text() == ""
+
+    def test_apply_button_disabled_by_default(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """Apply button should be disabled when inputs are empty."""
+        row = ColumnFilterRow(column_name="vwap")
+        qtbot.addWidget(row)
+
+        assert row._apply_btn.isEnabled() is False
+
+    def test_apply_button_enabled_when_values_present(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """Apply button should be enabled when both min and max have values."""
+        row = ColumnFilterRow(column_name="vwap")
+        qtbot.addWidget(row)
+
+        row._min_input.setText("10")
+        row._max_input.setText("20")
+
+        assert row._apply_btn.isEnabled() is True
+
+    def test_apply_clicked_emits_column_name(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """apply_clicked signal should emit column name."""
+        row = ColumnFilterRow(column_name="gain_pct")
+        qtbot.addWidget(row)
+
+        row._min_input.setText("0")
+        row._max_input.setText("100")
+
+        with qtbot.waitSignal(row.apply_clicked, timeout=1000) as blocker:
+            row._apply_btn.click()
+
+        assert blocker.args == ["gain_pct"]

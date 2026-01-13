@@ -266,6 +266,7 @@ class FeatureExplorerTab(QWidget):
         self._filter_panel.first_trigger_toggled.connect(self._on_first_trigger_toggled)
         self._filter_panel.date_range_changed.connect(self._on_date_range_changed)
         self._filter_panel.time_range_changed.connect(self._on_time_range_changed)
+        self._filter_panel.single_filter_applied.connect(self._on_single_filter_applied)
 
         # Export button
         self._export_button.clicked.connect(self._on_export_clicked)
@@ -496,6 +497,21 @@ class FeatureExplorerTab(QWidget):
         self._apply_current_filters()
         self._update_filter_summary()
         logger.info("Filters cleared")
+
+    def _on_single_filter_applied(self, criteria: FilterCriteria) -> None:
+        """Apply a single filter criterion without clearing others.
+
+        Args:
+            criteria: The FilterCriteria to apply.
+        """
+        # Remove any existing filter for the same column
+        current_filters = [f for f in self._app_state.filters if f.column != criteria.column]
+        # Add the new filter
+        current_filters.append(criteria)
+        self._app_state.filters = current_filters
+        self._apply_current_filters()
+        self._update_filter_summary()
+        logger.info(f"Single filter applied: {criteria.column}")
 
     def _on_first_trigger_toggled(self, enabled: bool) -> None:
         """Handle first trigger toggle state change.

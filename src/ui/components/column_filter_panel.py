@@ -24,10 +24,12 @@ class ColumnFilterPanel(QWidget):
     Attributes:
         active_count_changed: Signal emitted when number of active filters changes.
         filters_changed: Signal emitted when any filter value changes.
+        single_filter_applied: Signal emitted when a single filter is applied.
     """
 
     active_count_changed = pyqtSignal(int)
     filters_changed = pyqtSignal()
+    single_filter_applied = pyqtSignal(object)  # Emits single FilterCriteria
 
     def __init__(
         self,
@@ -201,6 +203,7 @@ class ColumnFilterPanel(QWidget):
         for i, column in enumerate(self._columns):
             row = ColumnFilterRow(column_name=column, alternate=(i % 2 == 1))
             row.values_changed.connect(self._on_row_values_changed)
+            row.apply_clicked.connect(self._on_row_apply_clicked)
             self._rows.append(row)
             # Insert before stretch
             self._rows_layout.insertWidget(self._rows_layout.count() - 1, row)
@@ -230,6 +233,19 @@ class ColumnFilterPanel(QWidget):
             self._last_active_count = active_count
             self.active_count_changed.emit(active_count)
         self.filters_changed.emit()
+
+    def _on_row_apply_clicked(self, column: str) -> None:
+        """Apply filter for a single column only.
+
+        Args:
+            column: The column name for which to apply the filter.
+        """
+        for row in self._rows:
+            if row.get_column_name() == column:
+                criteria = row.get_criteria()
+                if criteria:
+                    self.single_filter_applied.emit(criteria)
+                break
 
     def get_active_criteria(self) -> list[FilterCriteria]:
         """Get FilterCriteria for all rows with valid values.
