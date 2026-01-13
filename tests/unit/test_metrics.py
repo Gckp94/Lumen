@@ -255,14 +255,16 @@ class TestMetricsCalculatorExtended:
             "mae_pct": [0.01, 0.02, 0.03, 0.015, 0.025, 0.03, 0.05, 0.04, 0.06, 0.02],
         })
 
-    def test_edge_equals_ev(self, known_trades_df: pd.DataFrame) -> None:
-        """Edge % equals EV (expected return per trade)."""
+    def test_edge_formula(self, known_trades_df: pd.DataFrame) -> None:
+        """Edge % = ((R:R + 1) × Win Rate) - 1."""
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
-        # Expected: EV=3.0%, Edge=3.0% (Edge equals EV)
-        assert metrics.edge == pytest.approx(3.0, abs=0.01)
-        assert metrics.edge == pytest.approx(metrics.ev, abs=0.001)
+        # Known trades: 5 winners, 5 losers = 50% win rate
+        # avg_winner = 10%, avg_loser = -4%, R:R = 10/4 = 2.5
+        # Edge = ((2.5 + 1) * 0.50) - 1 = (3.5 * 0.50) - 1 = 1.75 - 1 = 0.75
+        expected_edge = ((metrics.rr_ratio + 1) * (metrics.win_rate / 100)) - 1
+        assert metrics.edge == pytest.approx(expected_edge, abs=0.001)
 
     def test_fractional_kelly_applies_fraction(
         self, known_trades_df: pd.DataFrame
@@ -336,14 +338,14 @@ class TestMetricsCalculatorExtended:
         assert metrics.loser_min == pytest.approx(-6.0, abs=0.1)   # -0.06 * 100 = -6.0% (Most negative)
         assert metrics.loser_max == pytest.approx(-2.0, abs=0.1)   # -0.02 * 100 = -2.0% (Least negative)
 
-    def test_edge_none_when_ev_none(self) -> None:
-        """Edge is None when EV cannot be calculated."""
+    def test_edge_none_when_rr_ratio_none(self) -> None:
+        """Edge is None when R:R ratio cannot be calculated."""
         calc = MetricsCalculator()
-        # All losers - avg_winner is None, so EV is None
+        # All losers - avg_winner is None, so rr_ratio is None
         df = pd.DataFrame({"gain_pct": [-1.0, -2.0, -3.0]})
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
-        assert metrics.ev is None
+        assert metrics.rr_ratio is None
         assert metrics.edge is None
 
     def test_fractional_kelly_none_when_kelly_none(self) -> None:
