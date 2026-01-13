@@ -25,9 +25,9 @@ class TestMainWindow:
         expected = [
             "Data Input",
             "Feature Explorer",
+            "Data Binning",
             "PnL & Trading Stats",
             "Monte Carlo",
-            "Data Binning",
         ]
         for i, title in enumerate(expected):
             assert window.tab_widget.tabText(i) == title

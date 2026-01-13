@@ -41,9 +41,9 @@ class MainWindow(QMainWindow):
         # Add tabs in workflow order, passing AppState where needed
         self.tab_widget.addTab(DataInputTab(self._app_state), "Data Input")
         self.tab_widget.addTab(FeatureExplorerTab(self._app_state), "Feature Explorer")
+        self.tab_widget.addTab(DataBinningTab(self._app_state), "Data Binning")
         self.tab_widget.addTab(PnLStatsTab(self._app_state), "PnL & Trading Stats")
         self.tab_widget.addTab(MonteCarloTab(), "Monte Carlo")
-        self.tab_widget.addTab(DataBinningTab(self._app_state), "Data Binning")
 
         self.setCentralWidget(self.tab_widget)
         logger.debug("Tab widget configured with %d tabs", self.tab_widget.count())
