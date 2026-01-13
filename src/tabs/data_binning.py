@@ -1241,20 +1241,57 @@ class HorizontalBarChart(QWidget):
         return base_color
 
     def _format_value(self, value: float) -> str:
-        """Format value for display.
+        """Format a number with K/M/B abbreviations for readability.
 
         Args:
             value: Value to format.
 
         Returns:
-            Formatted string.
+            Formatted string with appropriate suffix.
         """
+        if value is None:
+            return "N/A"
+
         if self._is_percentage:
             return f"{value:.2f}%"
-        elif isinstance(value, float) and not value.is_integer():
-            return f"{value:,.2f}"
+
+        abs_value = abs(value)
+        sign = "-" if value < 0 else ""
+
+        if abs_value >= 1_000_000_000:
+            formatted = abs_value / 1_000_000_000
+            suffix = "B"
+        elif abs_value >= 1_000_000:
+            formatted = abs_value / 1_000_000
+            suffix = "M"
+        elif abs_value >= 1_000:
+            formatted = abs_value / 1_000
+            suffix = "K"
         else:
-            return f"{int(value):,}"
+            # Small numbers: show as-is with reasonable precision
+            if abs_value == 0:
+                return "0"
+            elif abs_value < 0.01:
+                return f"{sign}{abs_value:.4f}"
+            elif abs_value < 1:
+                # Remove trailing zeros for decimals < 1
+                formatted_str = f"{abs_value:.2f}".rstrip("0").rstrip(".")
+                return f"{sign}{formatted_str}"
+            else:
+                if abs_value != int(abs_value):
+                    return f"{sign}{abs_value:.1f}"
+                else:
+                    return f"{sign}{int(abs_value)}"
+
+        # Format with suffix, removing unnecessary decimals
+        # Use rounding to handle floating point precision issues
+        rounded = round(formatted, 2)
+        if rounded == int(rounded):
+            return f"{sign}{int(rounded)}{suffix}"
+        elif round(rounded * 10) == rounded * 10:
+            return f"{sign}{rounded:.1f}{suffix}"
+        else:
+            return f"{sign}{rounded:.2f}{suffix}"
 
     def mouseMoveEvent(self, event: "QMouseEvent") -> None:
         """Handle mouse move for hover effect and tooltip.

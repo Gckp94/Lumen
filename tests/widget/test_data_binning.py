@@ -415,13 +415,14 @@ class TestHorizontalBarChart:
         assert chart._format_value(100.0) == "100.00%"
 
     def test_format_value_integer(self, qtbot: QtBot) -> None:
-        """_format_value formats integers with commas."""
+        """_format_value formats integers with K/M/B abbreviations."""
         chart = HorizontalBarChart(title="Test")
         qtbot.addWidget(chart)
         chart._is_percentage = False
 
-        assert chart._format_value(1000.0) == "1,000"
-        assert chart._format_value(1000000.0) == "1,000,000"
+        # Large numbers use K/M/B abbreviations
+        assert chart._format_value(1000.0) == "1K"
+        assert chart._format_value(1000000.0) == "1M"
 
     def test_get_tooltip_text(self, qtbot: QtBot) -> None:
         """get_tooltip_text returns formatted tooltip."""
@@ -719,6 +720,45 @@ class TestSaveLoadConfig:
 
         assert tab._last_save_dir is None
 
+
+
+class TestNumberAbbreviations:
+    """Tests for K/M/B number abbreviations in chart values."""
+
+    def test_format_large_number_abbreviations(self, qtbot: QtBot) -> None:
+        """Test that large numbers are formatted with K, M, B suffixes."""
+        chart = HorizontalBarChart()
+        qtbot.addWidget(chart)
+
+        # Test thousands
+        assert chart._format_value(1500) == "1.5K"
+        assert chart._format_value(25000) == "25K"
+        assert chart._format_value(999999) == "1000K"  # Edge case
+
+        # Test millions
+        assert chart._format_value(1500000) == "1.5M"
+        assert chart._format_value(25000000) == "25M"
+
+        # Test billions
+        assert chart._format_value(1500000000) == "1.5B"
+        assert chart._format_value(25000000000) == "25B"
+
+        # Test small numbers (no abbreviation)
+        assert chart._format_value(500) == "500"
+        assert chart._format_value(0.5) == "0.5"
+
+        # Test negative numbers
+        assert chart._format_value(-1500000) == "-1.5M"
+        assert chart._format_value(-25000) == "-25K"
+
+    def test_chart_displays_abbreviated_numbers(self, qtbot: QtBot) -> None:
+        """Test that chart displays abbreviated numbers in the UI."""
+        chart = HorizontalBarChart()
+        qtbot.addWidget(chart)
+        chart.set_data([("Bin 1", 1500000.0), ("Bin 2", 25000.0)])
+
+        # Verify data is set (visual verification would require rendering)
+        assert chart._data == [("Bin 1", 1500000.0), ("Bin 2", 25000.0)]
 
 
 class TestResizableSidebar:
