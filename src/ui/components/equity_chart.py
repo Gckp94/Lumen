@@ -7,10 +7,11 @@ crosshair, pan/zoom interactions, and keyboard accessibility.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 import numpy as np
+import pandas as pd
 import pyqtgraph as pg  # type: ignore[import-untyped]
+from pyqtgraph import DateAxisItem
 from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import (
@@ -23,9 +24,6 @@ from PyQt6.QtWidgets import (
 
 from src.ui.components.axis_mode_toggle import AxisMode, AxisModeToggle
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
-
-if TYPE_CHECKING:
-    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -66,10 +64,29 @@ class EquityChart(QWidget):
         self._show_drawdown: bool = False
         self._zoom_rect: pg.RectROI | None = None
         self._zoom_start: QPointF | None = None
-        self._baseline_data: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
         self._axis_mode = AxisMode.TRADES
+
+        # Store original data for mode switching
+        # Baseline: (trade_num, equity, peak)
+        self._baseline_trade_nums: np.ndarray | None = None
+        self._baseline_equity: np.ndarray | None = None
+        self._baseline_peak: np.ndarray | None = None
         self._baseline_dates: np.ndarray | None = None
+        self._baseline_timestamps: np.ndarray | None = None
+
+        # Filtered: (trade_num, equity)
+        self._filtered_trade_nums: np.ndarray | None = None
+        self._filtered_equity: np.ndarray | None = None
         self._filtered_dates: np.ndarray | None = None
+        self._filtered_timestamps: np.ndarray | None = None
+
+        # For backward compatibility
+        self._baseline_data: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
+
+        # Reference to axis items for swapping
+        self._numeric_axis: pg.AxisItem | None = None
+        self._date_axis: DateAxisItem | None = None
+
         self._setup_ui()
         self._setup_pyqtgraph()
         self._setup_curves()
@@ -101,6 +118,14 @@ class EquityChart(QWidget):
             axis = plot_item.getAxis(axis_name)
             axis.setPen(axis_pen)
             axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
+
+        # Store reference to numeric axis for later swapping
+        self._numeric_axis = plot_item.getAxis("bottom")
+
+        # Create date axis item (will be swapped in when needed)
+        self._date_axis = DateAxisItem(orientation="bottom")
+        self._date_axis.setPen(axis_pen)
+        self._date_axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
 
         # Set axis labels
         plot_item.setLabel("left", "Equity ($)", **{
@@ -209,7 +234,23 @@ class EquityChart(QWidget):
 
             self._crosshair_v.setPos(x)
             self._crosshair_h.setPos(y)
-            self._coord_label.setText(f"Trade: {int(x)}, Equity: ${y:,.2f}")
+
+            # Format label based on axis mode
+            use_timestamps = (
+                self._axis_mode == AxisMode.DATE
+                and self._baseline_timestamps is not None
+                and len(self._baseline_timestamps) > 0
+            )
+
+            if use_timestamps:
+                try:
+                    # Convert timestamp back to date string
+                    date_str = pd.Timestamp(x, unit="s").strftime("%b %d, %Y")
+                    self._coord_label.setText(f"Date: {date_str}, Equity: ${y:,.2f}")
+                except Exception:
+                    self._coord_label.setText(f"Date: {int(x)}, Equity: ${y:,.2f}")
+            else:
+                self._coord_label.setText(f"Trade: {int(x)}, Equity: ${y:,.2f}")
 
             # Boundary check: adjust anchor to prevent label clipping
             view_range = self._plot_widget.viewRange()
@@ -376,28 +417,53 @@ class EquityChart(QWidget):
                 self._baseline_curve.setData([], [])
                 self._peak_curve.setData([], [])
                 self._baseline_data = None
+                self._baseline_trade_nums = None
+                self._baseline_equity = None
+                self._baseline_peak = None
                 self._baseline_dates = None
+                self._baseline_timestamps = None
                 self._drawdown_fill.setVisible(False)
                 logger.debug("Cleared baseline equity curve")
                 self._update_axis_display()
                 return
 
-            x_data = equity_df["trade_num"].to_numpy()
-            y_data = equity_df["equity"].to_numpy()
-            peak_data = equity_df["peak"].to_numpy()
-
-            self._baseline_curve.setData(x=x_data, y=y_data)
-            self._peak_curve.setData(x=x_data, y=peak_data)
-            self._baseline_data = (x_data, y_data, peak_data)
+            # Store original data arrays
+            self._baseline_trade_nums = equity_df["trade_num"].to_numpy()
+            self._baseline_equity = equity_df["equity"].to_numpy()
+            self._baseline_peak = equity_df["peak"].to_numpy()
             self._baseline_dates = dates
+            self._baseline_data = (
+                self._baseline_trade_nums,
+                self._baseline_equity,
+                self._baseline_peak,
+            )
+
+            # Convert dates to timestamps if available
+            if dates is not None and len(dates) > 0:
+                try:
+                    # Convert to pandas datetime then to Unix timestamps (seconds)
+                    dt_series = pd.to_datetime(dates)
+                    self._baseline_timestamps = (
+                        dt_series.astype(np.int64) // 10**9
+                    ).to_numpy()
+                except Exception as e:
+                    logger.warning("Failed to convert dates to timestamps: %s", e)
+                    self._baseline_timestamps = None
+            else:
+                self._baseline_timestamps = None
+
+            # Plot with current axis mode
+            self._replot_curves()
 
             # Update drawdown fill visibility
             if self._show_drawdown:
                 self._drawdown_fill.setVisible(True)
 
             self._plot_widget.autoRange()
-            self._update_axis_display()
-            logger.debug("EquityChart updated: %d baseline points", len(x_data))
+            logger.debug(
+                "EquityChart updated: %d baseline points",
+                len(self._baseline_trade_nums),
+            )
 
         except Exception as e:
             error_msg = f"ChartRenderError: Failed to render baseline - {e}"
@@ -418,19 +484,41 @@ class EquityChart(QWidget):
         try:
             if equity_df is None or equity_df.empty:
                 self._filtered_curve.setData([], [])
+                self._filtered_trade_nums = None
+                self._filtered_equity = None
                 self._filtered_dates = None
+                self._filtered_timestamps = None
                 logger.debug("Cleared filtered equity curve")
                 self._update_axis_display()
                 return
 
-            x_data = equity_df["trade_num"].to_numpy()
-            y_data = equity_df["equity"].to_numpy()
-
-            self._filtered_curve.setData(x=x_data, y=y_data)
+            # Store original data arrays
+            self._filtered_trade_nums = equity_df["trade_num"].to_numpy()
+            self._filtered_equity = equity_df["equity"].to_numpy()
             self._filtered_dates = dates
+
+            # Convert dates to timestamps if available
+            if dates is not None and len(dates) > 0:
+                try:
+                    # Convert to pandas datetime then to Unix timestamps (seconds)
+                    dt_series = pd.to_datetime(dates)
+                    self._filtered_timestamps = (
+                        dt_series.astype(np.int64) // 10**9
+                    ).to_numpy()
+                except Exception as e:
+                    logger.warning("Failed to convert dates to timestamps: %s", e)
+                    self._filtered_timestamps = None
+            else:
+                self._filtered_timestamps = None
+
+            # Plot with current axis mode
+            self._replot_curves()
+
             self._plot_widget.autoRange()
-            self._update_axis_display()
-            logger.debug("EquityChart updated: %d filtered points", len(x_data))
+            logger.debug(
+                "EquityChart updated: %d filtered points",
+                len(self._filtered_trade_nums),
+            )
 
         except Exception as e:
             error_msg = f"ChartRenderError: Failed to render filtered - {e}"
@@ -443,8 +531,15 @@ class EquityChart(QWidget):
         self._filtered_curve.setData([], [])
         self._peak_curve.setData([], [])
         self._baseline_data = None
+        self._baseline_trade_nums = None
+        self._baseline_equity = None
+        self._baseline_peak = None
         self._baseline_dates = None
+        self._baseline_timestamps = None
+        self._filtered_trade_nums = None
+        self._filtered_equity = None
         self._filtered_dates = None
+        self._filtered_timestamps = None
         self._drawdown_fill.setVisible(False)
 
     def auto_range(self) -> None:
@@ -464,15 +559,68 @@ class EquityChart(QWidget):
     def _update_axis_display(self) -> None:
         """Update X-axis display based on current mode."""
         plot_item = self._plot_widget.getPlotItem()
+        axis_pen = pg.mkPen(color=Colors.BG_BORDER)
 
-        if self._axis_mode == AxisMode.DATE and self._baseline_dates is not None:
-            # Use date-based axis
-            plot_item.setLabel("bottom", "Date")
-            # For now, just update the label - date tick formatting would require
-            # a custom axis item which is optional enhancement
+        # Check if we can use date mode (need timestamps)
+        has_timestamps = (
+            self._baseline_timestamps is not None
+            and len(self._baseline_timestamps) > 0
+        )
+
+        if self._axis_mode == AxisMode.DATE and has_timestamps:
+            # Switch to date axis
+            self._date_axis = DateAxisItem(orientation="bottom")
+            self._date_axis.setPen(axis_pen)
+            self._date_axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
+            plot_item.setAxisItems({"bottom": self._date_axis})
+            plot_item.setLabel("bottom", "Date", **{
+                "font-family": Fonts.DATA,
+                "color": Colors.TEXT_SECONDARY,
+            })
         else:
-            # Use trade number axis
-            plot_item.setLabel("bottom", "Trade #")
+            # Switch to numeric axis
+            self._numeric_axis = pg.AxisItem(orientation="bottom")
+            self._numeric_axis.setPen(axis_pen)
+            self._numeric_axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
+            plot_item.setAxisItems({"bottom": self._numeric_axis})
+            plot_item.setLabel("bottom", "Trade #", **{
+                "font-family": Fonts.DATA,
+                "color": Colors.TEXT_SECONDARY,
+            })
+
+        # Replot curves with appropriate X values
+        self._replot_curves()
+
+    def _replot_curves(self) -> None:
+        """Replot all curves using current axis mode's X values."""
+        # Check if we should use timestamps (DATE mode with available timestamps)
+        use_timestamps = (
+            self._axis_mode == AxisMode.DATE
+            and self._baseline_timestamps is not None
+            and len(self._baseline_timestamps) > 0
+        )
+
+        # Replot baseline curve
+        if self._baseline_equity is not None:
+            if use_timestamps and self._baseline_timestamps is not None:
+                x_data = self._baseline_timestamps
+            else:
+                x_data = self._baseline_trade_nums
+
+            if x_data is not None:
+                self._baseline_curve.setData(x=x_data, y=self._baseline_equity)
+                if self._baseline_peak is not None:
+                    self._peak_curve.setData(x=x_data, y=self._baseline_peak)
+
+        # Replot filtered curve
+        if self._filtered_equity is not None:
+            if use_timestamps and self._filtered_timestamps is not None:
+                x_data = self._filtered_timestamps
+            else:
+                x_data = self._filtered_trade_nums
+
+            if x_data is not None:
+                self._filtered_curve.setData(x=x_data, y=self._filtered_equity)
 
 
 class _ChartPanel(QWidget):
