@@ -1054,6 +1054,9 @@ class BinConfigRow(QFrame):
     def _format_number_label(self, value: float) -> str:
         """Format a number with K/M/B abbreviations for bin labels.
 
+        Only abbreviates values >= 100K. Smaller values display normally,
+        with 2 decimal places for double-digit values (10-99).
+
         Args:
             value: Number to format.
 
@@ -1069,13 +1072,16 @@ class BinConfigRow(QFrame):
         elif abs_value >= 1_000_000:
             formatted = abs_value / 1_000_000
             suffix = "M"
-        elif abs_value >= 1_000:
+        elif abs_value >= 100_000:
             formatted = abs_value / 1_000
             suffix = "K"
         else:
-            # Small numbers: show as-is
+            # Values under 100K: show as-is
             if abs_value == int(abs_value):
                 return f"{sign}{int(abs_value)}"
+            # Double-digit values (10-99): show 2 decimal places
+            if 10 <= abs_value < 100:
+                return f"{sign}{abs_value:.2f}"
             return f"{sign}{abs_value:.1f}"
 
         # Format with suffix, removing unnecessary decimals
