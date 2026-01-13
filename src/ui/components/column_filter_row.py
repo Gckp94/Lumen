@@ -88,29 +88,33 @@ class ColumnFilterRow(QWidget):
         layout.addWidget(self._indicator)
 
         # Apply button (for applying this single filter)
-        self._apply_btn = QPushButton()
-        self._apply_btn.setFixedSize(20, 20)
-        self._apply_btn.setToolTip("Apply this filter only")
+        self._apply_btn = QPushButton("+")
+        self._apply_btn.setFixedSize(22, 22)
+        self._apply_btn.setToolTip("Apply this filter")
         self._apply_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._apply_btn.setStyleSheet(f"""
             QPushButton {{
                 background: transparent;
-                border: none;
+                border: 1px solid {Colors.BG_BORDER};
                 border-radius: 4px;
-                font-size: 14px;
-                color: {Colors.SIGNAL_CYAN};
+                font-size: 16px;
+                font-weight: bold;
+                font-family: "{Fonts.UI}";
+                color: {Colors.TEXT_SECONDARY};
             }}
             QPushButton:hover {{
                 background: {Colors.BG_BORDER};
+                border-color: {Colors.SIGNAL_AMBER};
+                color: {Colors.SIGNAL_AMBER};
             }}
             QPushButton:pressed {{
                 background: {Colors.BG_ELEVATED};
             }}
             QPushButton:disabled {{
                 color: {Colors.TEXT_DISABLED};
+                border-color: transparent;
             }}
         """)
-        self._apply_btn.setText("\u25b6")
         self._apply_btn.setEnabled(False)
         self._apply_btn.clicked.connect(self._on_apply_clicked)
         layout.addWidget(self._apply_btn)

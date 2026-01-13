@@ -132,3 +132,11 @@ class TestColumnFilterRow:
             row._apply_btn.click()
 
         assert blocker.args == ["gain_pct"]
+
+    def test_apply_button_has_visible_icon(self, qtbot: QtBot, app: QApplication) -> None:
+        """Test that apply button displays a visible plus icon."""
+        row = ColumnFilterRow(column_name="test_col")
+        qtbot.addWidget(row)
+
+        # Button should have a plus icon text
+        assert row._apply_btn.text() == "+"
