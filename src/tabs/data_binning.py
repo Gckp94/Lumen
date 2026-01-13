@@ -1552,11 +1552,11 @@ class BinChartPanel(QWidget):
         toggle_layout.setContentsMargins(2, 2, 2, 2)
         toggle_layout.setSpacing(2)
 
-        self._abs_btn = QPushButton("Abs")
-        self._cum_btn = QPushButton("Cum")
+        self._abs_btn = QPushButton("Absolute")
+        self._cum_btn = QPushButton("Cumulative")
 
         for btn in [self._abs_btn, self._cum_btn]:
-            btn.setFixedSize(36, 20)
+            btn.setFixedSize(70, 24)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._abs_btn.clicked.connect(lambda: self._set_cumulative_mode(False))
@@ -1590,24 +1590,24 @@ class BinChartPanel(QWidget):
                 background: {Colors.SIGNAL_CYAN};
                 color: {Colors.BG_BASE};
                 border: none;
-                border-radius: 3px;
+                border-radius: 4px;
                 font-family: {Fonts.UI};
-                font-size: 10px;
+                font-size: 11px;
                 font-weight: 600;
             }}
         """
         inactive_style = f"""
             QPushButton {{
-                background: transparent;
-                color: {Colors.TEXT_SECONDARY};
-                border: none;
-                border-radius: 3px;
+                background: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
                 font-family: {Fonts.UI};
-                font-size: 10px;
+                font-size: 11px;
                 font-weight: 500;
             }}
             QPushButton:hover {{
-                background: rgba(255, 255, 255, 0.05);
+                background: {Colors.BG_BORDER};
                 color: {Colors.TEXT_PRIMARY};
             }}
         """
@@ -1747,8 +1747,8 @@ class BinChartPanel(QWidget):
         pct_total_data = list(zip(ordered_labels, pct_values))
 
         # Update charts
-        self._average_chart.set_data(average_data, is_percentage=True)
-        self._median_chart.set_data(median_data, is_percentage=True)
+        self._average_chart.set_data(average_data, is_percentage=False)
+        self._median_chart.set_data(median_data, is_percentage=False)
         self._count_chart.set_data(count_data, total_count=total_count)
         self._win_rate_chart.set_data(win_rate_data, is_percentage=True)
         self._pct_total_chart.set_data(pct_total_data, is_percentage=True)
