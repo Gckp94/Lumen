@@ -197,9 +197,9 @@ class ColumnFilterPanel(QWidget):
             row.deleteLater()
         self._rows.clear()
 
-        # Create new rows
-        for column in self._columns:
-            row = ColumnFilterRow(column_name=column)
+        # Create new rows with alternating backgrounds
+        for i, column in enumerate(self._columns):
+            row = ColumnFilterRow(column_name=column, alternate=(i % 2 == 1))
             row.values_changed.connect(self._on_row_values_changed)
             self._rows.append(row)
             # Insert before stretch

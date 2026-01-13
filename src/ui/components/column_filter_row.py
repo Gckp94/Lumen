@@ -31,16 +31,19 @@ class ColumnFilterRow(QWidget):
     def __init__(
         self,
         column_name: str,
+        alternate: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize ColumnFilterRow.
 
         Args:
             column_name: Name of the column this row filters.
+            alternate: Whether to use alternate background color.
             parent: Parent widget.
         """
         super().__init__(parent)
         self._column_name = column_name
+        self._alternate = alternate
         self._operator: Literal["between", "not_between"] = "between"
         self._setup_ui()
         self._apply_style()
@@ -86,9 +89,10 @@ class ColumnFilterRow(QWidget):
 
     def _apply_style(self) -> None:
         """Apply Observatory theme styling."""
+        bg_color = Colors.BG_ELEVATED if self._alternate else Colors.BG_SURFACE
         self.setStyleSheet(f"""
             ColumnFilterRow {{
-                background-color: transparent;
+                background-color: {bg_color};
             }}
             ColumnFilterRow:hover {{
                 background-color: {Colors.BG_BORDER};
