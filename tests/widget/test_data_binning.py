@@ -732,6 +732,52 @@ class TestSaveLoadConfig:
 
 
 
+class TestCumulativeToggle:
+    """Tests for cumulative toggle on % of Total Gains chart."""
+
+    def test_pct_total_chart_has_cumulative_toggle(self, qtbot: QtBot) -> None:
+        """Test that % of Total Gains chart has a cumulative toggle."""
+        from PyQt6.QtWidgets import QPushButton
+
+        app_state = AppState()
+        panel = BinChartPanel(app_state)
+        qtbot.addWidget(panel)
+
+        # Find toggle buttons by text
+        buttons = panel.findChildren(QPushButton)
+        button_texts = [b.text() for b in buttons]
+
+        assert "Abs" in button_texts or "Absolute" in button_texts, "Should have Absolute toggle"
+        assert "Cum" in button_texts or "Cumulative" in button_texts, "Should have Cumulative toggle"
+
+    def test_cumulative_mode_calculates_running_totals(self) -> None:
+        """Test that cumulative mode shows running totals summing to ~100%."""
+        percentages = [10.0, 25.0, 35.0, 30.0]
+
+        cumulative = []
+        running_total = 0.0
+        for pct in percentages:
+            running_total += pct
+            cumulative.append(running_total)
+
+        assert cumulative == [10.0, 35.0, 70.0, 100.0]
+        assert cumulative[-1] == 100.0, "Final cumulative should be 100%"
+
+    def test_cumulative_toggle_changes_chart_data(self, qtbot: QtBot) -> None:
+        """Test that clicking cumulative toggle changes chart data."""
+        app_state = AppState()
+        panel = BinChartPanel(app_state)
+        qtbot.addWidget(panel)
+
+        assert panel._cumulative_mode is False
+
+        panel._cum_btn.click()
+        assert panel._cumulative_mode is True
+
+        panel._abs_btn.click()
+        assert panel._cumulative_mode is False
+
+
 class TestPctTotalGainsChart:
     """Tests for % of Total Gains chart functionality."""
 

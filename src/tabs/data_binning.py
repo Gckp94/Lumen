@@ -1391,6 +1391,7 @@ class BinChartPanel(QWidget):
         self._current_metric_column = "adjusted_gain_pct"
         self._bin_definitions: list["BinDefinition"] = []
         self._selected_column: str = ""
+        self._cumulative_mode = False
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -1460,13 +1461,16 @@ class BinChartPanel(QWidget):
         self._median_chart = HorizontalBarChart("Median")
         self._count_chart = HorizontalBarChart("Count")
         self._win_rate_chart = HorizontalBarChart("Win Rate")
-        self._pct_total_chart = HorizontalBarChart("% of Total Gains")
 
         self._chart_layout.addWidget(self._average_chart)
         self._chart_layout.addWidget(self._median_chart)
         self._chart_layout.addWidget(self._count_chart)
         self._chart_layout.addWidget(self._win_rate_chart)
-        self._chart_layout.addWidget(self._pct_total_chart)
+
+        # % of Total Gains with cumulative toggle
+        pct_total_section = self._create_pct_total_section()
+        self._chart_layout.addWidget(pct_total_section)
+
         self._chart_layout.addStretch()
 
         scroll_area.setWidget(self._chart_container)
@@ -1510,6 +1514,110 @@ class BinChartPanel(QWidget):
                 border-color: {Colors.TEXT_SECONDARY};
             }}
         """
+
+    def _create_pct_total_section(self) -> QWidget:
+        """Create the % of Total Gains chart with cumulative toggle."""
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        # Header with title and toggle
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 4)
+
+        title = QLabel("% of Total Gains")
+        title.setStyleSheet(f"""
+            color: {Colors.TEXT_SECONDARY};
+            font-family: {Fonts.UI};
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        """)
+        header.addWidget(title)
+        header.addStretch()
+
+        # Cumulative toggle
+        toggle_container = QFrame()
+        toggle_container.setStyleSheet(f"""
+            QFrame {{
+                background: {Colors.BG_ELEVATED};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+                padding: 2px;
+            }}
+        """)
+        toggle_layout = QHBoxLayout(toggle_container)
+        toggle_layout.setContentsMargins(2, 2, 2, 2)
+        toggle_layout.setSpacing(2)
+
+        self._abs_btn = QPushButton("Abs")
+        self._cum_btn = QPushButton("Cum")
+
+        for btn in [self._abs_btn, self._cum_btn]:
+            btn.setFixedSize(36, 20)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self._abs_btn.clicked.connect(lambda: self._set_cumulative_mode(False))
+        self._cum_btn.clicked.connect(lambda: self._set_cumulative_mode(True))
+
+        toggle_layout.addWidget(self._abs_btn)
+        toggle_layout.addWidget(self._cum_btn)
+        header.addWidget(toggle_container)
+
+        layout.addLayout(header)
+
+        # Chart (without title since we have custom header)
+        self._pct_total_chart = HorizontalBarChart()  # No title in constructor
+        layout.addWidget(self._pct_total_chart)
+
+        # Initialize toggle styles
+        self._update_toggle_styles()
+
+        return container
+
+    def _set_cumulative_mode(self, cumulative: bool) -> None:
+        """Switch between absolute and cumulative display modes."""
+        self._cumulative_mode = cumulative
+        self._update_toggle_styles()
+        self._recalculate_charts()
+
+    def _update_toggle_styles(self) -> None:
+        """Update toggle button visual states."""
+        active_style = f"""
+            QPushButton {{
+                background: {Colors.SIGNAL_CYAN};
+                color: {Colors.BG_BASE};
+                border: none;
+                border-radius: 3px;
+                font-family: {Fonts.UI};
+                font-size: 10px;
+                font-weight: 600;
+            }}
+        """
+        inactive_style = f"""
+            QPushButton {{
+                background: transparent;
+                color: {Colors.TEXT_SECONDARY};
+                border: none;
+                border-radius: 3px;
+                font-family: {Fonts.UI};
+                font-size: 10px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background: rgba(255, 255, 255, 0.05);
+                color: {Colors.TEXT_PRIMARY};
+            }}
+        """
+
+        if self._cumulative_mode:
+            self._cum_btn.setStyleSheet(active_style)
+            self._abs_btn.setStyleSheet(inactive_style)
+        else:
+            self._abs_btn.setStyleSheet(active_style)
+            self._cum_btn.setStyleSheet(inactive_style)
 
     def _on_metric_toggle(self, metric: str) -> None:
         """Handle metric toggle button click.
@@ -1611,7 +1719,7 @@ class BinChartPanel(QWidget):
         ]
         win_rate_data = [(label, metrics[label].win_rate) for label in ordered_labels]
 
-        # Calculate % of Total Gains
+        # Calculate % of Total Gains (absolute)
         total_all_gains = sum(
             metrics[label].total_gain
             for label in ordered_labels
@@ -1619,13 +1727,24 @@ class BinChartPanel(QWidget):
         )
 
         if total_all_gains != 0:
-            pct_total_data = [
-                (label, (metrics[label].total_gain / total_all_gains) * 100)
+            pct_values = [
+                (metrics[label].total_gain / total_all_gains) * 100
                 for label in ordered_labels
                 if metrics[label].total_gain is not None
             ]
         else:
-            pct_total_data = [(label, 0.0) for label in ordered_labels]
+            pct_values = [0.0 for _ in ordered_labels]
+
+        # Apply cumulative if enabled
+        if self._cumulative_mode:
+            cumulative_values = []
+            running_total = 0.0
+            for pct in pct_values:
+                running_total += pct
+                cumulative_values.append(running_total)
+            pct_values = cumulative_values
+
+        pct_total_data = list(zip(ordered_labels, pct_values))
 
         # Update charts
         self._average_chart.set_data(average_data, is_percentage=True)
