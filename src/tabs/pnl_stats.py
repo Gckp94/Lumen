@@ -1115,7 +1115,7 @@ class PnLStatsTab(QWidget):
         start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
 
         # Full calculation with equity curves
-        _, flat_equity, kelly_equity = self._metrics_calculator.calculate(
+        metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
             df=filtered_df,
             gain_col=column_mapping.gain_pct,
             derived=column_mapping.win_loss_derived,
@@ -1129,6 +1129,28 @@ class PnLStatsTab(QWidget):
             flat_stake=flat_stake,
             start_capital=start_capital,
         )
+
+        # Update filtered metrics with flat stake and Kelly values
+        if self._app_state.filtered_metrics is not None:
+            from dataclasses import replace
+            updated_metrics = replace(
+                self._app_state.filtered_metrics,
+                flat_stake_pnl=metrics.flat_stake_pnl,
+                flat_stake_max_dd=metrics.flat_stake_max_dd,
+                flat_stake_max_dd_pct=metrics.flat_stake_max_dd_pct,
+                flat_stake_dd_duration=metrics.flat_stake_dd_duration,
+                kelly_pnl=metrics.kelly_pnl,
+                kelly_max_dd=metrics.kelly_max_dd,
+                kelly_max_dd_pct=metrics.kelly_max_dd_pct,
+                kelly_dd_duration=metrics.kelly_dd_duration,
+            )
+            self._app_state.filtered_metrics = updated_metrics
+            # Re-emit metrics updated signal so UI refreshes
+            self._app_state.metrics_updated.emit(
+                self._app_state.baseline_metrics,
+                self._app_state.filtered_metrics,
+            )
+            logger.debug("Updated filtered metrics with flat stake/Kelly values")
 
         # Store and emit filtered equity curves
         self._app_state.filtered_flat_stake_equity_curve = flat_equity
