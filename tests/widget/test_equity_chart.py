@@ -254,6 +254,149 @@ class TestEquityChartLegend:
         assert "Filtered" in labels
 
 
+class TestChartPanelDateAxisSwitching:
+    """Tests for date axis switching in both chart panels."""
+
+    def _create_equity_df_with_dates(self, n_points: int = 10, include_dates: bool = True) -> pd.DataFrame:
+        """Create equity DataFrame with optional date column."""
+        np.random.seed(42)
+        pnl = np.random.normal(50, 100, n_points)
+        equity = 10000 + np.cumsum(pnl)
+        peak = np.maximum.accumulate(equity)
+
+        data = {
+            "trade_num": np.arange(1, n_points + 1),
+            "pnl": pnl,
+            "equity": equity,
+            "peak": peak,
+            "drawdown": equity - peak,
+        }
+
+        if include_dates:
+            data["date"] = pd.date_range("2024-01-01", periods=n_points, freq="D")
+
+        return pd.DataFrame(data)
+
+    def test_flat_stake_chart_switches_to_date_axis(self, qtbot):
+        """Flat stake chart switches X-axis to dates when date data available."""
+        from src.ui.components.axis_mode_toggle import AxisMode
+
+        panel = _ChartPanel("Flat Stake PnL")
+        qtbot.addWidget(panel)
+
+        df = self._create_equity_df_with_dates(10, include_dates=True)
+        panel.set_baseline(df)
+
+        # Verify dates were extracted
+        assert panel._baseline_dates is not None
+        assert len(panel._baseline_dates) == 10
+        assert panel.chart._baseline_timestamps is not None
+
+        # Switch to date mode
+        panel._on_axis_mode_changed(AxisMode.DATE)
+
+        # Verify axis mode is DATE
+        assert panel.chart._axis_mode == AxisMode.DATE
+
+        # Verify curve X data is timestamps (large values)
+        x_data = panel.chart._baseline_curve.xData
+        assert x_data is not None
+        assert x_data[0] > 1000000000  # Unix timestamp > 1 billion
+
+    def test_kelly_chart_switches_to_date_axis(self, qtbot):
+        """Kelly chart switches X-axis to dates when date data available."""
+        from src.ui.components.axis_mode_toggle import AxisMode
+
+        panel = _ChartPanel("Compounded Kelly PnL")
+        qtbot.addWidget(panel)
+
+        # Create Kelly-style DataFrame with position_size column
+        df = self._create_equity_df_with_dates(10, include_dates=True)
+        df["position_size"] = 1000.0
+
+        panel.set_baseline(df)
+
+        # Verify dates were extracted
+        assert panel._baseline_dates is not None
+        assert len(panel._baseline_dates) == 10
+        assert panel.chart._baseline_timestamps is not None
+
+        # Switch to date mode
+        panel._on_axis_mode_changed(AxisMode.DATE)
+
+        # Verify axis mode is DATE
+        assert panel.chart._axis_mode == AxisMode.DATE
+
+        # Verify curve X data is timestamps (large values)
+        x_data = panel.chart._baseline_curve.xData
+        assert x_data is not None
+        assert x_data[0] > 1000000000  # Unix timestamp > 1 billion
+
+    def test_both_charts_identical_date_handling(self, qtbot):
+        """Flat stake and Kelly charts handle dates identically."""
+        from src.ui.components.axis_mode_toggle import AxisMode
+
+        flat_panel = _ChartPanel("Flat Stake PnL")
+        kelly_panel = _ChartPanel("Compounded Kelly PnL")
+        qtbot.addWidget(flat_panel)
+        qtbot.addWidget(kelly_panel)
+
+        # Create DataFrames with same dates
+        flat_df = self._create_equity_df_with_dates(10, include_dates=True)
+        kelly_df = self._create_equity_df_with_dates(10, include_dates=True)
+        kelly_df["position_size"] = 1000.0
+
+        flat_panel.set_baseline(flat_df)
+        kelly_panel.set_baseline(kelly_df)
+
+        # Both should have timestamps
+        assert flat_panel.chart._baseline_timestamps is not None
+        assert kelly_panel.chart._baseline_timestamps is not None
+
+        # Timestamps should be identical
+        np.testing.assert_array_equal(
+            flat_panel.chart._baseline_timestamps,
+            kelly_panel.chart._baseline_timestamps
+        )
+
+        # Switch both to date mode
+        flat_panel._on_axis_mode_changed(AxisMode.DATE)
+        kelly_panel._on_axis_mode_changed(AxisMode.DATE)
+
+        # Both should have same X data
+        np.testing.assert_array_equal(
+            flat_panel.chart._baseline_curve.xData,
+            kelly_panel.chart._baseline_curve.xData
+        )
+
+    def test_chart_without_dates_stays_numeric(self, qtbot):
+        """Chart without date column stays in numeric mode."""
+        from src.ui.components.axis_mode_toggle import AxisMode
+
+        panel = _ChartPanel("Test Chart")
+        qtbot.addWidget(panel)
+
+        # Create DataFrame WITHOUT dates
+        df = self._create_equity_df_with_dates(10, include_dates=False)
+        panel.set_baseline(df)
+
+        # Verify no dates extracted
+        assert panel._baseline_dates is None
+        assert panel.chart._baseline_timestamps is None
+
+        # Switch to date mode (should fallback to numeric)
+        panel._on_axis_mode_changed(AxisMode.DATE)
+
+        # Mode is set to DATE but chart uses trade numbers since no timestamps
+        assert panel.chart._axis_mode == AxisMode.DATE
+
+        # X data should be trade numbers (1-10)
+        x_data = panel.chart._baseline_curve.xData
+        assert x_data is not None
+        assert x_data[0] == 1
+        assert x_data[-1] == 10
+
+
 class TestChartPanelWidgetBehavior:
     """Widget tests for _ChartPanel behavior."""
 
