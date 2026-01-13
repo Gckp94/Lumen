@@ -122,7 +122,7 @@ class _RibbonCard(QFrame):
     def _setup_ui(self) -> None:
         """Set up the widget UI layout."""
         self.setFixedWidth(200)
-        self.setFixedHeight(100)
+        self.setMinimumHeight(120)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(Spacing.MD, Spacing.SM, Spacing.MD, Spacing.SM)

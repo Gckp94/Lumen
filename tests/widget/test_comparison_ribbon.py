@@ -54,6 +54,18 @@ class TestComparisonRibbonDisplay:
 
         assert ribbon.objectName() == "comparisonRibbon"
 
+    def test_ribbon_card_has_minimum_height(self, qtbot: QtBot):
+        """Test that ribbon card allows natural height expansion."""
+        from src.ui.components.comparison_ribbon import _RibbonCard
+
+        card = _RibbonCard("trades")
+        qtbot.addWidget(card)
+
+        # Card should have minimum height, not fixed height
+        # minimumHeight should be set, but maximumHeight should not constrain
+        assert card.minimumHeight() >= 120
+        assert card.maximumHeight() >= 16777215  # Qt's QWIDGETSIZE_MAX default
+
 
 class TestComparisonRibbonUpdate:
     """Tests for ComparisonRibbon update method."""
