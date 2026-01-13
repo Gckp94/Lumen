@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QShowEvent
 from PyQt6.QtWidgets import (
     QFileDialog,
@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMenu,
     QPushButton,
+    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -95,7 +96,29 @@ class PnLStatsTab(QWidget):
             }}
         """)
 
-        main_layout = QVBoxLayout(self)
+        # Create outer layout for the tab
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+
+        # Create scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setStyleSheet(f"""
+            QScrollArea {{
+                background-color: {Colors.BG_SURFACE};
+                border: none;
+            }}
+        """)
+
+        # Create content widget
+        content_widget = QWidget()
+        content_widget.setObjectName("pnlStatsContent")
+
+        # Move the main_layout to be on content_widget instead of self
+        main_layout = QVBoxLayout(content_widget)
         main_layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
         main_layout.setSpacing(Spacing.LG)
 
@@ -177,6 +200,10 @@ class PnLStatsTab(QWidget):
         self._comparison_ribbon = ComparisonRibbon()
         main_layout.insertWidget(0, comparison_header)
         main_layout.insertWidget(1, self._comparison_ribbon)
+
+        # Wire up the scroll area
+        scroll_area.setWidget(content_widget)
+        outer_layout.addWidget(scroll_area)
 
     def _create_export_button(self) -> QPushButton:
         """Create export dropdown button."""
