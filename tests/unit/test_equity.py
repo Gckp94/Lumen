@@ -271,6 +271,24 @@ class TestEquityCalculatorKelly:
             )
 
 
+class TestFlatStakeDateColumn:
+    """Tests for date column support in flat stake equity."""
+
+    def test_flat_stake_includes_date_column(self) -> None:
+        """Flat stake equity DataFrame should include date column when provided."""
+        df = pd.DataFrame({
+            "gain_pct": [0.05, -0.02, 0.03],
+            "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"]),
+        })
+
+        calculator = EquityCalculator()
+        result = calculator.calculate_flat_stake(df, "gain_pct", stake=1000, date_col="date")
+
+        assert "date" in result.columns
+        assert len(result["date"]) == 3
+        assert result["date"].iloc[0] == pd.Timestamp("2024-01-01")
+
+
 class TestKellyDrawdownMetrics:
     """Tests for Kelly drawdown metrics."""
 
@@ -337,3 +355,26 @@ class TestKellyDrawdownMetrics:
         assert equity_curve is not None
         expected_pnl = float(equity_curve["equity"].iloc[-1]) - 10000.0
         assert metrics["pnl"] == pytest.approx(expected_pnl, abs=0.01)
+
+
+class TestKellyDateColumn:
+    """Tests for date column support in Kelly equity."""
+
+    def test_kelly_includes_date_column(self) -> None:
+        """Kelly equity DataFrame should include date column when provided."""
+        df = pd.DataFrame({
+            "gain_pct": [0.05, -0.02, 0.03],
+            "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"]),
+        })
+
+        calculator = EquityCalculator()
+        result = calculator.calculate_kelly(
+            df, "gain_pct",
+            start_capital=10000,
+            kelly_pct=10.0,
+            kelly_fraction=25.0,
+            date_col="date",
+        )
+
+        assert "date" in result.columns
+        assert len(result["date"]) == 3

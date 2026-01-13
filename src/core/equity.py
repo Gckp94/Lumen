@@ -26,6 +26,7 @@ class EquityCalculator:
         df: pd.DataFrame,
         gain_col: str,
         stake: float,
+        date_col: str | None = None,
     ) -> pd.DataFrame:
         """Calculate flat stake equity curve.
 
@@ -68,6 +69,10 @@ class EquityCalculator:
                 "peak": peak,
                 "drawdown": drawdown,
             })
+
+            # Include date column if provided
+            if date_col is not None and date_col in df.columns:
+                result["date"] = df[date_col].values
 
             logger.debug(
                 "Calculated equity curve: %d trades, final equity=%.2f",
@@ -194,6 +199,7 @@ class EquityCalculator:
         start_capital: float,
         kelly_fraction: float,
         kelly_pct: float,
+        date_col: str | None = None,
     ) -> pd.DataFrame:
         """Calculate compounded Kelly equity curve.
 
@@ -282,6 +288,10 @@ class EquityCalculator:
                 "drawdown": drawdown,
                 "position_size": position_size,
             })
+
+            # Include date column if provided
+            if date_col is not None and date_col in df.columns:
+                result["date"] = df[date_col].values
 
             logger.debug(
                 "Calculated Kelly equity curve: %d trades, final equity=%.2f, effective_kelly=%.2f%%",
