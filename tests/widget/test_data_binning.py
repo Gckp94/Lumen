@@ -296,7 +296,7 @@ class TestBinConfigRow:
         bin_def = row.get_bin_definition()
         assert bin_def.operator == "<"
         assert bin_def.value1 == 100.0
-        assert bin_def.label == "< 100.0"
+        assert bin_def.label == "< 100"
 
     def test_get_bin_definition_range(self, qtbot: QtBot) -> None:
         """get_bin_definition returns correct BinDefinition for range."""

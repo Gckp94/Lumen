@@ -1047,9 +1047,42 @@ class BinConfigRow(QFrame):
         # Standard numeric parsing
         try:
             value = float(text)
-            return value, str(value)
+            return value, self._format_number_label(value)
         except ValueError:
             return None, ""
+
+    def _format_number_label(self, value: float) -> str:
+        """Format a number with K/M/B abbreviations for bin labels.
+
+        Args:
+            value: Number to format.
+
+        Returns:
+            Formatted string with appropriate suffix.
+        """
+        abs_value = abs(value)
+        sign = "-" if value < 0 else ""
+
+        if abs_value >= 1_000_000_000:
+            formatted = abs_value / 1_000_000_000
+            suffix = "B"
+        elif abs_value >= 1_000_000:
+            formatted = abs_value / 1_000_000
+            suffix = "M"
+        elif abs_value >= 1_000:
+            formatted = abs_value / 1_000
+            suffix = "K"
+        else:
+            # Small numbers: show as-is
+            if abs_value == int(abs_value):
+                return f"{sign}{int(abs_value)}"
+            return f"{sign}{abs_value:.1f}"
+
+        # Format with suffix, removing unnecessary decimals
+        rounded = round(formatted, 1)
+        if rounded == int(rounded):
+            return f"{sign}{int(rounded)}{suffix}"
+        return f"{sign}{rounded:.1f}{suffix}"
 
 
 class HorizontalBarChart(QWidget):
@@ -1544,20 +1577,19 @@ class BinChartPanel(QWidget):
             QFrame {{
                 background: {Colors.BG_ELEVATED};
                 border: 1px solid {Colors.BG_BORDER};
-                border-radius: 4px;
-                padding: 2px;
+                border-radius: 6px;
             }}
         """)
         toggle_layout = QHBoxLayout(toggle_container)
-        toggle_layout.setContentsMargins(2, 2, 2, 2)
-        toggle_layout.setSpacing(2)
+        toggle_layout.setContentsMargins(4, 4, 4, 4)
+        toggle_layout.setSpacing(4)
 
         self._abs_btn = QPushButton("Absolute")
         self._cum_btn = QPushButton("Cumulative")
 
         for btn in [self._abs_btn, self._cum_btn]:
-            btn.setMinimumWidth(80)
-            btn.setFixedHeight(24)
+            btn.setMinimumWidth(85)
+            btn.setFixedHeight(28)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._abs_btn.clicked.connect(lambda: self._set_cumulative_mode(False))
@@ -1593,7 +1625,7 @@ class BinChartPanel(QWidget):
                 border: none;
                 border-radius: 4px;
                 font-family: {Fonts.UI};
-                font-size: 11px;
+                font-size: 12px;
                 font-weight: 600;
             }}
         """
@@ -1604,7 +1636,7 @@ class BinChartPanel(QWidget):
                 border: 1px solid {Colors.BG_BORDER};
                 border-radius: 4px;
                 font-family: {Fonts.UI};
-                font-size: 11px;
+                font-size: 12px;
                 font-weight: 500;
             }}
             QPushButton:hover {{
