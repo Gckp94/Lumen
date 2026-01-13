@@ -1556,7 +1556,8 @@ class BinChartPanel(QWidget):
         self._cum_btn = QPushButton("Cumulative")
 
         for btn in [self._abs_btn, self._cum_btn]:
-            btn.setFixedSize(70, 24)
+            btn.setMinimumWidth(80)
+            btn.setFixedHeight(24)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._abs_btn.clicked.connect(lambda: self._set_cumulative_mode(False))

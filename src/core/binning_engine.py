@@ -64,6 +64,42 @@ class BinningEngine:
         else:
             return pd.Series([False] * len(values), index=values.index)
 
+    def _format_number(self, value: float | None) -> str:
+        """Format a number with K/M/B abbreviations for readability.
+
+        Args:
+            value: Number to format.
+
+        Returns:
+            Formatted string with appropriate suffix.
+        """
+        if value is None:
+            return "N/A"
+
+        abs_value = abs(value)
+        sign = "-" if value < 0 else ""
+
+        if abs_value >= 1_000_000_000:
+            formatted = abs_value / 1_000_000_000
+            suffix = "B"
+        elif abs_value >= 1_000_000:
+            formatted = abs_value / 1_000_000
+            suffix = "M"
+        elif abs_value >= 1_000:
+            formatted = abs_value / 1_000
+            suffix = "K"
+        else:
+            # Small numbers: show as-is
+            if abs_value == int(abs_value):
+                return f"{sign}{int(abs_value)}"
+            return f"{sign}{abs_value:.1f}"
+
+        # Format with suffix, removing unnecessary decimals
+        rounded = round(formatted, 1)
+        if rounded == int(rounded):
+            return f"{sign}{int(rounded)}{suffix}"
+        return f"{sign}{rounded:.1f}{suffix}"
+
     def _generate_label(self, bin_def: BinDefinition) -> str:
         """Generate auto-label from bin definition."""
         op = bin_def.operator
@@ -71,11 +107,11 @@ class BinningEngine:
         if op == "nulls":
             return "Nulls"
         elif op == "<":
-            return f"< {bin_def.value1}"
+            return f"< {self._format_number(bin_def.value1)}"
         elif op == ">":
-            return f"> {bin_def.value1}"
+            return f"> {self._format_number(bin_def.value1)}"
         elif op == "range":
-            return f"{bin_def.value1} - {bin_def.value2}"
+            return f"{self._format_number(bin_def.value1)} - {self._format_number(bin_def.value2)}"
         return "Unknown"
 
     def calculate_bin_metrics(
