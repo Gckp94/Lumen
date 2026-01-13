@@ -48,7 +48,7 @@ class FilterChip(QFrame):
         layout.addWidget(self._label)
 
         # Remove button
-        self._remove_btn = QPushButton("\u2715")  # ✕
+        self._remove_btn = QPushButton("\U0001F5D1")  # 🗑
         self._remove_btn.setFixedSize(16, 16)
         self._remove_btn.clicked.connect(self._on_remove)
         layout.addWidget(self._remove_btn)
