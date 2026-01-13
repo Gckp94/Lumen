@@ -79,6 +79,55 @@ class TestChartCanvasUpdateData:
         assert x_values == [0, 1, 2]
 
 
+class TestChartCanvasContrastColors:
+    """Tests for ChartCanvas contrast colors feature."""
+
+    def test_contrast_colors_creates_brushes_for_data(self, qtbot):
+        """Contrast colors should create brushes list for positive/negative values."""
+        canvas = ChartCanvas()
+        qtbot.addWidget(canvas)
+
+        # Create data with positive and negative values
+        df = pd.DataFrame({"test_col": [-5.0, -2.0, 0.0, 3.0, 10.0]})
+
+        canvas.update_data(df, "test_col", contrast_colors=True)
+
+        # Verify scatter plot was updated with data
+        assert canvas._scatter.data is not None
+        assert len(canvas._scatter.data) == 5
+
+    def test_contrast_colors_with_all_positive_values(self, qtbot):
+        """Contrast colors works with all positive values."""
+        canvas = ChartCanvas()
+        qtbot.addWidget(canvas)
+
+        df = pd.DataFrame({"test_col": [1.0, 2.0, 3.0]})
+        canvas.update_data(df, "test_col", contrast_colors=True)
+
+        assert len(canvas._scatter.data) == 3
+
+    def test_contrast_colors_with_all_negative_values(self, qtbot):
+        """Contrast colors works with all negative values."""
+        canvas = ChartCanvas()
+        qtbot.addWidget(canvas)
+
+        df = pd.DataFrame({"test_col": [-1.0, -2.0, -3.0]})
+        canvas.update_data(df, "test_col", contrast_colors=True)
+
+        assert len(canvas._scatter.data) == 3
+
+    def test_contrast_colors_false_uses_single_brush(self, qtbot):
+        """When contrast_colors=False, single color is used."""
+        canvas = ChartCanvas()
+        qtbot.addWidget(canvas)
+
+        df = pd.DataFrame({"test_col": [-1.0, 0.0, 1.0]})
+        canvas.update_data(df, "test_col", contrast_colors=False)
+
+        # Should still render the data
+        assert len(canvas._scatter.data) == 3
+
+
 class TestChartCanvasLargeDataset:
     """Tests for ChartCanvas performance with large datasets."""
 

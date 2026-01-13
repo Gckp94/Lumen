@@ -306,15 +306,22 @@ class ChartCanvas(QWidget):
         df: pd.DataFrame,
         column: str,
         color: str = Colors.SIGNAL_CYAN,
+        contrast_colors: bool = False,
+        color_positive: str = Colors.SIGNAL_CYAN,
+        color_negative: str = Colors.SIGNAL_CORAL,
     ) -> None:
         """Update scatter plot with column data.
 
         Renders the specified column values as a scatter plot with index as x-axis.
+        Auto-fits view range to the new data extent.
 
         Args:
             df: DataFrame containing the data.
             column: Column name to plot on y-axis.
             color: Hex color string for points (default: plasma-cyan).
+            contrast_colors: If True, color points based on value sign.
+            color_positive: Color for values >= 0 (default: cyan).
+            color_negative: Color for values < 0 (default: coral).
         """
         try:
             if df is None or df.empty or column not in df.columns:
@@ -326,9 +333,20 @@ class ChartCanvas(QWidget):
             y_data = df[column].values
             x_data = np.arange(len(y_data))
 
-            # Update scatter plot with new color
-            self._scatter.setBrush(pg.mkBrush(color=color))
-            self._scatter.setData(x=x_data, y=y_data)
+            # Update scatter plot with color(s)
+            if contrast_colors:
+                # Pre-create brushes for performance (avoid creating 83k+ brush objects)
+                brush_pos = pg.mkBrush(color=color_positive)
+                brush_neg = pg.mkBrush(color=color_negative)
+                brushes = [brush_pos if val >= 0 else brush_neg for val in y_data]
+                self._scatter.setData(x=x_data, y=y_data, brush=brushes)
+            else:
+                # Single color for all points (existing behavior)
+                self._scatter.setBrush(pg.mkBrush(color=color))
+                self._scatter.setData(x=x_data, y=y_data)
+
+            # Auto-fit view to new data range to ensure filtered data is visible
+            self._plot_widget.autoRange()
 
             logger.debug(f"Chart updated with {len(y_data)} points for column '{column}'")
 

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -81,6 +82,8 @@ class FeatureExplorerTab(QWidget):
         self._time_start: str | None = None
         self._time_end: str | None = None
         self._all_times: bool = True
+        # Contrast colors state
+        self._contrast_colors: bool = False
         self._setup_ui()
         self._connect_signals()
         self._show_empty_state()
@@ -198,6 +201,30 @@ class FeatureExplorerTab(QWidget):
         # Axis control panel below filter panel
         self._axis_control_panel = AxisControlPanel()
         layout.addWidget(self._axis_control_panel)
+
+        # Contrast colors toggle
+        self._contrast_toggle = QCheckBox("Contrast colors (\u00b10)")
+        self._contrast_toggle.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Colors.TEXT_PRIMARY};
+                font-size: 12px;
+                spacing: 6px;
+            }}
+            QCheckBox::indicator {{
+                width: 14px;
+                height: 14px;
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 3px;
+                background: {Colors.BG_SURFACE};
+            }}
+            QCheckBox::indicator:checked {{
+                background: {Colors.SIGNAL_CYAN};
+                border-color: {Colors.SIGNAL_CYAN};
+            }}
+        """)
+        self._contrast_toggle.setToolTip("Color points cyan if \u22650, coral if <0")
+        self._contrast_toggle.toggled.connect(self._on_contrast_toggled)
+        layout.addWidget(self._contrast_toggle)
 
         # Spacer
         layout.addStretch()
@@ -414,7 +441,11 @@ class FeatureExplorerTab(QWidget):
 
         # Show chart and update data
         self._chart_stack.setCurrentIndex(1)
-        self._chart_canvas.update_data(df, column)
+        self._chart_canvas.update_data(
+            df,
+            column,
+            contrast_colors=self._contrast_colors,
+        )
 
         # Update bottom bar with accurate counts
         count = len(df)
@@ -690,6 +721,15 @@ class FeatureExplorerTab(QWidget):
             y_max: Maximum Y value.
         """
         self._axis_control_panel.set_range(x_min, x_max, y_min, y_max)
+
+    def _on_contrast_toggled(self, checked: bool) -> None:
+        """Toggle contrast coloring on scatter plot.
+
+        Args:
+            checked: Whether contrast colors are enabled.
+        """
+        self._contrast_colors = checked
+        self._update_chart()
 
     def _on_export_clicked(self) -> None:
         """Handle export button click.
