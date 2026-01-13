@@ -15,11 +15,13 @@ from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import (
     QCheckBox,
+    QHBoxLayout,
     QLabel,
     QVBoxLayout,
     QWidget,
 )
 
+from src.ui.components.axis_mode_toggle import AxisMode, AxisModeToggle
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
 
 if TYPE_CHECKING:
@@ -65,6 +67,9 @@ class EquityChart(QWidget):
         self._zoom_rect: pg.RectROI | None = None
         self._zoom_start: QPointF | None = None
         self._baseline_data: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
+        self._axis_mode = AxisMode.TRADES
+        self._baseline_dates: np.ndarray | None = None
+        self._filtered_dates: np.ndarray | None = None
         self._setup_ui()
         self._setup_pyqtgraph()
         self._setup_curves()
@@ -355,19 +360,26 @@ class EquityChart(QWidget):
         self._show_drawdown = visible
         self._drawdown_fill.setVisible(visible and self._baseline_data is not None)
 
-    def set_baseline(self, equity_df: pd.DataFrame | None) -> None:
+    def set_baseline(
+        self,
+        equity_df: pd.DataFrame | None,
+        dates: np.ndarray | None = None,
+    ) -> None:
         """Set the baseline equity curve data.
 
         Args:
             equity_df: DataFrame with trade_num, equity, and peak columns, or None to clear.
+            dates: Optional array of dates corresponding to trade numbers.
         """
         try:
             if equity_df is None or equity_df.empty:
                 self._baseline_curve.setData([], [])
                 self._peak_curve.setData([], [])
                 self._baseline_data = None
+                self._baseline_dates = None
                 self._drawdown_fill.setVisible(False)
                 logger.debug("Cleared baseline equity curve")
+                self._update_axis_display()
                 return
 
             x_data = equity_df["trade_num"].to_numpy()
@@ -377,12 +389,14 @@ class EquityChart(QWidget):
             self._baseline_curve.setData(x=x_data, y=y_data)
             self._peak_curve.setData(x=x_data, y=peak_data)
             self._baseline_data = (x_data, y_data, peak_data)
+            self._baseline_dates = dates
 
             # Update drawdown fill visibility
             if self._show_drawdown:
                 self._drawdown_fill.setVisible(True)
 
             self._plot_widget.autoRange()
+            self._update_axis_display()
             logger.debug("EquityChart updated: %d baseline points", len(x_data))
 
         except Exception as e:
@@ -390,23 +404,32 @@ class EquityChart(QWidget):
             logger.error(error_msg)
             self.render_failed.emit(error_msg)
 
-    def set_filtered(self, equity_df: pd.DataFrame | None) -> None:
+    def set_filtered(
+        self,
+        equity_df: pd.DataFrame | None,
+        dates: np.ndarray | None = None,
+    ) -> None:
         """Set the filtered equity curve data.
 
         Args:
             equity_df: DataFrame with trade_num and equity columns, or None to hide.
+            dates: Optional array of dates corresponding to trade numbers.
         """
         try:
             if equity_df is None or equity_df.empty:
                 self._filtered_curve.setData([], [])
+                self._filtered_dates = None
                 logger.debug("Cleared filtered equity curve")
+                self._update_axis_display()
                 return
 
             x_data = equity_df["trade_num"].to_numpy()
             y_data = equity_df["equity"].to_numpy()
 
             self._filtered_curve.setData(x=x_data, y=y_data)
+            self._filtered_dates = dates
             self._plot_widget.autoRange()
+            self._update_axis_display()
             logger.debug("EquityChart updated: %d filtered points", len(x_data))
 
         except Exception as e:
@@ -426,6 +449,28 @@ class EquityChart(QWidget):
         """Reset view to auto-fit all data."""
         self._plot_widget.autoRange()
         self.view_reset.emit()
+
+    def set_axis_mode(self, mode: AxisMode) -> None:
+        """Set the X-axis display mode.
+
+        Args:
+            mode: TRADES for trade number, DATE for calendar date.
+        """
+        self._axis_mode = mode
+        self._update_axis_display()
+
+    def _update_axis_display(self) -> None:
+        """Update X-axis display based on current mode."""
+        plot_item = self._plot_widget.getPlotItem()
+
+        if self._axis_mode == AxisMode.DATE and self._baseline_dates is not None:
+            # Use date-based axis
+            plot_item.setLabel("bottom", "Date")
+            # For now, just update the label - date tick formatting would require
+            # a custom axis item which is optional enhancement
+        else:
+            # Use trade number axis
+            plot_item.setLabel("bottom", "Trade #")
 
 
 class _ChartPanel(QWidget):
@@ -475,6 +520,18 @@ class _ChartPanel(QWidget):
         self.chart.setMinimumHeight(250)
         layout.addWidget(self.chart, stretch=1)
 
+        # Controls row with toggle and checkbox
+        controls_layout = QHBoxLayout()
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.setSpacing(Spacing.MD)
+
+        # Axis mode toggle
+        self._axis_toggle = AxisModeToggle()
+        self._axis_toggle.mode_changed.connect(self._on_axis_mode_changed)
+        controls_layout.addWidget(self._axis_toggle)
+
+        controls_layout.addStretch()
+
         # Drawdown checkbox
         self._drawdown_checkbox = QCheckBox("Show Drawdown")
         self._drawdown_checkbox.setStyleSheet(f"""
@@ -489,23 +546,39 @@ class _ChartPanel(QWidget):
             }}
         """)
         self._drawdown_checkbox.toggled.connect(self.chart.set_drawdown_visible)
-        layout.addWidget(self._drawdown_checkbox)
+        controls_layout.addWidget(self._drawdown_checkbox)
+
+        layout.addLayout(controls_layout)
+
+    def _on_axis_mode_changed(self, mode: AxisMode) -> None:
+        """Handle axis mode change.
+
+        Args:
+            mode: New axis mode.
+        """
+        self.chart.set_axis_mode(mode)
 
     def set_baseline(self, equity_df: pd.DataFrame | None) -> None:
         """Pass-through to chart's set_baseline method.
 
         Args:
-            equity_df: DataFrame with equity data.
+            equity_df: DataFrame with equity data (may include date column).
         """
-        self.chart.set_baseline(equity_df)
+        self._baseline_dates = None
+        if equity_df is not None and "date" in equity_df.columns:
+            self._baseline_dates = equity_df["date"].values
+        self.chart.set_baseline(equity_df, self._baseline_dates)
 
     def set_filtered(self, equity_df: pd.DataFrame | None) -> None:
         """Pass-through to chart's set_filtered method.
 
         Args:
-            equity_df: DataFrame with equity data.
+            equity_df: DataFrame with equity data (may include date column).
         """
-        self.chart.set_filtered(equity_df)
+        self._filtered_dates = None
+        if equity_df is not None and "date" in equity_df.columns:
+            self._filtered_dates = equity_df["date"].values
+        self.chart.set_filtered(equity_df, self._filtered_dates)
 
     def clear(self) -> None:
         """Clear the chart."""
