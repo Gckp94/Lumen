@@ -327,3 +327,39 @@ class TestFilterPanelDuplicatePrevention:
 
         columns = [row.get_column() for row in panel._filter_rows]
         assert len(columns) == len(set(columns)), "Duplicate columns found"
+
+
+class TestFilterPanelColumnFilterPanelIntegration:
+    """Tests for ColumnFilterPanel integration."""
+
+    def test_filter_panel_uses_column_filter_panel(self, qtbot: QtBot) -> None:
+        """FilterPanel should use ColumnFilterPanel for column filters."""
+        columns = ["gain_pct", "vwap", "prev_close"]
+        panel = FilterPanel(columns=columns)
+        qtbot.addWidget(panel)
+
+        # Should have column filter panel
+        assert hasattr(panel, "_column_filter_panel")
+        assert panel._column_filter_panel is not None
+
+        # Should have rows for each column
+        assert len(panel._column_filter_panel._rows) == 3
+
+    def test_apply_filters_uses_column_filter_panel_criteria(
+        self, qtbot: QtBot
+    ) -> None:
+        """Apply filters should gather criteria from ColumnFilterPanel."""
+        columns = ["gain_pct", "vwap"]
+        panel = FilterPanel(columns=columns)
+        qtbot.addWidget(panel)
+
+        # Set values in column filter panel
+        panel._column_filter_panel._rows[0]._min_input.setText("10")
+        panel._column_filter_panel._rows[0]._max_input.setText("20")
+
+        with qtbot.waitSignal(panel.filters_applied, timeout=1000) as blocker:
+            panel._apply_btn.click()
+
+        criteria_list = blocker.args[0]
+        assert len(criteria_list) == 1
+        assert criteria_list[0].column == "gain_pct"

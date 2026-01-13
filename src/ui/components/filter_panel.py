@@ -14,6 +14,7 @@ from src.core.models import FilterCriteria
 from src.ui.components.date_range_filter import DateRangeFilter
 from src.ui.components.filter_chip import FilterChip
 from src.ui.components.time_range_filter import TimeRangeFilter
+from src.ui.components.column_filter_panel import ColumnFilterPanel
 from src.ui.components.filter_row import FilterRow
 from src.ui.components.toggle_switch import ToggleSwitch
 from src.ui.constants import Colors, Limits, Spacing
@@ -99,7 +100,13 @@ class FilterPanel(QWidget):
         self._chips_layout.addStretch()
         layout.addWidget(self._chips_frame)
 
-        # Filter rows container
+        # Column filter panel (new scrollable inline filter system)
+        self._column_filter_panel = ColumnFilterPanel(columns=self._columns)
+        self._column_filter_panel.setMinimumHeight(200)
+        self._column_filter_panel.setMaximumHeight(300)
+        layout.addWidget(self._column_filter_panel)
+
+        # Filter rows container (legacy - to be removed in Task 4)
         self._rows_container = QWidget()
         self._rows_layout = QVBoxLayout(self._rows_container)
         self._rows_layout.setContentsMargins(0, 0, 0, 0)
@@ -281,8 +288,10 @@ class FilterPanel(QWidget):
 
     def _on_apply_filters(self) -> None:
         """Handle apply filters button click."""
-        criteria_list: list[FilterCriteria] = []
+        # Get criteria from new ColumnFilterPanel
+        criteria_list = self._column_filter_panel.get_active_criteria()
 
+        # Also collect from legacy FilterRow system (for backward compatibility)
         for row in self._filter_rows:
             criteria = row.get_criteria()
             if criteria is not None:
@@ -294,7 +303,10 @@ class FilterPanel(QWidget):
 
     def _on_clear_filters(self) -> None:
         """Handle clear all filters button click."""
-        # Clear filter rows
+        # Clear column filter panel
+        self._column_filter_panel.clear_all()
+
+        # Clear filter rows (legacy)
         for row in self._filter_rows[:]:
             row.deleteLater()
         self._filter_rows.clear()
@@ -361,6 +373,8 @@ class FilterPanel(QWidget):
             columns: List of numeric column names.
         """
         self._columns = columns
+        self._column_filter_panel.set_columns(columns)
+        # Legacy: update existing FilterRow instances
         for row in self._filter_rows:
             row.set_columns(columns)
 
