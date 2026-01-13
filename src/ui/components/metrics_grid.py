@@ -22,7 +22,7 @@ METRIC_TOOLTIPS = {
     "Median Loser": "Median loss of losing trades",
     "Max Win Streak": "Maximum consecutive winning trades",
     "Max Loss Streak": "Maximum consecutive losing trades",
-    "Max Loss %": "Worst single-trade loss (affected by stop loss setting)",
+    "Max Loss %": "Percentage of trades that hit stop loss level",
     # Flat Stake (Story 3.4 - metrics 16-19)
     "Flat Stake PnL": "Total profit/loss with fixed stake size",
     "Max DD ($)": "Maximum drawdown in dollars",

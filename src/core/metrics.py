@@ -258,7 +258,14 @@ class MetricsCalculator:
 
         # Streak & Loss Metrics (Story 3.3 - metrics 13-15)
         max_consecutive_wins, max_consecutive_losses = self._calculate_streaks(winners_mask)
-        max_loss_pct: float | None = loser_min  # Worst single-trade loss (same as loser_min)
+
+        # Calculate max_loss_pct as percentage of trades hitting stop level
+        max_loss_pct: float | None = None
+        if adjustment_params is not None and mae_col is not None and mae_col in df.columns:
+            mae_values = df[mae_col].astype(float)
+            stop_hit_count = (mae_values > adjustment_params.stop_loss).sum()
+            max_loss_pct = (stop_hit_count / num_trades) * 100 if num_trades > 0 else 0.0
+
         logger.debug(
             "Calculated streaks: max_wins=%s, max_losses=%s, max_loss_pct=%s",
             max_consecutive_wins,

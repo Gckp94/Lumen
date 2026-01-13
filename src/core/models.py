@@ -99,7 +99,7 @@ class TradingMetrics:
         loser_max: Maximum loser gain (least negative).
         max_consecutive_wins: Maximum consecutive winning trades.
         max_consecutive_losses: Maximum consecutive losing trades.
-        max_loss_pct: Maximum single trade loss percentage.
+        max_loss_pct: Percentage of trades that hit the stop loss level (MAE > stop_loss).
         flat_stake_pnl: Total PnL in dollars with fixed position size.
         flat_stake_max_dd: Maximum drawdown in dollars.
         flat_stake_max_dd_pct: Maximum drawdown as percentage of peak equity.
@@ -143,7 +143,7 @@ class TradingMetrics:
     # Streak & Loss Metrics (Story 3.3 - metrics 13-15)
     max_consecutive_wins: int | None = None
     max_consecutive_losses: int | None = None
-    max_loss_pct: float | None = None  # Worst single-trade loss percentage
+    max_loss_pct: float | None = None  # Percentage of trades that hit stop loss level
 
     # Flat Stake Metrics (Story 3.4 - metrics 16-19)
     flat_stake_pnl: float | None = None  # Total PnL in dollars
