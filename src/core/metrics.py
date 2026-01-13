@@ -210,10 +210,9 @@ class MetricsCalculator:
             loser_std = float(pd.Series(loser_gains).std()) * 100
 
         # Extended metrics (Story 3.2 - metrics 8-12)
-        # Edge = EV * num_trades
         edge: float | None = None
         if ev is not None:
-            edge = ev * num_trades
+            edge = ev  # Edge % equals EV (expected return per trade)
 
         # Fractional Kelly = Kelly * (fractional_kelly_pct / 100)
         fractional_kelly: float | None = None

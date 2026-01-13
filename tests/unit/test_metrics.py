@@ -255,16 +255,14 @@ class TestMetricsCalculatorExtended:
             "mae_pct": [0.01, 0.02, 0.03, 0.015, 0.025, 0.03, 0.05, 0.04, 0.06, 0.02],
         })
 
-    def test_edge_equals_ev_times_trades(self, known_trades_df: pd.DataFrame) -> None:
-        """Edge = EV * num_trades."""
+    def test_edge_equals_ev(self, known_trades_df: pd.DataFrame) -> None:
+        """Edge % equals EV (expected return per trade)."""
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
-        # Expected: EV=3.0%, trades=10, Edge=30.0%
-        assert metrics.edge == pytest.approx(30.0, abs=0.01)
-        assert metrics.edge == pytest.approx(
-            metrics.ev * metrics.num_trades, abs=0.001
-        )
+        # Expected: EV=3.0%, Edge=3.0% (Edge equals EV)
+        assert metrics.edge == pytest.approx(3.0, abs=0.01)
+        assert metrics.edge == pytest.approx(metrics.ev, abs=0.001)
 
     def test_fractional_kelly_applies_fraction(
         self, known_trades_df: pd.DataFrame
