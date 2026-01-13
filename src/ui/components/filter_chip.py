@@ -60,19 +60,20 @@ class FilterChip(QFrame):
                 background-color: {Colors.SIGNAL_AMBER};
                 border-radius: 4px;
             }}
-            QLabel {{
+            FilterChip QLabel {{
                 color: {Colors.BG_BASE};
                 font-weight: bold;
                 font-size: 11px;
+                background: transparent;
             }}
-            QPushButton {{
+            FilterChip QPushButton {{
                 background: transparent;
                 border: none;
                 color: {Colors.BG_BASE};
                 padding: 0;
-                font-size: 10px;
+                font-size: 12px;
             }}
-            QPushButton:hover {{
+            FilterChip QPushButton:hover {{
                 color: {Colors.SIGNAL_CORAL};
             }}
         """)
