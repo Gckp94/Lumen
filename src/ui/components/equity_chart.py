@@ -155,8 +155,9 @@ class EquityChart(QWidget):
         )
         self._plot_widget.addItem(self._filtered_curve)
 
-        # Peak curve for drawdown calculation (invisible)
-        self._peak_curve = pg.PlotDataItem(pen=None)
+        # Peak curve for drawdown calculation (invisible but must have pen for path generation)
+        # Note: pen=None skips path generation; pg.mkPen(None) creates transparent pen with path
+        self._peak_curve = pg.PlotDataItem(pen=pg.mkPen(None))
         self._plot_widget.addItem(self._peak_curve)
 
         # Drawdown fill (semi-transparent coral)
@@ -586,6 +587,12 @@ class EquityChart(QWidget):
         Args:
             mode: TRADES for trade number, DATE for calendar date.
         """
+        logger.debug(
+            "set_axis_mode called: mode=%s, has_timestamps=%s, timestamp_count=%d",
+            mode,
+            self._baseline_timestamps is not None,
+            len(self._baseline_timestamps) if self._baseline_timestamps is not None else 0,
+        )
         self._axis_mode = mode
         self._update_axis_display()
 
