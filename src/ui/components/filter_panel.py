@@ -208,6 +208,12 @@ class FilterPanel(QWidget):
         Args:
             criteria: The FilterCriteria to apply.
         """
+        # Check if filter for this column already exists, replace it
+        self._active_filters = [
+            f for f in self._active_filters if f.column != criteria.column
+        ]
+        self._active_filters.append(criteria)
+        self._update_chips()
         self.single_filter_applied.emit(criteria)
 
     def _on_apply_filters(self) -> None:
