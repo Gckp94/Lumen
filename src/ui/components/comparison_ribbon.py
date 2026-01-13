@@ -271,7 +271,7 @@ class ComparisonRibbon(QFrame):
 
     def _setup_ui(self) -> None:
         """Set up the widget UI layout."""
-        self.setFixedHeight(120)
+        self.setMinimumHeight(140)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(Spacing.LG, Spacing.SM, Spacing.LG, Spacing.SM)
