@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QScrollArea,
+    QSplitter,
     QToolTip,
     QVBoxLayout,
     QWidget,
@@ -148,17 +149,38 @@ class DataBinningTab(QWidget):
 
     def _setup_ui(self) -> None:
         """Set up the UI with sidebar and content area layout."""
-        main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-
         # Sidebar
         self._sidebar = self._create_sidebar()
-        main_layout.addWidget(self._sidebar)
 
         # Content area (chart area for Story 6.2)
         self._content_area = self._create_content_area()
-        main_layout.addWidget(self._content_area, stretch=1)
+
+        # Create splitter for resizable panels
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(4)
+        splitter.setStyleSheet(f"""
+            QSplitter::handle {{
+                background: {Colors.BG_BORDER};
+            }}
+            QSplitter::handle:hover {{
+                background: {Colors.SIGNAL_CYAN};
+            }}
+        """)
+
+        splitter.addWidget(self._sidebar)
+        splitter.addWidget(self._content_area)
+
+        # Set initial sizes (280px sidebar, rest for charts)
+        splitter.setSizes([280, 800])
+
+        # Prevent panels from collapsing
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, False)
+
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        main_layout.addWidget(splitter)
 
     def _create_sidebar(self) -> QFrame:
         """Create the sidebar with column selector and bin configuration.
@@ -167,7 +189,8 @@ class DataBinningTab(QWidget):
             Configured sidebar frame.
         """
         sidebar = QFrame()
-        sidebar.setFixedWidth(280)
+        sidebar.setMinimumWidth(200)
+        sidebar.setMaximumWidth(500)
         sidebar.setStyleSheet(f"""
             QFrame {{
                 background-color: {Colors.BG_SURFACE};

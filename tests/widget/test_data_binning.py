@@ -718,3 +718,34 @@ class TestSaveLoadConfig:
         qtbot.addWidget(tab)
 
         assert tab._last_save_dir is None
+
+
+
+class TestResizableSidebar:
+    """Tests for resizable sidebar with QSplitter."""
+
+    def test_data_binning_tab_has_resizable_splitter(self, qtbot: QtBot) -> None:
+        """Test that the Data Binning Tab uses a QSplitter for resizable panels."""
+        from PyQt6.QtWidgets import QSplitter
+
+        app_state = AppState()
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Find the QSplitter in the widget hierarchy
+        splitter = tab.findChild(QSplitter)
+        assert splitter is not None, "DataBinningTab should contain a QSplitter"
+        assert splitter.count() == 2, "Splitter should have 2 panels (sidebar and chart)"
+
+    def test_sidebar_has_minimum_width(self, qtbot: QtBot) -> None:
+        """Test that sidebar has a minimum width to prevent collapsing too small."""
+        from PyQt6.QtWidgets import QSplitter
+
+        app_state = AppState()
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+
+        splitter = tab.findChild(QSplitter)
+        sidebar = splitter.widget(0)
+
+        assert sidebar.minimumWidth() >= 200, "Sidebar should have minimum width of 200px"
