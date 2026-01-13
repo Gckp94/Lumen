@@ -441,11 +441,24 @@ class EquityChart(QWidget):
             # Convert dates to timestamps if available
             if dates is not None and len(dates) > 0:
                 try:
-                    # Convert to pandas datetime then to Unix timestamps (seconds)
-                    dt_series = pd.to_datetime(dates)
-                    self._baseline_timestamps = (
-                        dt_series.astype(np.int64) // 10**9
-                    ).to_numpy()
+                    # Convert to pandas datetime first (handles strings, excel dates, etc)
+                    dt_series = pd.to_datetime(dates, errors='coerce')
+
+                    # Check if conversion was successful (not all NaT)
+                    if dt_series.notna().any():
+                        # Get only valid timestamps
+                        valid_mask = dt_series.notna()
+                        if valid_mask.all():
+                            self._baseline_timestamps = (
+                                dt_series.astype(np.int64) // 10**9
+                            ).to_numpy()
+                        else:
+                            # Some invalid dates - fall back to None
+                            logger.warning("Some dates could not be converted, using trade numbers")
+                            self._baseline_timestamps = None
+                    else:
+                        logger.warning("No valid dates found, using trade numbers")
+                        self._baseline_timestamps = None
                 except Exception as e:
                     logger.warning("Failed to convert dates to timestamps: %s", e)
                     self._baseline_timestamps = None
@@ -500,11 +513,24 @@ class EquityChart(QWidget):
             # Convert dates to timestamps if available
             if dates is not None and len(dates) > 0:
                 try:
-                    # Convert to pandas datetime then to Unix timestamps (seconds)
-                    dt_series = pd.to_datetime(dates)
-                    self._filtered_timestamps = (
-                        dt_series.astype(np.int64) // 10**9
-                    ).to_numpy()
+                    # Convert to pandas datetime first (handles strings, excel dates, etc)
+                    dt_series = pd.to_datetime(dates, errors='coerce')
+
+                    # Check if conversion was successful (not all NaT)
+                    if dt_series.notna().any():
+                        # Get only valid timestamps
+                        valid_mask = dt_series.notna()
+                        if valid_mask.all():
+                            self._filtered_timestamps = (
+                                dt_series.astype(np.int64) // 10**9
+                            ).to_numpy()
+                        else:
+                            # Some invalid dates - fall back to None
+                            logger.warning("Some dates could not be converted, using trade numbers")
+                            self._filtered_timestamps = None
+                    else:
+                        logger.warning("No valid dates found, using trade numbers")
+                        self._filtered_timestamps = None
                 except Exception as e:
                     logger.warning("Failed to convert dates to timestamps: %s", e)
                     self._filtered_timestamps = None

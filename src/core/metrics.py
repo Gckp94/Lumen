@@ -210,10 +210,10 @@ class MetricsCalculator:
             loser_std = float(pd.Series(loser_gains).std()) * 100
 
         # Extended metrics (Story 3.2 - metrics 8-12)
-        # Edge % = ((R:R + 1) × Win Rate) - 1
+        # Edge % = ((R:R + 1) × Win Rate) - 1, multiply by 100 for percentage format
         edge: float | None = None
         if rr_ratio is not None and win_rate is not None:
-            edge = ((rr_ratio + 1) * (win_rate / 100)) - 1
+            edge = (((rr_ratio + 1) * (win_rate / 100)) - 1) * 100
 
         # Fractional Kelly = Kelly * (fractional_kelly_pct / 100)
         fractional_kelly: float | None = None

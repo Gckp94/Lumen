@@ -256,15 +256,15 @@ class TestMetricsCalculatorExtended:
         })
 
     def test_edge_formula(self, known_trades_df: pd.DataFrame) -> None:
-        """Edge % = ((R:R + 1) × Win Rate) - 1."""
+        """Edge % = ((R:R + 1) × Win Rate) - 1, returned as percentage."""
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
         # Known trades: 5 winners, 5 losers = 50% win rate
         # avg_winner = 10%, avg_loser = -4%, R:R = 10/4 = 2.5
-        # Edge = ((2.5 + 1) * 0.50) - 1 = (3.5 * 0.50) - 1 = 1.75 - 1 = 0.75
-        expected_edge = ((metrics.rr_ratio + 1) * (metrics.win_rate / 100)) - 1
-        assert metrics.edge == pytest.approx(expected_edge, abs=0.001)
+        # Edge = ((2.5 + 1) * 0.50) - 1 = (3.5 * 0.50) - 1 = 1.75 - 1 = 0.75 = 75%
+        expected_edge = (((metrics.rr_ratio + 1) * (metrics.win_rate / 100)) - 1) * 100
+        assert metrics.edge == pytest.approx(expected_edge, abs=0.01)
 
     def test_fractional_kelly_applies_fraction(
         self, known_trades_df: pd.DataFrame
