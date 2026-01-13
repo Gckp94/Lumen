@@ -617,6 +617,10 @@ class EquityChart(QWidget):
         # Replot curves with appropriate X values
         self._replot_curves()
 
+        # Auto-range to fit the new data (important when switching between
+        # trade numbers and timestamps which have very different scales)
+        self._plot_widget.autoRange()
+
     def _replot_curves(self) -> None:
         """Replot all curves using current axis mode's X values."""
         # Check if we should use timestamps (DATE mode with available timestamps)
