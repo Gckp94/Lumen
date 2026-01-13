@@ -112,3 +112,14 @@ class TestFilterChipStyle:
         stylesheet = chip.styleSheet()
         # Text should be dark (BG_BASE) for contrast on amber
         assert f"color: {Colors.BG_BASE}" in stylesheet
+
+    def test_remove_button_has_trash_icon(self, qtbot: QtBot) -> None:
+        """FilterChip remove button displays trash bin icon."""
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between", min_val=0, max_val=10
+        )
+        chip = FilterChip(criteria)
+        qtbot.addWidget(chip)
+
+        # Should have trash bin icon, not X
+        assert chip._remove_btn.text() == "\U0001F5D1"  # 🗑
