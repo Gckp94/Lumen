@@ -100,3 +100,15 @@ class TestFilterChipStyle:
         assert chip._remove_btn is not None
         # Check button is not hidden (isHidden() returns False when not explicitly hidden)
         assert not chip._remove_btn.isHidden()
+
+    def test_chip_label_has_dark_text_color(self, qtbot: QtBot) -> None:
+        """FilterChip label text is dark for readability on amber background."""
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between", min_val=0, max_val=10
+        )
+        chip = FilterChip(criteria)
+        qtbot.addWidget(chip)
+
+        stylesheet = chip.styleSheet()
+        # Text should be dark (BG_BASE) for contrast on amber
+        assert f"color: {Colors.BG_BASE}" in stylesheet
