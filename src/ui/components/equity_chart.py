@@ -399,7 +399,14 @@ class EquityChart(QWidget):
             visible: Whether to show drawdown fill.
         """
         self._show_drawdown = visible
-        self._drawdown_fill.setVisible(visible and self._baseline_data is not None)
+        if visible and self._baseline_data is not None:
+            # Refresh FillBetweenItem curves when making visible to ensure sync
+            self._drawdown_fill.setCurves(self._baseline_curve, self._peak_curve)
+            self._drawdown_fill.setVisible(True)
+        else:
+            self._drawdown_fill.setVisible(False)
+        # Force plot update to ensure fill renders
+        self._plot_widget.update()
 
     def set_baseline(
         self,
