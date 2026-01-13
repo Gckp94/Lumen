@@ -652,6 +652,8 @@ class PnLStatsTab(QWidget):
             )
         if self._app_state.kelly_equity_curve is not None:
             self._kelly_chart_panel.set_baseline(self._app_state.kelly_equity_curve)
+        else:
+            self._kelly_chart_panel.set_baseline(None)
         if self._app_state.filtered_flat_stake_equity_curve is not None:
             self._flat_stake_chart_panel.set_filtered(
                 self._app_state.filtered_flat_stake_equity_curve
@@ -660,6 +662,8 @@ class PnLStatsTab(QWidget):
             self._kelly_chart_panel.set_filtered(
                 self._app_state.filtered_kelly_equity_curve
             )
+        else:
+            self._kelly_chart_panel.set_filtered(None)
 
     def _update_metrics_visibility(self) -> None:
         """Switch between EmptyState and MetricsGrid based on data availability."""
@@ -927,6 +931,10 @@ class PnLStatsTab(QWidget):
         self._app_state.kelly_equity_curve = kelly_equity
         if kelly_equity is not None:
             self._app_state.kelly_equity_curve_updated.emit(kelly_equity)
+        else:
+            # Clear Kelly chart when no equity curve (e.g., negative Kelly)
+            logger.info("Kelly equity curve is None (negative Kelly?), clearing chart")
+            self._kelly_chart_panel.set_baseline(None)
 
         # Recalculate filtered metrics if there is filtered data
         filtered_metrics = None
@@ -981,6 +989,9 @@ class PnLStatsTab(QWidget):
             )
         if self._app_state.kelly_equity_curve is not None:
             self._kelly_chart_panel.set_baseline(self._app_state.kelly_equity_curve)
+        else:
+            # Clear Kelly chart if no equity curve (e.g., negative Kelly)
+            self._kelly_chart_panel.set_baseline(None)
         if self._app_state.filtered_flat_stake_equity_curve is not None:
             self._flat_stake_chart_panel.set_filtered(
                 self._app_state.filtered_flat_stake_equity_curve
@@ -989,6 +1000,8 @@ class PnLStatsTab(QWidget):
             self._kelly_chart_panel.set_filtered(
                 self._app_state.filtered_kelly_equity_curve
             )
+        else:
+            self._kelly_chart_panel.set_filtered(None)
 
         # Check if filtered metrics need recalculation
         if self._app_state.filtered_df is not None:
@@ -1166,6 +1179,9 @@ class PnLStatsTab(QWidget):
         self._app_state.filtered_kelly_equity_curve = kelly_equity
         if kelly_equity is not None:
             self._app_state.filtered_kelly_equity_curve_updated.emit(kelly_equity)
+        else:
+            # Clear filtered Kelly when no equity curve
+            self._kelly_chart_panel.set_filtered(None)
 
         # Complete calculation
         self._app_state.is_calculating_filtered = False

@@ -607,6 +607,13 @@ class EquityChart(QWidget):
             and len(self._baseline_timestamps) > 0
         )
 
+        logger.debug(
+            "_update_axis_display: mode=%s, has_timestamps=%s, using_date_axis=%s",
+            self._axis_mode,
+            has_timestamps,
+            self._axis_mode == AxisMode.DATE and has_timestamps,
+        )
+
         if self._axis_mode == AxisMode.DATE and has_timestamps:
             # Switch to date axis
             self._date_axis = DateAxisItem(orientation="bottom")
@@ -754,6 +761,7 @@ class _ChartPanel(QWidget):
         Args:
             mode: New axis mode.
         """
+        logger.debug("_ChartPanel._on_axis_mode_changed: mode=%s", mode)
         self.chart.set_axis_mode(mode)
 
     def set_baseline(self, equity_df: pd.DataFrame | None) -> None:
@@ -763,8 +771,16 @@ class _ChartPanel(QWidget):
             equity_df: DataFrame with equity data (may include date column).
         """
         self._baseline_dates = None
-        if equity_df is not None and "date" in equity_df.columns:
-            self._baseline_dates = equity_df["date"].values
+        if equity_df is not None:
+            cols = list(equity_df.columns)
+            has_date = "date" in cols
+            has_peak = "peak" in cols
+            logger.debug(
+                "_ChartPanel.set_baseline: cols=%s, has_date=%s, has_peak=%s, rows=%d",
+                cols, has_date, has_peak, len(equity_df)
+            )
+            if has_date:
+                self._baseline_dates = equity_df["date"].values
         self.chart.set_baseline(equity_df, self._baseline_dates)
 
     def set_filtered(self, equity_df: pd.DataFrame | None) -> None:
