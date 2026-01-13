@@ -155,6 +155,7 @@ class EquityCalculator:
         df: pd.DataFrame,
         gain_col: str,
         stake: float,
+        date_col: str | None = None,
     ) -> dict[str, float | int | str | pd.DataFrame | None]:
         """Calculate all flat stake metrics.
 
@@ -162,12 +163,13 @@ class EquityCalculator:
             df: DataFrame containing trade data
             gain_col: Column name containing gain percentages
             stake: Fixed stake amount in dollars
+            date_col: Optional date column name to include in equity curve
 
         Returns:
             Dict with keys: pnl, max_dd, max_dd_pct, dd_duration, equity_curve
         """
         # Calculate equity curve
-        equity_df = self.calculate_flat_stake(df, gain_col, stake)
+        equity_df = self.calculate_flat_stake(df, gain_col, stake, date_col=date_col)
 
         if equity_df.empty:
             return {
@@ -312,6 +314,7 @@ class EquityCalculator:
         start_capital: float,
         kelly_fraction: float,
         kelly_pct: float | None,
+        date_col: str | None = None,
     ) -> dict[str, float | int | str | pd.DataFrame | None]:
         """Calculate all compounded Kelly metrics.
 
@@ -322,6 +325,7 @@ class EquityCalculator:
             kelly_fraction: Fractional Kelly as percentage (e.g., 25 = 25%)
             kelly_pct: Base Kelly percentage from core metrics (e.g., 12.5).
                        Passed from TradingMetrics.kelly calculated by MetricsCalculator.
+            date_col: Optional date column name to include in equity curve
 
         Returns:
             Dict with keys: pnl, max_dd, max_dd_pct, dd_duration, equity_curve, warning
@@ -343,7 +347,7 @@ class EquityCalculator:
             }
 
         # Calculate equity curve
-        equity_df = self.calculate_kelly(df, gain_col, start_capital, kelly_fraction, kelly_pct)
+        equity_df = self.calculate_kelly(df, gain_col, start_capital, kelly_fraction, kelly_pct, date_col=date_col)
 
         if equity_df.empty:
             return {

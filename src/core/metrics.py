@@ -77,7 +77,7 @@ class MetricsCalculator:
             adjustment_params: Optional parameters for stop loss and efficiency adjustments.
             mae_col: Column name for MAE % (required if adjustment_params provided).
             fractional_kelly_pct: Fractional Kelly percentage (default 25%).
-            date_col: Optional date column for chronological sorting (streak metrics).
+            date_col: Optional date column for chronological sorting and equity curve dates.
             time_col: Optional time column for chronological sorting (streak metrics).
             flat_stake: Optional fixed stake amount for flat stake metrics.
             start_capital: Optional starting capital for Kelly metrics.
@@ -275,7 +275,7 @@ class MetricsCalculator:
         if flat_stake is not None and num_trades > 0:
             equity_calculator = EquityCalculator()
             flat_stake_result = equity_calculator.calculate_flat_stake_metrics(
-                df, gain_col, flat_stake
+                df, gain_col, flat_stake, date_col=date_col
             )
             pnl_val = flat_stake_result["pnl"]
             if isinstance(pnl_val, (int, float)):
@@ -310,7 +310,7 @@ class MetricsCalculator:
         if start_capital is not None and num_trades > 0:
             equity_calculator = EquityCalculator()
             kelly_result = equity_calculator.calculate_kelly_metrics(
-                df, gain_col, start_capital, fractional_kelly_pct, kelly
+                df, gain_col, start_capital, fractional_kelly_pct, kelly, date_col=date_col
             )
             pnl_val = kelly_result["pnl"]
             if isinstance(pnl_val, (int, float)):
