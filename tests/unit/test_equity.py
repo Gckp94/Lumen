@@ -94,14 +94,19 @@ class TestDrawdownMetrics:
         assert metrics["max_dd_pct"] == pytest.approx(75.0, abs=0.01)
 
     def test_dd_duration_recovered(self) -> None:
-        """Duration returned when drawdown is recovered."""
+        """Duration returned when drawdown is recovered.
+
+        Duration is measured from when the drawdown started (peak established)
+        to when equity recovers to or above that peak.
+        """
         df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0]})
         calc = EquityCalculator()
         metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
 
-        # Max DD at trade 4, recovered at trade 5
+        # Peak of 80 at trade 2 (index 1), max DD at trade 4, recovered at trade 5
+        # Duration = 4 - 1 = 3 trades (from peak to recovery)
         assert isinstance(metrics["dd_duration"], int)
-        assert metrics["dd_duration"] == 1
+        assert metrics["dd_duration"] == 3
 
     def test_dd_duration_not_recovered(self) -> None:
         """'Not recovered' returned when drawdown ongoing."""
@@ -212,15 +217,16 @@ class TestEquityCalculatorKelly:
         assert result["equity"].iloc[-1] > 10300.0
 
     def test_kelly_negative_kelly_returns_warning(self) -> None:
-        """Negative Kelly returns None metrics with warning."""
+        """Negative Kelly still calculates curve (using abs value) but sets warning."""
         df = pd.DataFrame({"gain_pct": [5.0, -3.0]})
         calc = EquityCalculator()
         result = calc.calculate_kelly_metrics(
             df, gain_col="gain_pct", start_capital=10000.0,
             kelly_fraction=25.0, kelly_pct=-5.0  # Negative Kelly
         )
-        assert result["pnl"] is None
-        assert result["max_dd"] is None
+        # Still calculates metrics using abs(kelly_pct) for visualization
+        assert result["pnl"] is not None
+        assert result["equity_curve"] is not None
         assert result.get("warning") == "negative_kelly"
 
     def test_kelly_none_kelly_returns_none(self) -> None:

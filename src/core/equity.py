@@ -130,12 +130,21 @@ class EquityCalculator:
         if peak_at_max_dd <= 0:
             max_dd_pct_value = None
 
-        # Calculate drawdown duration (from max percentage drawdown point)
+        # Calculate drawdown duration (from when drawdown started to recovery)
+        # Find when the peak that led to max drawdown was established
+        # This is the first index where peak equals peak_at_max_dd
+        dd_start_idx = 0
+        for i in range(max_dd_pct_idx + 1):
+            if peak[i] == peak_at_max_dd:
+                dd_start_idx = i
+                break
+
+        # Find recovery point (when equity returns to or exceeds the peak)
         dd_duration: int | str | None
         recovered = False
-        for i in range(max_dd_pct_idx + 1, len(equity)):
+        for i in range(dd_start_idx + 1, len(equity)):
             if equity[i] >= peak_at_max_dd:
-                dd_duration = i - max_dd_pct_idx
+                dd_duration = i - dd_start_idx
                 recovered = True
                 break
 
@@ -332,23 +341,32 @@ class EquityCalculator:
             Dict with keys: pnl, max_dd, max_dd_pct, dd_duration, equity_curve, warning
             - warning: None if OK, "negative_kelly" if kelly_pct < 0
         """
-        # Check for negative Kelly - early return with warning
-        if kelly_pct is None or kelly_pct < 0:
-            if kelly_pct is not None and kelly_pct < 0:
-                logger.warning(
-                    "Negative Kelly detected: %.2f%%, strategy has negative expectancy", kelly_pct
-                )
+        # Handle None kelly_pct
+        if kelly_pct is None:
             return {
                 "pnl": None,
                 "max_dd": None,
                 "max_dd_pct": None,
                 "dd_duration": None,
                 "equity_curve": None,
-                "warning": "negative_kelly" if kelly_pct is not None and kelly_pct < 0 else None,
+                "warning": None,
             }
 
+        # Check for negative Kelly - warn but still calculate curve for visualization
+        warning = None
+        effective_kelly_pct = kelly_pct
+        if kelly_pct < 0:
+            logger.warning(
+                "Negative Kelly detected: %.2f%%, strategy has negative expectancy", kelly_pct
+            )
+            warning = "negative_kelly"
+            # Use absolute value for visualization (shows what happens with Kelly sizing)
+            effective_kelly_pct = abs(kelly_pct)
+
         # Calculate equity curve
-        equity_df = self.calculate_kelly(df, gain_col, start_capital, kelly_fraction, kelly_pct, date_col=date_col)
+        equity_df = self.calculate_kelly(
+            df, gain_col, start_capital, kelly_fraction, effective_kelly_pct, date_col=date_col
+        )
 
         if equity_df.empty:
             return {
@@ -357,7 +375,7 @@ class EquityCalculator:
                 "max_dd_pct": None,
                 "dd_duration": None,
                 "equity_curve": equity_df,
-                "warning": None,
+                "warning": warning,
             }
 
         # Check if account was blown (equity went to 0)
@@ -381,5 +399,5 @@ class EquityCalculator:
             "max_dd_pct": max_dd_pct,
             "dd_duration": dd_duration,
             "equity_curve": equity_df,
-            "warning": None,
+            "warning": warning,
         }

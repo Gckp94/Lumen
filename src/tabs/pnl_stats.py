@@ -821,6 +821,11 @@ class PnLStatsTab(QWidget):
         Args:
             equity_df: DataFrame with equity curve data.
         """
+        logger.info(
+            "Flat stake equity curve received: cols=%s, rows=%d",
+            list(equity_df.columns) if equity_df is not None else None,
+            len(equity_df) if equity_df is not None else 0,
+        )
         self._flat_stake_chart_panel.set_baseline(equity_df)
 
     def _on_kelly_equity_curve_updated(self, equity_df: pd.DataFrame) -> None:
@@ -829,6 +834,11 @@ class PnLStatsTab(QWidget):
         Args:
             equity_df: DataFrame with equity curve data.
         """
+        logger.info(
+            "Kelly equity curve received: cols=%s, rows=%d",
+            list(equity_df.columns) if equity_df is not None else None,
+            len(equity_df) if equity_df is not None else 0,
+        )
         self._kelly_chart_panel.set_baseline(equity_df)
 
     def _on_filtered_equity_curve_updated(self, equity_df: pd.DataFrame) -> None:
