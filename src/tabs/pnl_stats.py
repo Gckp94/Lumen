@@ -897,7 +897,7 @@ class PnLStatsTab(QWidget):
         flat_stake = metrics_inputs.flat_stake if metrics_inputs else 1000.0
         start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
 
-        # Recalculate metrics (returns 3-tuple: metrics, flat_equity, kelly_equity)
+        # Recalculate baseline metrics (returns 3-tuple: metrics, flat_equity, kelly_equity)
         metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
             df=baseline_df,
             gain_col=column_mapping.gain_pct,
@@ -913,6 +913,9 @@ class PnLStatsTab(QWidget):
             start_capital=start_capital,
         )
 
+        # Store baseline metrics in app state
+        self._app_state.baseline_metrics = metrics
+
         # Store flat stake equity curve in app state and emit signal
         self._app_state.flat_stake_equity_curve = flat_equity
         if flat_equity is not None:
@@ -923,9 +926,33 @@ class PnLStatsTab(QWidget):
         if kelly_equity is not None:
             self._app_state.kelly_equity_curve_updated.emit(kelly_equity)
 
-        # Update the grid and distribution cards
-        self._comparison_grid.set_values(metrics, None)
+        # Recalculate filtered metrics if there is filtered data
+        filtered_metrics = None
+        if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
+            filtered_metrics, _, _ = self._metrics_calculator.calculate(
+                df=self._app_state.filtered_df,
+                gain_col=column_mapping.gain_pct,
+                derived=column_mapping.win_loss_derived,
+                breakeven_is_win=column_mapping.breakeven_is_win,
+                win_loss_col=column_mapping.win_loss,
+                adjustment_params=adjustment_params,
+                mae_col=column_mapping.mae_pct,
+                fractional_kelly_pct=fractional_kelly_pct,
+                date_col=column_mapping.date,
+                time_col=column_mapping.time,
+                flat_stake=None,      # Skip equity calculation for filtered (done separately)
+                start_capital=None,
+            )
+            self._app_state.filtered_metrics = filtered_metrics
+
+        # Update comparison components with both baseline and filtered
+        self._comparison_ribbon.set_values(metrics, filtered_metrics) if filtered_metrics else self._comparison_ribbon.clear()
+        self._comparison_grid.set_values(metrics, filtered_metrics)
         self._update_distribution_cards(metrics)
+
+        # Emit metrics_updated signal to notify other listeners
+        self._app_state.metrics_updated.emit(metrics, filtered_metrics)
+
         logger.debug(
             "Recalculated metrics: kelly=%.1f%%, stake=%.2f, capital=%.2f",
             fractional_kelly_pct,
