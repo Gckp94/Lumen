@@ -1455,16 +1455,18 @@ class BinChartPanel(QWidget):
         self._chart_layout.setContentsMargins(0, 0, 0, 0)
         self._chart_layout.setSpacing(Spacing.LG)
 
-        # Create 4 chart sections
+        # Create 5 chart sections
         self._average_chart = HorizontalBarChart("Average")
         self._median_chart = HorizontalBarChart("Median")
         self._count_chart = HorizontalBarChart("Count")
         self._win_rate_chart = HorizontalBarChart("Win Rate")
+        self._pct_total_chart = HorizontalBarChart("% of Total Gains")
 
         self._chart_layout.addWidget(self._average_chart)
         self._chart_layout.addWidget(self._median_chart)
         self._chart_layout.addWidget(self._count_chart)
         self._chart_layout.addWidget(self._win_rate_chart)
+        self._chart_layout.addWidget(self._pct_total_chart)
         self._chart_layout.addStretch()
 
         scroll_area.setWidget(self._chart_container)
@@ -1609,11 +1611,28 @@ class BinChartPanel(QWidget):
         ]
         win_rate_data = [(label, metrics[label].win_rate) for label in ordered_labels]
 
+        # Calculate % of Total Gains
+        total_all_gains = sum(
+            metrics[label].total_gain
+            for label in ordered_labels
+            if metrics[label].total_gain is not None
+        )
+
+        if total_all_gains != 0:
+            pct_total_data = [
+                (label, (metrics[label].total_gain / total_all_gains) * 100)
+                for label in ordered_labels
+                if metrics[label].total_gain is not None
+            ]
+        else:
+            pct_total_data = [(label, 0.0) for label in ordered_labels]
+
         # Update charts
         self._average_chart.set_data(average_data, is_percentage=True)
         self._median_chart.set_data(median_data, is_percentage=True)
         self._count_chart.set_data(count_data, total_count=total_count)
         self._win_rate_chart.set_data(win_rate_data, is_percentage=True)
+        self._pct_total_chart.set_data(pct_total_data, is_percentage=True)
 
         # Show charts, hide empty state
         self._empty_state.hide()

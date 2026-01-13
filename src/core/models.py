@@ -408,6 +408,7 @@ class BinMetrics:
         average: Mean value of metric column.
         median: Median value of metric column.
         win_rate: Percentage of rows with positive metric (0-100).
+        total_gain: Sum of all gains in bin.
     """
 
     label: str
@@ -415,6 +416,7 @@ class BinMetrics:
     average: float | None
     median: float | None
     win_rate: float | None
+    total_gain: float | None = None
 
 
 @dataclass

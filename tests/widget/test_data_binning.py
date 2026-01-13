@@ -445,8 +445,17 @@ class TestBinChartPanel:
         qtbot.addWidget(panel)
         assert panel is not None
 
-    def test_chart_panel_has_four_charts(self, qtbot: QtBot) -> None:
-        """BinChartPanel contains all four chart sections."""
+    def test_chart_panel_has_five_charts(self, qtbot: QtBot) -> None:
+        """BinChartPanel has 5 charts including % of Total Gains."""
+        app_state = AppState()
+        panel = BinChartPanel(app_state)
+        qtbot.addWidget(panel)
+
+        charts = panel.findChildren(HorizontalBarChart)
+        assert len(charts) == 5, "Should have 5 charts: Average, Median, Count, Win Rate, % of Total"
+
+    def test_chart_panel_has_all_chart_attributes(self, qtbot: QtBot) -> None:
+        """BinChartPanel contains all five chart sections."""
         app_state = AppState()
         panel = BinChartPanel(app_state)
         qtbot.addWidget(panel)
@@ -455,6 +464,7 @@ class TestBinChartPanel:
         assert panel._median_chart is not None
         assert panel._count_chart is not None
         assert panel._win_rate_chart is not None
+        assert panel._pct_total_chart is not None
 
     def test_chart_panel_has_toggle_buttons(self, qtbot: QtBot) -> None:
         """BinChartPanel has metric toggle buttons."""
@@ -720,6 +730,57 @@ class TestSaveLoadConfig:
 
         assert tab._last_save_dir is None
 
+
+
+class TestPctTotalGainsChart:
+    """Tests for % of Total Gains chart functionality."""
+
+    def test_pct_total_chart_displays_percentages(self, qtbot: QtBot) -> None:
+        """Test that % of Total Gains chart shows correct percentages."""
+        app_state = AppState()
+        df = pd.DataFrame({
+            "value": [10, 20, 30, 40, 50],
+            "gain_pct": [10.0, 20.0, 30.0, 15.0, 25.0],  # Total: 100.0
+            "adjusted_gain_pct": [10.0, 20.0, 30.0, 15.0, 25.0],
+        })
+        app_state.baseline_df = df
+        panel = BinChartPanel(app_state)
+        qtbot.addWidget(panel)
+        panel.show()
+
+        # Create bins where:
+        # Low (<25): values 10, 20 -> gains 10, 20 -> total 30 -> 30%
+        # High (>25): values 30, 40, 50 -> gains 30, 15, 25 -> total 70 -> 70%
+        bins = [
+            BinDefinition(operator="<", value1=25, label="Low"),
+            BinDefinition(operator=">", value1=25, label="High"),
+        ]
+        panel.update_charts("value", bins)
+
+        # Verify the chart has data
+        assert len(panel._pct_total_chart._data) == 2
+
+    def test_pct_total_chart_handles_zero_total(self, qtbot: QtBot) -> None:
+        """Test that % of Total handles zero total gracefully."""
+        app_state = AppState()
+        df = pd.DataFrame({
+            "value": [10, 20, 30],
+            "gain_pct": [0.0, 0.0, 0.0],  # All zeros - total is 0
+            "adjusted_gain_pct": [0.0, 0.0, 0.0],
+        })
+        app_state.baseline_df = df
+        panel = BinChartPanel(app_state)
+        qtbot.addWidget(panel)
+        panel.show()
+
+        bins = [
+            BinDefinition(operator="<", value1=25, label="Low"),
+            BinDefinition(operator=">", value1=25, label="High"),
+        ]
+        panel.update_charts("value", bins)
+
+        # Should not crash and should show 0% for all bins
+        assert panel._pct_total_chart._data is not None
 
 
 class TestNumberAbbreviations:

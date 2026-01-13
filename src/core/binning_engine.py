@@ -114,6 +114,7 @@ class BinningEngine:
                     average=None,
                     median=None,
                     win_rate=None,
+                    total_gain=0.0,
                 )
                 continue
 
@@ -126,12 +127,16 @@ class BinningEngine:
             wins = (valid_data > 0).sum() if len(valid_data) > 0 else 0
             win_rate = (wins / len(valid_data) * 100) if len(valid_data) > 0 else None
 
+            # Total gain: sum of all gains in bin
+            total_gain = float(valid_data.sum()) if len(valid_data) > 0 else 0.0
+
             results[label] = BinMetrics(
                 label=label,
                 count=count,
                 average=average,
                 median=median,
                 win_rate=win_rate,
+                total_gain=total_gain,
             )
 
         return results
