@@ -801,10 +801,12 @@ class PnLStatsTab(QWidget):
         if filtered is not None:
             self._comparison_ribbon.set_values(baseline, filtered)
             self._comparison_grid.set_values(baseline, filtered)
+            self._update_distribution_cards(filtered)
         else:
             self._comparison_ribbon.clear()
             self._comparison_grid.clear()
             self._comparison_grid.set_values(baseline, None)
+            self._update_distribution_cards(baseline)
             # Clear filtered equity curves when filter is removed
             self._flat_stake_chart_panel.set_filtered(None)
             self._kelly_chart_panel.set_filtered(None)
@@ -948,7 +950,11 @@ class PnLStatsTab(QWidget):
         # Update comparison components with both baseline and filtered
         self._comparison_ribbon.set_values(metrics, filtered_metrics) if filtered_metrics else self._comparison_ribbon.clear()
         self._comparison_grid.set_values(metrics, filtered_metrics)
-        self._update_distribution_cards(metrics)
+        # Update distribution cards: use filtered metrics if available, else baseline
+        if filtered_metrics is not None:
+            self._update_distribution_cards(filtered_metrics)
+        else:
+            self._update_distribution_cards(metrics)
 
         # Emit metrics_updated signal to notify other listeners
         self._app_state.metrics_updated.emit(metrics, filtered_metrics)
