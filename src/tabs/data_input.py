@@ -1548,8 +1548,15 @@ class DataInputTab(QWidget):
         adjustment_params = self._adjustment_panel.get_params()
         self._pending_adjustment_params = adjustment_params
 
+        # Get flat stake and start capital from AppState or use defaults
+        metrics_inputs = (
+            self._app_state.metrics_user_inputs if self._app_state else None
+        )
+        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 1000.0
+        start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
+
         # Calculate metrics WITH adjustment params (3-tuple: metrics, flat_equity, kelly_equity)
-        metrics, _, _ = self._metrics_calculator.calculate(
+        metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
             df=baseline_df,
             gain_col=mapping.gain_pct,
             win_loss_col=mapping.win_loss,
@@ -1559,6 +1566,8 @@ class DataInputTab(QWidget):
             mae_col=mapping.mae_pct,
             date_col=mapping.date,
             time_col=mapping.time,
+            flat_stake=flat_stake,
+            start_capital=start_capital,
         )
 
         # Add adjusted_gain_pct column to baseline_df for Feature Explorer chart use
@@ -1575,10 +1584,18 @@ class DataInputTab(QWidget):
             self._app_state.column_mapping = mapping
             self._app_state.baseline_metrics = metrics
             self._app_state.adjustment_params = adjustment_params
+            # Store equity curves for chart display
+            self._app_state.flat_stake_equity_curve = flat_equity
+            self._app_state.kelly_equity_curve = kelly_equity
             self._app_state.data_loaded.emit(baseline_df)
             self._app_state.column_mapping_changed.emit(mapping)
             self._app_state.baseline_calculated.emit(metrics)
             self._app_state.adjustment_params_changed.emit(adjustment_params)
+            # Emit equity curve signals for chart updates
+            if flat_equity is not None:
+                self._app_state.equity_curve_updated.emit(flat_equity)
+            if kelly_equity is not None:
+                self._app_state.kelly_equity_curve_updated.emit(kelly_equity)
 
         # Display baseline info card
         self._baseline_card.update_counts(total_rows, baseline_rows)
@@ -1653,8 +1670,13 @@ class DataInputTab(QWidget):
             )
             baseline_df["adjusted_gain_pct"] = adjusted_gains
 
+        # Get flat stake and start capital from AppState or use defaults
+        metrics_inputs = self._app_state.metrics_user_inputs
+        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 1000.0
+        start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
+
         # Recalculate baseline metrics with adjustment params (3-tuple)
-        metrics, _, _ = self._metrics_calculator.calculate(
+        metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
             df=baseline_df,
             gain_col=mapping.gain_pct,
             win_loss_col=mapping.win_loss,
@@ -1664,13 +1686,23 @@ class DataInputTab(QWidget):
             mae_col=mapping.mae_pct,
             date_col=mapping.date,
             time_col=mapping.time,
+            flat_stake=flat_stake,
+            start_capital=start_capital,
         )
 
         # Update AppState and re-emit data_loaded so Feature Explorer sees updated column
         self._app_state.baseline_df = baseline_df
         self._app_state.baseline_metrics = metrics
+        # Store equity curves for chart display
+        self._app_state.flat_stake_equity_curve = flat_equity
+        self._app_state.kelly_equity_curve = kelly_equity
         self._app_state.data_loaded.emit(baseline_df)
         self._app_state.baseline_calculated.emit(metrics)
+        # Emit equity curve signals for chart updates
+        if flat_equity is not None:
+            self._app_state.equity_curve_updated.emit(flat_equity)
+        if kelly_equity is not None:
+            self._app_state.kelly_equity_curve_updated.emit(kelly_equity)
 
         # Update metrics display
         self._metrics_panel.update_metrics(metrics)

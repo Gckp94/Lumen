@@ -309,3 +309,21 @@ class TestTimeRangeFilterUI:
 
         assert filter_widget._start_time.displayFormat() == "HH:mm:ss"
         assert filter_widget._end_time.displayFormat() == "HH:mm:ss"
+
+    def test_start_time_has_input_tooltip(self, qtbot: QtBot) -> None:
+        """Start time widget has tooltip explaining digit input."""
+        filter_widget = TimeRangeFilter()
+        qtbot.addWidget(filter_widget)
+
+        tooltip = filter_widget._start_time.toolTip()
+        assert "040000" in tooltip
+        assert "04:00:00" in tooltip
+
+    def test_end_time_has_input_tooltip(self, qtbot: QtBot) -> None:
+        """End time widget has tooltip explaining digit input."""
+        filter_widget = TimeRangeFilter()
+        qtbot.addWidget(filter_widget)
+
+        tooltip = filter_widget._end_time.toolTip()
+        assert "160000" in tooltip
+        assert "16:00:00" in tooltip

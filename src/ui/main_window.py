@@ -8,6 +8,7 @@ import logging
 from PyQt6.QtWidgets import QMainWindow, QTabWidget
 
 from src.core.app_state import AppState
+from src.tabs.data_binning import DataBinningTab
 from src.tabs.data_input import DataInputTab
 from src.tabs.feature_explorer import FeatureExplorerTab
 from src.tabs.monte_carlo import MonteCarloTab
@@ -42,6 +43,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.addTab(FeatureExplorerTab(self._app_state), "Feature Explorer")
         self.tab_widget.addTab(PnLStatsTab(self._app_state), "PnL & Trading Stats")
         self.tab_widget.addTab(MonteCarloTab(), "Monte Carlo")
+        self.tab_widget.addTab(DataBinningTab(self._app_state), "Data Binning")
 
         self.setCentralWidget(self.tab_widget)
         logger.debug("Tab widget configured with %d tabs", self.tab_widget.count())

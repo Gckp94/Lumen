@@ -379,3 +379,98 @@ class FilterCriteria:
             return (col >= self.min_val) & (col <= self.max_val)
         else:  # not_between
             return (col < self.min_val) | (col > self.max_val)
+
+
+@dataclass
+class BinDefinition:
+    """Single bin definition for data binning.
+
+    Attributes:
+        operator: The bin operator type.
+        value1: For <, >, or range start value.
+        value2: For range end value only.
+        label: User-friendly label (auto-generated if empty).
+    """
+
+    operator: Literal["<", ">", "range", "nulls"]
+    value1: float | None = None
+    value2: float | None = None
+    label: str = ""
+
+
+@dataclass
+class BinMetrics:
+    """Metrics calculated for a single bin.
+
+    Attributes:
+        label: The bin label.
+        count: Number of rows in the bin.
+        average: Mean value of metric column.
+        median: Median value of metric column.
+        win_rate: Percentage of rows with positive metric (0-100).
+    """
+
+    label: str
+    count: int
+    average: float | None
+    median: float | None
+    win_rate: float | None
+
+
+@dataclass
+class BinConfig:
+    """Complete bin configuration for save/load persistence."""
+
+    column: str
+    bins: list[BinDefinition]
+    metric_column: str = "adjusted_gain_pct"  # or "gain_pct"
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dictionary."""
+        return {
+            "column": self.column,
+            "bins": [
+                {
+                    "operator": b.operator,
+                    "value1": b.value1,
+                    "value2": b.value2,
+                    "label": b.label,
+                }
+                for b in self.bins
+            ],
+            "metric_column": self.metric_column,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "BinConfig":
+        """Create BinConfig from dictionary.
+
+        Raises:
+            KeyError: If required fields are missing.
+            TypeError: If field types are invalid.
+        """
+        bins = [
+            BinDefinition(
+                operator=b["operator"],
+                value1=b.get("value1"),
+                value2=b.get("value2"),
+                label=b.get("label", ""),
+            )
+            for b in data["bins"]
+        ]
+        return cls(
+            column=data["column"],
+            bins=bins,
+            metric_column=data.get("metric_column", "adjusted_gain_pct"),
+        )
+
+    def validate(self) -> list[str]:
+        """Validate configuration. Returns list of error messages."""
+        errors = []
+        if not self.column:
+            errors.append("Column name is required")
+        if not self.bins:
+            errors.append("At least one bin definition is required")
+        if self.metric_column not in ("gain_pct", "adjusted_gain_pct"):
+            errors.append(f"Invalid metric column: {self.metric_column}")
+        return errors

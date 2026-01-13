@@ -1,0 +1,137 @@
+"""Binning engine for assigning DataFrame rows to bins."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import pandas as pd
+
+if TYPE_CHECKING:
+    from src.core.models import BinDefinition, BinMetrics
+
+
+class BinningEngine:
+    """Assign DataFrame rows to bins and calculate per-bin metrics."""
+
+    UNCATEGORIZED = "Uncategorized"
+
+    def assign_bins(
+        self,
+        df: pd.DataFrame,
+        column: str,
+        bin_definitions: list[BinDefinition],
+    ) -> pd.Series:
+        """Assign each row to a bin based on column value.
+
+        Args:
+            df: Source DataFrame
+            column: Column name to bin on
+            bin_definitions: List of bin definitions (first match wins)
+
+        Returns:
+            Series with bin labels for each row
+        """
+        if df.empty or not bin_definitions:
+            return pd.Series(dtype=str)
+
+        values = df[column]
+        result = pd.Series([self.UNCATEGORIZED] * len(df), index=df.index)
+
+        # Process bins in reverse order so first definition wins
+        for bin_def in reversed(bin_definitions):
+            label = bin_def.label or self._generate_label(bin_def)
+            mask = self._create_bin_mask(values, bin_def)
+            result.loc[mask] = label
+
+        return result
+
+    def _create_bin_mask(
+        self,
+        values: pd.Series,
+        bin_def: BinDefinition,
+    ) -> pd.Series:
+        """Create boolean mask for rows matching bin definition."""
+        op = bin_def.operator
+
+        if op == "nulls":
+            return pd.isna(values)
+        elif op == "<":
+            return values < bin_def.value1
+        elif op == ">":
+            return values > bin_def.value1
+        elif op == "range":
+            return (values >= bin_def.value1) & (values <= bin_def.value2)
+        else:
+            return pd.Series([False] * len(values), index=values.index)
+
+    def _generate_label(self, bin_def: BinDefinition) -> str:
+        """Generate auto-label from bin definition."""
+        op = bin_def.operator
+
+        if op == "nulls":
+            return "Nulls"
+        elif op == "<":
+            return f"< {bin_def.value1}"
+        elif op == ">":
+            return f"> {bin_def.value1}"
+        elif op == "range":
+            return f"{bin_def.value1} - {bin_def.value2}"
+        return "Unknown"
+
+    def calculate_bin_metrics(
+        self,
+        df: pd.DataFrame,
+        bin_labels: pd.Series,
+        metric_column: str,
+    ) -> dict[str, BinMetrics]:
+        """Calculate metrics for each bin.
+
+        Args:
+            df: Source DataFrame
+            bin_labels: Series with bin label for each row
+            metric_column: Column to calculate metrics on (gain_pct or adjusted_gain_pct)
+
+        Returns:
+            Dict mapping bin label to BinMetrics dataclass
+        """
+        from src.core.models import BinMetrics
+
+        if df.empty or bin_labels.empty:
+            return {}
+
+        results: dict[str, BinMetrics] = {}
+        unique_labels = bin_labels.unique()
+
+        for label in unique_labels:
+            mask = bin_labels == label
+            bin_data = df.loc[mask, metric_column]
+
+            count = len(bin_data)
+            if count == 0:
+                results[label] = BinMetrics(
+                    label=label,
+                    count=0,
+                    average=None,
+                    median=None,
+                    win_rate=None,
+                )
+                continue
+
+            # Calculate metrics
+            valid_data = bin_data.dropna()
+            average = valid_data.mean() if len(valid_data) > 0 else None
+            median = valid_data.median() if len(valid_data) > 0 else None
+
+            # Win rate: percentage of rows where metric > 0
+            wins = (valid_data > 0).sum() if len(valid_data) > 0 else 0
+            win_rate = (wins / len(valid_data) * 100) if len(valid_data) > 0 else None
+
+            results[label] = BinMetrics(
+                label=label,
+                count=count,
+                average=average,
+                median=median,
+                win_rate=win_rate,
+            )
+
+        return results

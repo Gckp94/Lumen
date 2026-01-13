@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumen - Data Binning Tab Design</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Azeret+Mono:wght@400;500;600&display=swap');
+
+        /* CSS Variables matching Lumen's color system */
+        :root {
+            --bg-base: #0a0a0b;
+            --bg-surface: #111113;
+            --bg-elevated: #18181b;
+            --bg-border: #27272a;
+            --bg-hover: #1f1f23;
+
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-subtle: rgba(59, 130, 246, 0.15);
+
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+
+            --chart-gradient-start: #3b82f6;
+            --chart-gradient-mid: #06b6d4;
+            --chart-gradient-end: #22c55e;
+
+            --sidebar-width: 280px;
+            --bar-height: 32px;
+            --chart-spacing: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Main Layout */
+        .tab-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* ==================== SIDEBAR ==================== */
+        .sidebar {
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+            background-color: var(--bg-elevated);
+            border-right: 1px solid var(--bg-border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--bg-border);
+        }
+
+        .sidebar-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        /* Dropdown */
+        .dropdown {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--bg-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: 'Geist', sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+
+        .dropdown:hover {
+            background-color: var(--bg-hover);
+            border-color: var(--text-muted);
+        }
+
+        .dropdown:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-subtle);
+        }
+
+        /* Metric Toggle */
+        .toggle-group {
+            display: flex;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--bg-border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-family: 'Azeret Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+
+        .toggle-btn:not(:last-child) {
+            border-right: 1px solid var(--bg-border);
+        }
+
+        .toggle-btn.active {
+            background-color: var(--accent-subtle);
+            color: var(--accent);
+        }
+
+        .toggle-btn:hover:not(.active) {
+            background-color: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        /* Bin Configuration */
+        .bin-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .bin-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--bg-border);
+            border-radius: 6px;
+            transition: border-color 0.15s ease;
+        }
+
+        .bin-item:hover {
+            border-color: var(--text-muted);
+        }
+
+        .bin-item.nulls-bin {
+            background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(113, 113, 122, 0.1) 100%);
+            border-style: dashed;
+        }
+
+        .bin-operator {
+            width: 44px;
+            padding: 6px 8px;
+            background-color: var(--bg-elevated);
+            border: 1px solid var(--bg-border);
+            border-radius: 4px;
+            color: var(--accent);
+            font-family: 'Azeret Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .bin-value {
+            flex: 1;
+            padding: 6px 8px;
+            background-color: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: 'Azeret Mono', monospace;
+            font-size: 12px;
+        }
+
+        .bin-value:focus {
+            outline: none;
+        }
+
+        .bin-value::placeholder {
+            color: var(--text-muted);
+        }
+
+        .bin-range-separator {
+            color: var(--text-muted);
+            font-family: 'Azeret Mono', monospace;
+            font-size: 11px;
+        }
+
+        .bin-remove {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+
+        .bin-remove:hover {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
+        .bin-nulls-label {
+            flex: 1;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-style: italic;
+        }
+
+        .bin-nulls-icon {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Add Bin Button */
+        .add-bin-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: transparent;
+            border: 1px dashed var(--bg-border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-family: 'Geist', sans-serif;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .add-bin-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background-color: var(--accent-subtle);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-family: 'Geist', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .action-btn.primary {
+            background-color: var(--accent);
+            border: none;
+            color: white;
+        }
+
+        .action-btn.primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .action-btn.secondary {
+            background-color: transparent;
+            border: 1px solid var(--bg-border);
+            color: var(--text-secondary);
+        }
+
+        .action-btn.secondary:hover {
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+            background-color: var(--bg-hover);
+        }
+
+        /* ==================== MAIN CONTENT ==================== */
+        .main-content {
+            flex: 1;
+            background-color: var(--bg-surface);
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .charts-container {
+            display: flex;
+            flex-direction: column;
+            gap: var(--chart-spacing);
+            max-width: 900px;
+        }
+
+        /* Chart Card */
+        .chart-card {
+            background-color: var(--bg-elevated);
+            border: 1px solid var(--bg-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--bg-border);
+        }
+
+        .chart-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-title-icon {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--accent-subtle);
+            border-radius: 4px;
+            color: var(--accent);
+            font-size: 10px;
+        }
+
+        .chart-subtitle {
+            font-family: 'Azeret Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .chart-body {
+            padding: 16px;
+        }
+
+        /* Bar Chart */
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+
+        .bar-label {
+            width: 80px;
+            min-width: 80px;
+            font-family: 'Azeret Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: right;
+        }
+
+        .bar-track {
+            flex: 1;
+            height: var(--bar-height);
+            background-color: var(--bg-surface);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            position: relative;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+        }
+
+        /* Gradient intensity based on value */
+        .bar-fill[data-intensity="high"] {
+            background: linear-gradient(90deg, var(--accent) 0%, #06b6d4 50%, var(--success) 100%);
+        }
+
+        .bar-fill[data-intensity="medium"] {
+            background: linear-gradient(90deg, var(--accent) 0%, #06b6d4 100%);
+        }
+
+        .bar-fill[data-intensity="low"] {
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.6) 0%, var(--accent) 100%);
+        }
+
+        .bar-fill[data-intensity="minimal"] {
+            background: rgba(59, 130, 246, 0.5);
+        }
+
+        .bar-fill[data-intensity="null"] {
+            background: linear-gradient(90deg, #52525b 0%, #71717a 100%);
+        }
+
+        .bar-value {
+            font-family: 'Azeret Mono', monospace;
+            font-size: 11px;
+            font-weight: 500;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            white-space: nowrap;
+        }
+
+        .bar-value-external {
+            position: absolute;
+            right: -60px;
+            font-family: 'Azeret Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* Tooltip */
+        .bar-tooltip {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--bg-base);
+            border: 1px solid var(--bg-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: 'Azeret Mono', monospace;
+            font-size: 12px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease, visibility 0.15s ease;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .bar-tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px 6px 0 6px;
+            border-style: solid;
+            border-color: var(--bg-base) transparent transparent transparent;
+        }
+
+        .bar-row:hover .bar-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .bar-row:hover .bar-fill {
+            filter: brightness(1.1);
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            max-width: 280px;
+            line-height: 1.5;
+        }
+
+        /* ==================== SCROLLBAR ==================== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-surface);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* ==================== ANIMATIONS ==================== */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chart-card {
+            animation: slideIn 0.3s ease forwards;
+        }
+
+        .chart-card:nth-child(1) { animation-delay: 0.05s; }
+        .chart-card:nth-child(2) { animation-delay: 0.1s; }
+        .chart-card:nth-child(3) { animation-delay: 0.15s; }
+        .chart-card:nth-child(4) { animation-delay: 0.2s; }
+
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+
+        .bar-fill {
+            animation: barGrow 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* ==================== TIME INPUT HELPER ==================== */
+        .time-hint {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            font-family: 'Azeret Mono', monospace;
+        }
+
+        .time-input-wrapper {
+            position: relative;
+        }
+
+        .time-preview {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'Azeret Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+            background-color: var(--bg-elevated);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="tab-container">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <!-- Column Selection -->
+            <div class="sidebar-section">
+                <div class="section-label">Column</div>
+                <select class="dropdown">
+                    <option value="">Select column...</option>
+                    <option value="market_cap" selected>market_cap</option>
+                    <option value="volume">volume</option>
+                    <option value="trigger_time">trigger_time</option>
+                    <option value="price">price</option>
+                    <option value="float_shares">float_shares</option>
+                </select>
+            </div>
+
+            <!-- Metric Toggle -->
+            <div class="sidebar-section">
+                <div class="section-label">Metric</div>
+                <div class="toggle-group">
+                    <button class="toggle-btn active">gain_pct</button>
+                    <button class="toggle-btn">adj_gain</button>
+                </div>
+            </div>
+
+            <!-- Bin Configuration -->
+            <div class="sidebar-section" style="flex: 1;">
+                <div class="section-label">Bin Configuration</div>
+                <div class="bin-list">
+                    <!-- Less than bin -->
+                    <div class="bin-item">
+                        <select class="bin-operator">
+                            <option value="<" selected>&lt;</option>
+                            <option value=">">&gt;</option>
+                            <option value="range">—</option>
+                        </select>
+                        <input type="text" class="bin-value" value="1M" placeholder="Value">
+                        <button class="bin-remove">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Range bin -->
+                    <div class="bin-item">
+                        <select class="bin-operator">
+                            <option value="<">&lt;</option>
+                            <option value=">">&gt;</option>
+                            <option value="range" selected>—</option>
+                        </select>
+                        <input type="text" class="bin-value" value="1M" placeholder="From" style="width: 50px;">
+                        <span class="bin-range-separator">to</span>
+                        <input type="text" class="bin-value" value="10M" placeholder="To" style="width: 50px;">
+                        <button class="bin-remove">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Another range bin -->
+                    <div class="bin-item">
+                        <select class="bin-operator">
+                            <option value="<">&lt;</option>
+                            <option value=">">&gt;</option>
+                            <option value="range" selected>—</option>
+                        </select>
+                        <input type="text" class="bin-value" value="10M" placeholder="From" style="width: 50px;">
+                        <span class="bin-range-separator">to</span>
+                        <input type="text" class="bin-value" value="50M" placeholder="To" style="width: 50px;">
+                        <button class="bin-remove">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Greater than bin -->
+                    <div class="bin-item">
+                        <select class="bin-operator">
+                            <option value="<">&lt;</option>
+                            <option value=">" selected>&gt;</option>
+                            <option value="range">—</option>
+                        </select>
+                        <input type="text" class="bin-value" value="50M" placeholder="Value">
+                        <button class="bin-remove">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Nulls bin (always present) -->
+                    <div class="bin-item nulls-bin">
+                        <span class="bin-nulls-icon">∅</span>
+                        <span class="bin-nulls-label">Null values</span>
+                    </div>
+
+                    <!-- Add bin button -->
+                    <button class="add-bin-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        Add Bin
+                    </button>
+                </div>
+
+                <div class="time-hint" style="margin-top: 12px;">
+                    💡 Time format: 040000 → 04:00:00
+                </div>
+            </div>
+
+            <!-- Save/Load -->
+            <div class="sidebar-section">
+                <div class="section-label">Configuration</div>
+                <div class="action-buttons">
+                    <button class="action-btn secondary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                        </svg>
+                        Load
+                    </button>
+                    <button class="action-btn primary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                            <polyline points="17,21 17,13 7,13 7,21"/>
+                            <polyline points="7,3 7,8 15,8"/>
+                        </svg>
+                        Save
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <div class="charts-container">
+                <!-- Average Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span class="chart-title-icon">μ</span>
+                            Average
+                        </div>
+                        <span class="chart-subtitle">gain_pct by market_cap</span>
+                    </div>
+                    <div class="chart-body">
+                        <div class="bar-chart">
+                            <div class="bar-row">
+                                <span class="bar-label">&lt;1M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 85%;" data-intensity="high">
+                                        <span class="bar-value">+3.24%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Average: +3.24% (n=1,247)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">1M–10M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 68%;" data-intensity="medium">
+                                        <span class="bar-value">+2.58%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Average: +2.58% (n=3,891)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">10M–50M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 45%;" data-intensity="low">
+                                        <span class="bar-value">+1.71%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Average: +1.71% (n=2,156)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">&gt;50M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 28%;" data-intensity="minimal">
+                                        <span class="bar-value">+1.06%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Average: +1.06% (n=892)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label" style="color: var(--text-muted); font-style: italic;">Nulls</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 15%;" data-intensity="null">
+                                        <span class="bar-value">+0.57%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Average: +0.57% (n=143)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Median Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span class="chart-title-icon">M̃</span>
+                            Median
+                        </div>
+                        <span class="chart-subtitle">gain_pct by market_cap</span>
+                    </div>
+                    <div class="chart-body">
+                        <div class="bar-chart">
+                            <div class="bar-row">
+                                <span class="bar-label">&lt;1M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 72%;" data-intensity="high">
+                                        <span class="bar-value">+2.18%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Median: +2.18%</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">1M–10M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 58%;" data-intensity="medium">
+                                        <span class="bar-value">+1.76%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Median: +1.76%</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">10M–50M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 42%;" data-intensity="low">
+                                        <span class="bar-value">+1.27%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Median: +1.27%</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">&gt;50M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 30%;" data-intensity="minimal">
+                                        <span class="bar-value">+0.91%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Median: +0.91%</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label" style="color: var(--text-muted); font-style: italic;">Nulls</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 12%;" data-intensity="null">
+                                        <span class="bar-value">+0.36%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Median: +0.36%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Count Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span class="chart-title-icon">#</span>
+                            Count
+                        </div>
+                        <span class="chart-subtitle">trades by market_cap</span>
+                    </div>
+                    <div class="chart-body">
+                        <div class="bar-chart">
+                            <div class="bar-row">
+                                <span class="bar-label">&lt;1M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 32%;" data-intensity="low">
+                                        <span class="bar-value">1,247</span>
+                                    </div>
+                                    <div class="bar-tooltip">Count: 1,247 (14.9%)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">1M–10M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 100%;" data-intensity="high">
+                                        <span class="bar-value">3,891</span>
+                                    </div>
+                                    <div class="bar-tooltip">Count: 3,891 (46.7%)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">10M–50M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 55%;" data-intensity="medium">
+                                        <span class="bar-value">2,156</span>
+                                    </div>
+                                    <div class="bar-tooltip">Count: 2,156 (25.9%)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">&gt;50M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 23%;" data-intensity="minimal">
+                                        <span class="bar-value">892</span>
+                                    </div>
+                                    <div class="bar-tooltip">Count: 892 (10.7%)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label" style="color: var(--text-muted); font-style: italic;">Nulls</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 4%;" data-intensity="null">
+                                        <span class="bar-value" style="position: absolute; left: calc(4% + 8px); color: var(--text-secondary);">143</span>
+                                    </div>
+                                    <div class="bar-tooltip">Count: 143 (1.7%)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Win Rate Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span class="chart-title-icon">%</span>
+                            Win Rate
+                        </div>
+                        <span class="chart-subtitle">wins / total by market_cap</span>
+                    </div>
+                    <div class="chart-body">
+                        <div class="bar-chart">
+                            <div class="bar-row">
+                                <span class="bar-label">&lt;1M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 78%;" data-intensity="high">
+                                        <span class="bar-value">78.2%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Win Rate: 78.2% (975/1,247)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">1M–10M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 71%;" data-intensity="medium">
+                                        <span class="bar-value">71.4%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Win Rate: 71.4% (2,778/3,891)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">10M–50M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 65%;" data-intensity="low">
+                                        <span class="bar-value">64.8%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Win Rate: 64.8% (1,397/2,156)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">&gt;50M</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 58%;" data-intensity="minimal">
+                                        <span class="bar-value">58.3%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Win Rate: 58.3% (520/892)</div>
+                                </div>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label" style="color: var(--text-muted); font-style: italic;">Nulls</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: 52%;" data-intensity="null">
+                                        <span class="bar-value">52.4%</span>
+                                    </div>
+                                    <div class="bar-tooltip">Win Rate: 52.4% (75/143)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Toggle button interaction
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Bin operator change - show/hide range inputs
+        document.querySelectorAll('.bin-operator').forEach(select => {
+            select.addEventListener('change', function() {
+                const binItem = this.closest('.bin-item');
+                const inputs = binItem.querySelectorAll('.bin-value');
+                const separator = binItem.querySelector('.bin-range-separator');
+
+                if (this.value === 'range') {
+                    // Show range inputs
+                    if (inputs.length === 1) {
+                        const newInput = document.createElement('input');
+                        newInput.type = 'text';
+                        newInput.className = 'bin-value';
+                        newInput.placeholder = 'To';
+                        newInput.style.width = '50px';
+
+                        const sep = document.createElement('span');
+                        sep.className = 'bin-range-separator';
+                        sep.textContent = 'to';
+
+                        inputs[0].style.width = '50px';
+                        inputs[0].placeholder = 'From';
+                        inputs[0].after(sep, newInput);
+                    }
+                } else {
+                    // Show single input
+                    if (inputs.length > 1) {
+                        inputs[1].remove();
+                        if (separator) separator.remove();
+                        inputs[0].style.width = '';
+                        inputs[0].placeholder = 'Value';
+                    }
+                }
+            });
+        });
+
+        // Remove bin
+        document.querySelectorAll('.bin-remove').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.closest('.bin-item').remove();
+            });
+        });
+
+        // Add bin
+        document.querySelector('.add-bin-btn').addEventListener('click', function() {
+            const binList = document.querySelector('.bin-list');
+            const nullsBin = binList.querySelector('.nulls-bin');
+
+            const newBin = document.createElement('div');
+            newBin.className = 'bin-item';
+            newBin.innerHTML = `
+                <select class="bin-operator">
+                    <option value="<">&lt;</option>
+                    <option value=">">&gt;</option>
+                    <option value="range">—</option>
+                </select>
+                <input type="text" class="bin-value" placeholder="Value">
+                <button class="bin-remove">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            `;
+
+            nullsBin.before(newBin);
+
+            // Add event listeners to new elements
+            newBin.querySelector('.bin-remove').addEventListener('click', function() {
+                this.closest('.bin-item').remove();
+            });
+        });
+    </script>
+</body>
+</html>

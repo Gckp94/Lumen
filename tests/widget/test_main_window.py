@@ -12,17 +12,23 @@ from src.ui.main_window import MainWindow
 class TestMainWindow:
     """Tests for the MainWindow class."""
 
-    def test_main_window_has_four_tabs(self, qtbot: QtBot) -> None:
-        """MainWindow contains exactly 4 tabs."""
+    def test_main_window_has_five_tabs(self, qtbot: QtBot) -> None:
+        """MainWindow contains exactly 5 tabs."""
         window = MainWindow()
         qtbot.addWidget(window)
-        assert window.tab_widget.count() == 4
+        assert window.tab_widget.count() == 5
 
     def test_tab_titles_match_workflow(self, qtbot: QtBot) -> None:
         """Tab titles match expected workflow order."""
         window = MainWindow()
         qtbot.addWidget(window)
-        expected = ["Data Input", "Feature Explorer", "PnL & Trading Stats", "Monte Carlo"]
+        expected = [
+            "Data Input",
+            "Feature Explorer",
+            "PnL & Trading Stats",
+            "Monte Carlo",
+            "Data Binning",
+        ]
         for i, title in enumerate(expected):
             assert window.tab_widget.tabText(i) == title
 
