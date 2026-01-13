@@ -1214,7 +1214,10 @@ class HorizontalBarChart(QWidget):
         min_val: float,
         max_val: float,
     ) -> QColor:
-        """Calculate gradient color based on relative value.
+        """Calculate bar color using brightness interpolation.
+
+        Higher values = brighter, lower values = darker.
+        No alpha transparency - solid colors for cleaner appearance.
 
         Args:
             value: Current value.
@@ -1222,23 +1225,32 @@ class HorizontalBarChart(QWidget):
             max_val: Maximum value in dataset.
 
         Returns:
-            QColor with adjusted alpha for gradient effect.
+            QColor with brightness based on value magnitude.
         """
-        # Use coral for negative, cyan for positive
-        base_color = (
-            QColor(Colors.SIGNAL_CORAL) if value < 0 else QColor(Colors.SIGNAL_CYAN)
-        )
+        # Define dark (low value) and bright (high value) color endpoints
+        if value < 0:
+            # Coral range: dark muted to full bright
+            dark_color = QColor(74, 26, 31)      # ~20% brightness coral
+            bright_color = QColor(255, 71, 87)   # Full coral (#FF4757)
+        else:
+            # Cyan range: dark muted to full bright
+            dark_color = QColor(10, 61, 61)      # ~20% brightness cyan
+            bright_color = QColor(0, 255, 212)   # Full cyan (#00FFD4)
 
-        # Normalize to 0-1 range for alpha calculation
+        # Normalize value to 0-1 range (0 = lowest magnitude, 1 = highest)
         if max_val == min_val:
-            alpha = 0.7
+            t = 0.7  # Default to moderately bright if all values equal
         else:
             abs_max = max(abs(min_val), abs(max_val))
-            normalized = abs(value) / abs_max if abs_max > 0 else 0
-            alpha = 0.3 + (normalized * 0.7)
+            t = abs(value) / abs_max if abs_max > 0 else 0
+            t = 0.25 + (t * 0.75)  # Map to 0.25-1.0 range (never fully dark)
 
-        base_color.setAlphaF(alpha)
-        return base_color
+        # Linear interpolation between dark and bright colors
+        r = int(dark_color.red() + t * (bright_color.red() - dark_color.red()))
+        g = int(dark_color.green() + t * (bright_color.green() - dark_color.green()))
+        b = int(dark_color.blue() + t * (bright_color.blue() - dark_color.blue()))
+
+        return QColor(r, g, b)  # Fully opaque, no alpha
 
     def _format_value(self, value: float) -> str:
         """Format a number with K/M/B abbreviations for readability.

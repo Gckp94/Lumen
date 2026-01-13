@@ -761,6 +761,47 @@ class TestNumberAbbreviations:
         assert chart._data == [("Bin 1", 1500000.0), ("Bin 2", 25000.0)]
 
 
+class TestBrightnessGradient:
+    """Tests for brightness-based gradient coloring in bar charts."""
+
+    def test_brightness_gradient_higher_values_brighter(self, qtbot: QtBot) -> None:
+        """Test that higher values produce brighter colors (not just more opaque)."""
+        from PyQt6.QtGui import QColor
+
+        chart = HorizontalBarChart()
+        qtbot.addWidget(chart)
+
+        # Get colors for low, medium, and high positive values
+        low_color = chart._calculate_gradient_color(10, 0, 100)
+        mid_color = chart._calculate_gradient_color(50, 0, 100)
+        high_color = chart._calculate_gradient_color(100, 0, 100)
+
+        # Calculate perceived brightness (simple luminance formula)
+        def brightness(c: QColor) -> float:
+            return 0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()
+
+        # Higher values should have higher brightness
+        assert brightness(high_color) > brightness(mid_color), "High value should be brighter than mid"
+        assert brightness(mid_color) > brightness(low_color), "Mid value should be brighter than low"
+
+        # Alpha should be 255 (fully opaque, no transparency)
+        assert high_color.alpha() == 255, "Colors should be fully opaque"
+        assert mid_color.alpha() == 255, "Colors should be fully opaque"
+        assert low_color.alpha() == 255, "Colors should be fully opaque"
+
+    def test_brightness_gradient_negative_values_use_coral(self, qtbot: QtBot) -> None:
+        """Test that negative values use coral color gradient."""
+        chart = HorizontalBarChart()
+        qtbot.addWidget(chart)
+
+        # Get color for negative value
+        neg_color = chart._calculate_gradient_color(-50, -100, 0)
+
+        # Should be in coral range (red > green, red > blue)
+        assert neg_color.red() > neg_color.green(), "Negative values should use coral (red dominant)"
+        assert neg_color.red() > neg_color.blue(), "Negative values should use coral (red dominant)"
+
+
 class TestResizableSidebar:
     """Tests for resizable sidebar with QSplitter."""
 
