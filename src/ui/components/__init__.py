@@ -1,6 +1,7 @@
 """Reusable UI components."""
 
 from src.ui.components.axis_control_panel import AxisControlPanel
+from src.ui.components.axis_mode_toggle import AxisMode, AxisModeToggle
 from src.ui.components.calculation_status import CalculationStatusIndicator
 from src.ui.components.chart_canvas import ChartCanvas
 from src.ui.components.comparison_grid import ComparisonGrid
@@ -28,6 +29,8 @@ from src.ui.components.user_inputs_panel import UserInputsPanel
 
 __all__ = [
     "AxisControlPanel",
+    "AxisMode",
+    "AxisModeToggle",
     "CalculationStatusIndicator",
     "ChartCanvas",
     "ComparisonGrid",
