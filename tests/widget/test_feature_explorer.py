@@ -375,7 +375,8 @@ class TestFilterSummary:
         tab._on_filters_applied(filters)
 
         summary_text = tab._filter_summary_label.text()
-        assert "1 active" in summary_text
+        # 1 column filter + 1 date range filter = 2 active
+        assert "2 active" in summary_text
         # Should also contain date indication
 
     def test_filter_summary_resets_on_clear(self, qtbot):

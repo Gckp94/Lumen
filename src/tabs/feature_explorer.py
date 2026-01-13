@@ -596,21 +596,43 @@ class FeatureExplorerTab(QWidget):
             logger.info("Time range filter: %s to %s", start, end)
 
     def _update_filter_summary(self) -> None:
-        """Update filter summary display in bottom bar with date details."""
-        filter_count = len(self._app_state.filters)
-        has_date_filter = not self._all_dates
-        date_display = self._filter_panel._date_range_filter.get_display_range()
+        """Update filter summary label with active filter count."""
+        # Count column filters
+        column_filter_count = len(self._app_state.filters)
 
-        if filter_count == 0 and not has_date_filter:
-            text = "Filters: None"
-        elif has_date_filter and filter_count > 0:
-            text = f"Filters: {filter_count} active, {date_display}"
-        elif has_date_filter:
-            text = f"Filters: {date_display}"
+        # Count date filter as active if not "all dates"
+        date_filter_active = not self._all_dates
+
+        # Count time filter as active if not "all times"
+        time_filter_active = not self._all_times
+
+        # Total active filters
+        total_active = column_filter_count + (1 if date_filter_active else 0) + (1 if time_filter_active else 0)
+
+        # Build display parts
+        parts = []
+
+        if date_filter_active:
+            date_display = self._filter_panel._date_range_filter.get_display_range()
+            if date_display:
+                parts.append(date_display)
+
+        if time_filter_active:
+            time_display = self._filter_panel._time_range_filter.get_display_range()
+            if time_display:
+                parts.append(time_display)
+
+        # Build final display string
+        if total_active == 0:
+            display = "Filters: None"
         else:
-            text = f"Filters: {filter_count} active"
+            if parts:
+                range_info = ", ".join(parts)
+                display = f"Filters: {total_active} active ({range_info})"
+            else:
+                display = f"Filters: {total_active} active"
 
-        self._filter_summary_label.setText(text)
+        self._filter_summary_label.setText(display)
 
     def _apply_current_filters(self) -> None:
         """Apply current filters with first-trigger state.
