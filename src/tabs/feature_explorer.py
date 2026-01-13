@@ -184,6 +184,7 @@ class FeatureExplorerTab(QWidget):
                 background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
                 selection-background-color: {Colors.BG_BORDER};
+                selection-color: {Colors.TEXT_PRIMARY};
                 border: 1px solid {Colors.BG_BORDER};
             }}
         """)

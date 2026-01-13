@@ -115,6 +115,7 @@ class FilterRow(QWidget):
                 background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
                 selection-background-color: {Colors.BG_BORDER};
+                selection-color: {Colors.TEXT_PRIMARY};
             }}
         """
         self._column_combo.setStyleSheet(combo_style)

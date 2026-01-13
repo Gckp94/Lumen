@@ -284,6 +284,7 @@ class ColumnConfigPanel(QWidget):
                 color: {Colors.TEXT_PRIMARY};
                 border: 1px solid {Colors.BG_BORDER};
                 selection-background-color: {Colors.BG_BORDER};
+                selection-color: {Colors.TEXT_PRIMARY};
                 padding: 4px;
             }}
         """
@@ -1144,6 +1145,7 @@ class DataInputTab(QWidget):
                 color: {Colors.TEXT_PRIMARY};
                 border: 1px solid {Colors.BG_BORDER};
                 selection-background-color: {Colors.BG_BORDER};
+                selection-color: {Colors.TEXT_PRIMARY};
             }}
         """
         )

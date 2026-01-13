@@ -529,6 +529,7 @@ class _HistogramPanel(QWidget):
                 background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
                 selection-background-color: {Colors.BG_BORDER};
+                selection-color: {Colors.TEXT_PRIMARY};
             }}
         """)
         self._bin_combo.currentIndexChanged.connect(self._on_bin_size_changed)
