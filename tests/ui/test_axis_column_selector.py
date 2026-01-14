@@ -80,3 +80,39 @@ class TestAxisColumnSelector:
 
         with qtbot.waitSignal(selector.selection_changed, timeout=1000):
             selector._y_combo.setCurrentText("feature_b")
+
+    def test_x_bounds_signal_emitted(self, qtbot: QtBot) -> None:
+        """X bounds change emits signal."""
+        selector = AxisColumnSelector()
+        qtbot.addWidget(selector)
+
+        with qtbot.waitSignal(selector.x_bounds_changed, timeout=500):
+            selector._x_min.setValue(10.0)
+
+    def test_y_bounds_signal_emitted(self, qtbot: QtBot) -> None:
+        """Y bounds change emits signal."""
+        selector = AxisColumnSelector()
+        qtbot.addWidget(selector)
+
+        with qtbot.waitSignal(selector.y_bounds_changed, timeout=500):
+            selector._y_min.setValue(5.0)
+
+    def test_set_x_bounds_no_signal(self, qtbot: QtBot) -> None:
+        """set_x_bounds does not emit signal."""
+        selector = AxisColumnSelector()
+        qtbot.addWidget(selector)
+
+        with qtbot.assertNotEmitted(selector.x_bounds_changed):
+            selector.set_x_bounds(0, 100)
+
+        assert selector.x_bounds == (0, 100)
+
+    def test_set_y_bounds_no_signal(self, qtbot: QtBot) -> None:
+        """set_y_bounds does not emit signal."""
+        selector = AxisColumnSelector()
+        qtbot.addWidget(selector)
+
+        with qtbot.assertNotEmitted(selector.y_bounds_changed):
+            selector.set_y_bounds(-50, 50)
+
+        assert selector.y_bounds == (-50, 50)
