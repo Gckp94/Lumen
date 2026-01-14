@@ -680,6 +680,51 @@ class FeatureExplorerTab(QWidget):
             return []
         return df.select_dtypes(include=["number"]).columns.tolist()
 
+    @staticmethod
+    def _apply_bounds_filter(
+        df: pd.DataFrame,
+        x_column: str | None,
+        y_column: str | None,
+        x_min: float | None,
+        x_max: float | None,
+        y_min: float | None,
+        y_max: float | None,
+    ) -> pd.DataFrame:
+        """Filter DataFrame to only include rows within axis bounds.
+
+        Args:
+            df: Input DataFrame.
+            x_column: X axis column name.
+            y_column: Y axis column name.
+            x_min: Minimum X value (inclusive), or None for no limit.
+            x_max: Maximum X value (inclusive), or None for no limit.
+            y_min: Minimum Y value (inclusive), or None for no limit.
+            y_max: Maximum Y value (inclusive), or None for no limit.
+
+        Returns:
+            DataFrame with out-of-bounds rows removed.
+        """
+        if df is None or df.empty:
+            return df
+
+        mask = pd.Series(True, index=df.index)
+
+        # Apply X bounds
+        if x_column and x_column in df.columns:
+            if x_min is not None:
+                mask &= df[x_column] >= x_min
+            if x_max is not None:
+                mask &= df[x_column] <= x_max
+
+        # Apply Y bounds
+        if y_column and y_column in df.columns:
+            if y_min is not None:
+                mask &= df[y_column] >= y_min
+            if y_max is not None:
+                mask &= df[y_column] <= y_max
+
+        return df[mask].copy()
+
     def _on_axis_range_changed(
         self, x_min: float, x_max: float, y_min: float, y_max: float
     ) -> None:
