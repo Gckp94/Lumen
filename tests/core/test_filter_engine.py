@@ -2,10 +2,11 @@
 
 from datetime import time
 
+import numpy as np
 import pandas as pd
 import pytest
 
-from src.core.filter_engine import FilterEngine
+from src.core.filter_engine import FilterEngine, time_to_minutes
 
 
 class TestTimeRangeFilter:
@@ -142,3 +143,57 @@ class TestTimeRangeFilter:
 
         assert len(result) == 2  # 04:30 and 12:00 (NaN excluded)
         assert list(result["value"]) == [1, 3]
+
+
+class TestTimeToMinutes:
+    """Tests for time_to_minutes utility function."""
+
+    def test_time_string_hms_format(self):
+        """Test parsing HH:MM:SS string format."""
+        series = pd.Series(["09:30:00", "14:45:30", "00:00:00"])
+        result = time_to_minutes(series)
+        expected = pd.Series([570.0, 885.5, 0.0])
+        pd.testing.assert_series_equal(result, expected)
+
+    def test_time_string_hm_format(self):
+        """Test parsing HH:MM string format (no seconds)."""
+        series = pd.Series(["09:30", "14:45", "00:00"])
+        result = time_to_minutes(series)
+        expected = pd.Series([570.0, 885.0, 0.0])
+        pd.testing.assert_series_equal(result, expected)
+
+    def test_integer_hhmmss_format(self):
+        """Test parsing integer HHMMSS format (e.g., 93000 for 09:30:00)."""
+        series = pd.Series([93000, 144530, 0])
+        result = time_to_minutes(series)
+        expected = pd.Series([570.0, 885.5, 0.0])
+        pd.testing.assert_series_equal(result, expected)
+
+    def test_excel_serial_time(self):
+        """Test parsing Excel serial time (0-1 fraction of day)."""
+        series = pd.Series([0.5, 0.25, 0.0])
+        result = time_to_minutes(series)
+        expected = pd.Series([720.0, 360.0, 0.0])
+        pd.testing.assert_series_equal(result, expected)
+
+    def test_handles_nan_values(self):
+        """Test that NaN values are preserved."""
+        series = pd.Series(["09:30:00", None, "14:45:00"])
+        result = time_to_minutes(series)
+        assert result.iloc[0] == 570.0
+        assert pd.isna(result.iloc[1])
+        assert result.iloc[2] == 885.0
+
+    def test_datetime_time_objects(self):
+        """Test parsing datetime.time objects."""
+        from datetime import time
+        series = pd.Series([time(9, 30, 0), time(14, 45, 30), time(0, 0, 0)])
+        result = time_to_minutes(series)
+        expected = pd.Series([570.0, 885.5, 0.0])
+        pd.testing.assert_series_equal(result, expected)
+
+    def test_empty_series_returns_empty(self):
+        """Test that empty series returns empty series."""
+        series = pd.Series([], dtype=object)
+        result = time_to_minutes(series)
+        assert len(result) == 0

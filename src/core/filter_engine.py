@@ -3,11 +3,87 @@
 import logging
 from datetime import time as dt_time
 
+import numpy as np
 import pandas as pd
 
 from .models import FilterCriteria
 
 logger = logging.getLogger(__name__)
+
+
+def time_to_minutes(series: pd.Series) -> pd.Series:
+    """Convert a time series to minutes since midnight.
+
+    Handles multiple time formats:
+    - HH:MM:SS strings (e.g., "09:30:00")
+    - HH:MM strings (e.g., "09:30")
+    - Integer HHMMSS (e.g., 93000)
+    - Excel serial time (float 0-1)
+    - datetime.time objects
+
+    Args:
+        series: Pandas Series containing time values in any supported format.
+
+    Returns:
+        Pandas Series of float values representing minutes since midnight.
+        NaN values in input are preserved as NaN in output.
+    """
+    if series.empty:
+        return pd.Series([], dtype=float)
+
+    result = pd.Series(index=series.index, dtype=float)
+
+    # Get first non-null value to determine format
+    first_val = series.dropna().iloc[0] if series.notna().any() else None
+
+    if first_val is None:
+        return result
+
+    # Strategy 1: datetime.time objects
+    if isinstance(first_val, dt_time):
+        result = series.apply(
+            lambda x: x.hour * 60 + x.minute + x.second / 60 if pd.notna(x) else np.nan
+        )
+
+    # Strategy 2: Excel serial time (float between 0 and 1)
+    elif pd.api.types.is_float_dtype(series):
+        col_values = series.dropna()
+        if len(col_values) > 0 and col_values.between(0, 1).all():
+            result = series * 24 * 60  # Convert fraction of day to minutes
+
+    # Strategy 3: Integer HHMMSS format
+    elif pd.api.types.is_integer_dtype(series):
+        def int_to_minutes(val):
+            if pd.isna(val):
+                return np.nan
+            val_str = str(int(val)).zfill(6)
+            hours = int(val_str[:2])
+            mins = int(val_str[2:4])
+            secs = int(val_str[4:6])
+            return hours * 60 + mins + secs / 60
+        result = series.apply(int_to_minutes)
+
+    # Strategy 4: String formats
+    else:
+        def parse_time_string(val):
+            if pd.isna(val) or val == "":
+                return np.nan
+            val_str = str(val).strip()
+            if ":" in val_str:
+                parts = val_str.split(":")
+                hours = int(parts[0])
+                mins = int(parts[1])
+                secs = int(parts[2]) if len(parts) > 2 else 0
+                return hours * 60 + mins + secs / 60
+            # Try integer format
+            val_str = val_str.zfill(6)
+            hours = int(val_str[:2])
+            mins = int(val_str[2:4])
+            secs = int(val_str[4:6])
+            return hours * 60 + mins + secs / 60
+        result = series.apply(parse_time_string)
+
+    return result
 
 
 class FilterEngine:
