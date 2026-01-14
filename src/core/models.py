@@ -345,13 +345,14 @@ class FilterCriteria:
 
     Attributes:
         column: Name of the column to filter on.
-        operator: Filter operator - 'between' (inclusive) or 'not_between'.
+        operator: Filter operator - 'between' (inclusive), 'not_between',
+                  'between_blanks' (includes nulls), or 'not_between_blanks'.
         min_val: Minimum value for the range.
         max_val: Maximum value for the range.
     """
 
     column: str
-    operator: Literal["between", "not_between"]
+    operator: Literal["between", "not_between", "between_blanks", "not_between_blanks"]
     min_val: float
     max_val: float
 
@@ -375,10 +376,16 @@ class FilterCriteria:
             Boolean Series mask where True indicates rows that match the filter.
         """
         col = df[self.column]
+        is_null = col.isna()
+
         if self.operator == "between":
             return (col >= self.min_val) & (col <= self.max_val)
-        else:  # not_between
+        elif self.operator == "not_between":
             return (col < self.min_val) | (col > self.max_val)
+        elif self.operator == "between_blanks":
+            return ((col >= self.min_val) & (col <= self.max_val)) | is_null
+        else:  # not_between_blanks
+            return ((col < self.min_val) | (col > self.max_val)) | is_null
 
 
 @dataclass

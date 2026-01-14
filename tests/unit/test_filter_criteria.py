@@ -125,3 +125,47 @@ class TestFilterCriteriaEdgeCases:
         )
         mask = criteria.apply(df)
         assert mask.tolist() == [False, True, False]
+
+
+class TestFilterCriteriaBetweenBlanks:
+    """Tests for 'between_blanks' operator."""
+
+    def test_between_blanks_includes_nulls(self) -> None:
+        """BETWEEN + BLANKS includes NaN/null values."""
+        df = pd.DataFrame({"gain_pct": [5.0, None, float("nan")]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between_blanks", min_val=0, max_val=10
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [True, True, True]
+
+    def test_between_blanks_includes_range_and_nulls(self) -> None:
+        """BETWEEN + BLANKS includes values in range AND nulls."""
+        df = pd.DataFrame({"gain_pct": [-5.0, 5.0, 15.0, None]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between_blanks", min_val=0, max_val=10
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [False, True, False, True]
+
+
+class TestFilterCriteriaNotBetweenBlanks:
+    """Tests for 'not_between_blanks' operator."""
+
+    def test_not_between_blanks_includes_nulls(self) -> None:
+        """NOT BETWEEN + BLANKS includes NaN/null values."""
+        df = pd.DataFrame({"gain_pct": [5.0, None, float("nan")]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="not_between_blanks", min_val=0, max_val=10
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [False, True, True]
+
+    def test_not_between_blanks_includes_outside_and_nulls(self) -> None:
+        """NOT BETWEEN + BLANKS includes values outside range AND nulls."""
+        df = pd.DataFrame({"gain_pct": [-5.0, 5.0, 15.0, None]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="not_between_blanks", min_val=0, max_val=10
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [True, False, True, True]
