@@ -16,6 +16,7 @@ from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from src.ui.components.abbreviated_axis import AbbreviatedAxisItem
 from src.ui.constants import Colors, Fonts
 
 if TYPE_CHECKING:
@@ -74,8 +75,13 @@ class ChartCanvas(QWidget):
 
     def _setup_pyqtgraph(self) -> None:
         """Initialize PyQtGraph components with Observatory theme."""
-        # Create plot widget
-        self._plot_widget = pg.PlotWidget()
+        # Create plot widget with custom abbreviated axes
+        self._plot_widget = pg.PlotWidget(
+            axisItems={
+                "left": AbbreviatedAxisItem(orientation="left"),
+                "bottom": AbbreviatedAxisItem(orientation="bottom"),
+            }
+        )
         self._plot_widget.setBackground(Colors.BG_SURFACE)
 
         # Disable grid by default for clean look

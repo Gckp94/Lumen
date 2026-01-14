@@ -133,3 +133,22 @@ class TestChartCanvasMouseInteractions:
         assert not canvas._crosshair_v.isVisible()
         assert not canvas._crosshair_h.isVisible()
         assert not canvas._coord_label.isVisible()
+
+
+class TestChartCanvas:
+    """Tests for ChartCanvas configuration."""
+
+    def test_axes_use_abbreviated_format(self, qtbot) -> None:
+        """Chart axes should display K/M/B abbreviations instead of scientific notation."""
+        from src.ui.components.abbreviated_axis import AbbreviatedAxisItem
+
+        canvas = ChartCanvas()
+        qtbot.addWidget(canvas)
+
+        # Verify both axes are AbbreviatedAxisItem instances
+        plot_item = canvas._plot_widget.getPlotItem()
+        left_axis = plot_item.getAxis("left")
+        bottom_axis = plot_item.getAxis("bottom")
+
+        assert isinstance(left_axis, AbbreviatedAxisItem)
+        assert isinstance(bottom_axis, AbbreviatedAxisItem)
