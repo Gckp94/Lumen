@@ -1,7 +1,7 @@
 """FilterChip component for displaying active filters."""
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QWidget
 
 from src.core.models import FilterCriteria
 from src.ui.constants import Colors, Spacing
@@ -34,9 +34,13 @@ class FilterChip(QFrame):
 
     def _setup_ui(self) -> None:
         """Set up the chip UI layout."""
+        # Prevent chip from expanding to fill container
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        
         layout = QHBoxLayout(self)
         layout.setContentsMargins(Spacing.SM, Spacing.XS, Spacing.SM, Spacing.XS)
         layout.setSpacing(Spacing.XS)
+        layout.setSizeConstraint(QHBoxLayout.SizeConstraint.SetFixedSize)
 
         # Filter summary label
         op_text = "between" if self._criteria.operator == "between" else "not between"

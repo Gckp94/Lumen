@@ -188,10 +188,10 @@ class FilterPanel(QWidget):
         """
         self._clear_btn.setStyleSheet(secondary_btn_style)
 
-        # Add chips scroll area styling
+        # Add chips scroll area and frame styling - use explicit backgrounds to prevent bleeding
         self._chips_scroll.setStyleSheet(f"""
             QScrollArea {{
-                background-color: transparent;
+                background-color: {Colors.BG_SURFACE};
                 border: none;
             }}
             QScrollBar:vertical {{
@@ -212,6 +212,9 @@ class FilterPanel(QWidget):
                 height: 0px;
             }}
         """)
+        # Set viewport and chips frame backgrounds explicitly
+        self._chips_scroll.viewport().setStyleSheet(f"background-color: {Colors.BG_SURFACE};")
+        self._chips_frame.setStyleSheet(f"background-color: {Colors.BG_SURFACE};")
 
     def _on_date_range_changed(
         self, start: str | None, end: str | None, all_dates: bool
