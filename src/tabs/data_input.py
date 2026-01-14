@@ -1548,6 +1548,8 @@ class DataInputTab(QWidget):
         )
 
         total_rows = len(baseline_df)
+        # Count first triggers (trigger_number == 1) for baseline info display
+        baseline_rows = len(baseline_df[baseline_df["trigger_number"] == 1]) if len(baseline_df) > 0 else 0
         max_trigger = baseline_df["trigger_number"].max() if len(baseline_df) > 0 else 0
 
         logger.info(

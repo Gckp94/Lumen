@@ -88,7 +88,7 @@ class FeatureExplorerTab(QWidget):
         self._y_filter_min: float | None = None
         self._y_filter_max: float | None = None
         # Guard flag to prevent recursion when chart updates trigger range changes
-        self._is_updating_chart: bool = False
+
         self._setup_ui()
         self._connect_signals()
         self._show_empty_state()
@@ -841,9 +841,10 @@ class FeatureExplorerTab(QWidget):
     def _on_chart_range_changed(
         self, x_min: float, x_max: float, y_min: float, y_max: float
     ) -> None:
-        """Handle chart range change from user interaction.
+        """Handle chart range change from user interaction (pan/zoom).
 
-        Updates filter bounds and re-renders to drop out-of-view data.
+        Only updates UI to show current view range - does NOT filter data.
+        Data filtering only happens when user explicitly types bounds.
 
         Args:
             x_min: Minimum X value.
@@ -851,29 +852,13 @@ class FeatureExplorerTab(QWidget):
             y_min: Minimum Y value.
             y_max: Maximum Y value.
         """
-        # Guard against recursion: _update_chart() calls autoRange() which fires this signal
-        if self._is_updating_chart:
-            return
-
-        # Store as filter bounds
-        self._x_filter_min = x_min
-        self._x_filter_max = x_max
-        self._y_filter_min = y_min
-        self._y_filter_max = y_max
-
-        # Update axis control panel
+        # Update axis control panel to show current view range
         self._axis_control_panel.set_range(x_min, x_max, y_min, y_max)
 
-        # Update axis selector bounds
+        # Update axis selector bounds to show current view range
+        # Note: set_x_bounds/set_y_bounds block signals, so this won't trigger filtering
         self._axis_selector.set_x_bounds(x_min, x_max)
         self._axis_selector.set_y_bounds(y_min, y_max)
-
-        # Re-render with filtered data (set guard flag to prevent recursion)
-        self._is_updating_chart = True
-        try:
-            self._update_chart()
-        finally:
-            self._is_updating_chart = False
 
     def _on_contrast_toggled(self, checked: bool) -> None:
         """Toggle contrast coloring on scatter plot.
