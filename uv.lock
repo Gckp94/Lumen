@@ -291,6 +291,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "pyqt6" },
+    { name = "pyqt6ads" },
     { name = "pyqtgraph" },
     { name = "xlrd" },
 ]
@@ -321,6 +322,7 @@ requires-dist = [
     { name = "pyinstaller", marker = "extra == 'dev'", specifier = ">=6.0.0" },
     { name = "pyqt6", specifier = ">=6.6.0" },
     { name = "pyqt6-stubs", marker = "extra == 'dev'" },
+    { name = "pyqt6ads", specifier = ">=4.3.0" },
     { name = "pyqtgraph", specifier = ">=0.13.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
@@ -785,6 +787,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/eb/08/a5061968fed399314bd83f1b225092ff8102d9bdc9fd13b70010aaf7fb7e/pyqt6_stubs-20250824.tar.gz", hash = "sha256:f56958e34fb69e52c19ce24f5b59f181dde9a1e2fe0738aa8780e6b9a9b809d9", size = 331916, upload-time = "2025-08-24T12:04:49.343Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/57/08d3a5c19f2d2fd773d2329d19692e682ab9e2a6620c1a586a744d50b52b/pyqt6_stubs-20250824-py3-none-any.whl", hash = "sha256:4b77dc40f5dab7ca4ba899fff4c1db8de9cc73799ee98f56cae63349f18a6e52", size = 369983, upload-time = "2025-08-24T12:04:47.605Z" },
+]
+
+[[package]]
+name = "pyqt6ads"
+version = "4.4.0.post2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyqt6" },
+    { name = "pyqt6-sip" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9d/1f/759491f372e3b51321b63a30637d3444983d8e35b9ac579bb7ee90322bab/pyqt6ads-4.4.0.post2.tar.gz", hash = "sha256:3d5063536b5448c83015b3e431ac2c7ef5c33508e47216a51088b9cbeb9f5a81", size = 50897069, upload-time = "2025-04-27T14:29:14.261Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b8/12/ff90f9ea898048e87d8a7e223a7844169d742a7b614ed0171a33ca610fdd/pyqt6ads-4.4.0.post2-cp39-abi3-macosx_10_14_x86_64.whl", hash = "sha256:921292b46f1f84338b1dc8ff06b0ed8162c044cad34e2b0b1b1e558598f17bfd", size = 364931, upload-time = "2025-04-27T14:29:05.525Z" },
+    { url = "https://files.pythonhosted.org/packages/af/92/92a07b66bb4de810bc4e622340b95fa4fb210cbcd946cf46fd298c526af3/pyqt6ads-4.4.0.post2-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:79d55e1ad5bbfc4a9e66aa31909d6142197c782b9ec4d1191ceb80e6e42db346", size = 347210, upload-time = "2025-04-27T14:29:07.448Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/33/8fcd8e7e0b6b64ff2f2e4159ed05eb848719fcd6acb3d0e0324fc1fd8c6c/pyqt6ads-4.4.0.post2-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:93e63b81f14d84055ef5ab1f085c5b3df028969fa9fbcb76d47e2cb803654ea4", size = 444147, upload-time = "2025-04-27T14:29:09.329Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/f9/853b94522858a97d703cd765679ff519d8d254f5c84ffbc3dde76301f067/pyqt6ads-4.4.0.post2-cp39-abi3-win_amd64.whl", hash = "sha256:eb3584196bf30fc00c8debca61e97920b77bc24508ca3b792d824c17f8fe3bea", size = 395488, upload-time = "2025-04-27T14:29:11.157Z" },
 ]
 
 [[package]]
