@@ -65,14 +65,14 @@ def test_single_filter_chip_can_be_removed(qtbot: QtBot) -> None:
     assert len(panel._filter_chips) == 0
 
 
-def test_column_filter_panel_height_shows_10_rows(qtbot: QtBot) -> None:
-    """Test that column filter panel height is sufficient for 10 rows."""
+def test_column_filter_panel_height_shows_9_rows(qtbot: QtBot) -> None:
+    """Test that column filter panel height is sufficient for 9 rows."""
     panel = FilterPanel(columns=["col" + str(i) for i in range(15)])
     qtbot.addWidget(panel)
 
-    # Minimum height should accommodate ~10 rows (400px)
+    # Minimum height should accommodate ~9 rows (330px)
     min_height = panel._column_filter_panel.minimumHeight()
     max_height = panel._column_filter_panel.maximumHeight()
 
-    assert min_height >= 400, f"Min height {min_height} should be >= 400"
-    assert max_height >= 450, f"Max height {max_height} should be >= 450"
+    assert min_height == 330, f"Min height {min_height} should be 330"
+    assert max_height == 360, f"Max height {max_height} should be 360"
