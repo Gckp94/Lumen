@@ -82,6 +82,11 @@ class FeatureExplorerTab(QWidget):
         self._all_times: bool = True
         # Contrast colors state
         self._contrast_colors: bool = False
+        # Axis bounds for data filtering (not just zoom)
+        self._x_filter_min: float | None = None
+        self._x_filter_max: float | None = None
+        self._y_filter_min: float | None = None
+        self._y_filter_max: float | None = None
         self._setup_ui()
         self._connect_signals()
         self._show_empty_state()
