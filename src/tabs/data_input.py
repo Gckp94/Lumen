@@ -28,6 +28,7 @@ from src.core.app_state import AppState
 from src.core.column_mapper import ColumnMapper
 from src.core.file_load_worker import FileLoadWorker
 from src.core.file_loader import FileLoader
+from src.core.filter_engine import time_to_minutes
 from src.core.first_trigger import FirstTriggerEngine
 from src.core.metrics import MetricsCalculator
 from src.core.models import AdjustmentParams, ColumnMapping, DetectionResult, TradingMetrics
@@ -1587,6 +1588,11 @@ class DataInputTab(QWidget):
             )
             baseline_df["adjusted_gain_pct"] = adjusted_gains
 
+        # Add time_minutes column for time-based analysis in Data Binning and Feature Explorer
+        if mapping.time and mapping.time in baseline_df.columns:
+            baseline_df["time_minutes"] = time_to_minutes(baseline_df[mapping.time])
+            logger.debug("Added time_minutes column derived from '%s'", mapping.time)
+
         # Update AppState if available
         if self._app_state is not None:
             self._app_state.raw_df = raw_df
@@ -1679,6 +1685,12 @@ class DataInputTab(QWidget):
                 baseline_df, mapping.gain_pct, mapping.mae_pct
             )
             baseline_df["adjusted_gain_pct"] = adjusted_gains
+
+        # Ensure time_minutes column exists for time-based analysis
+        if mapping.time and mapping.time in baseline_df.columns:
+            if "time_minutes" not in baseline_df.columns:
+                baseline_df["time_minutes"] = time_to_minutes(baseline_df[mapping.time])
+                logger.debug("Added time_minutes column derived from '%s'", mapping.time)
 
         # Get flat stake and start capital from AppState or use defaults
         metrics_inputs = self._app_state.metrics_user_inputs
