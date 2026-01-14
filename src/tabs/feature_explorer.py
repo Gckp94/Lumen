@@ -372,6 +372,7 @@ class FeatureExplorerTab(QWidget):
         """Update the chart with current data and selected columns.
 
         Uses filtered_df if filters are applied, otherwise baseline_df.
+        Applies axis bounds filtering before rendering.
         """
         # Use filtered data if available, otherwise baseline
         df = self._app_state.filtered_df
@@ -401,25 +402,37 @@ class FeatureExplorerTab(QWidget):
             logger.warning(f"Y column '{y_column}' not found in DataFrame")
             return
 
+        # Apply axis bounds filter to exclude outliers
+        df_for_chart = self._apply_bounds_filter(
+            df,
+            x_column=x_column,
+            y_column=y_column,
+            x_min=self._x_filter_min,
+            x_max=self._x_filter_max,
+            y_min=self._y_filter_min,
+            y_max=self._y_filter_max,
+        )
+
         # Show chart and update data
         self._chart_stack.setCurrentIndex(1)
         self._chart_canvas.update_data(
-            df,
+            df_for_chart,
             y_column=y_column,
             x_column=x_column,
             contrast_colors=self._contrast_colors,
         )
 
         # Update bottom bar with accurate counts
-        count = len(df)
+        chart_count = len(df_for_chart)  # Rows actually shown (after bounds filter)
+        filtered_count = len(df)  # Rows before bounds filter
         baseline_count = (
             len(self._app_state.baseline_df)
             if self._app_state.baseline_df is not None
-            else count
+            else filtered_count
         )
 
         # Compute filtered-only count (before first trigger)
-        filtered_count = count
+        pre_first_trigger_count = filtered_count
         if (
             self._app_state.first_trigger_enabled
             and self._app_state.filters
@@ -430,33 +443,61 @@ class FeatureExplorerTab(QWidget):
             filtered_only = engine.apply_filters(
                 self._app_state.baseline_df, self._app_state.filters
             )
-            filtered_count = len(filtered_only)
+            pre_first_trigger_count = len(filtered_only)
+
+        # Check if bounds filtering is active
+        bounds_active = (
+            self._x_filter_min is not None
+            or self._x_filter_max is not None
+            or self._y_filter_min is not None
+            or self._y_filter_max is not None
+        )
 
         # Format message based on state
         first_trigger_on = self._app_state.first_trigger_enabled
         has_filters = bool(self._app_state.filters)
 
-        if first_trigger_on and has_filters:
+        if bounds_active and chart_count < filtered_count:
+            # Bounds filtering removed some points
+            if first_trigger_on:
+                self._data_count_label.setText(
+                    f"Showing {chart_count:,} of {filtered_count:,} first triggers "
+                    f"(bounds filtered, {baseline_count:,} total)"
+                )
+            elif has_filters:
+                self._data_count_label.setText(
+                    f"Showing {chart_count:,} of {filtered_count:,} data points "
+                    f"(bounds filtered, {baseline_count:,} total)"
+                )
+            else:
+                self._data_count_label.setText(
+                    f"Showing {chart_count:,} of {baseline_count:,} data points "
+                    f"(bounds filtered)"
+                )
+        elif first_trigger_on and has_filters:
             # "Showing {n:,} first triggers of {filtered:,} filtered ({total:,} total)"
             self._data_count_label.setText(
-                f"Showing {count:,} first triggers of {filtered_count:,} filtered "
+                f"Showing {chart_count:,} first triggers of {pre_first_trigger_count:,} filtered "
                 f"({baseline_count:,} total)"
             )
         elif first_trigger_on and not has_filters:
             # "Showing {n:,} first triggers ({total:,} total)"
             self._data_count_label.setText(
-                f"Showing {count:,} first triggers ({baseline_count:,} total)"
+                f"Showing {chart_count:,} first triggers ({baseline_count:,} total)"
             )
         elif not first_trigger_on and has_filters:
             # "Showing {n:,} of {total:,} data points (filtered)"
             self._data_count_label.setText(
-                f"Showing {count:,} of {baseline_count:,} data points (filtered)"
+                f"Showing {chart_count:,} of {baseline_count:,} data points (filtered)"
             )
         else:
             # "Showing {n:,} data points"
-            self._data_count_label.setText(f"Showing {count:,} data points")
+            self._data_count_label.setText(f"Showing {chart_count:,} data points")
 
-        logger.debug(f"Chart updated: y_column='{y_column}', x_column='{x_column}', points={count}")
+        logger.debug(
+            f"Chart updated: y_column='{y_column}', x_column='{x_column}', "
+            f"points={chart_count}"
+        )
 
     def _show_empty_state(self) -> None:
         """Show the empty state message."""
