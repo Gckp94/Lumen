@@ -17,7 +17,6 @@ from PyQt6.QtWidgets import (
 )
 
 from src.ui.components.no_scroll_widgets import NoScrollDoubleSpinBox
-from src.ui.components.percentile_clip_control import PercentileClipControl
 from src.ui.constants import Animation, Colors, Spacing
 
 
@@ -44,8 +43,6 @@ class AxisControlPanel(QWidget):
     range_changed = pyqtSignal(float, float, float, float)  # x_min, x_max, y_min, y_max
     auto_fit_clicked = pyqtSignal()
     grid_toggled = pyqtSignal(bool)
-    percentile_clip_requested = pyqtSignal(float)  # percentile
-    smart_auto_fit_requested = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the AxisControlPanel.
@@ -141,10 +138,6 @@ class AxisControlPanel(QWidget):
         controls_row.addStretch()
         layout.addLayout(controls_row)
 
-        # Percentile clip control
-        self._percentile_control = PercentileClipControl()
-        layout.addWidget(self._percentile_control)
-
     def _apply_style(self) -> None:
         """Apply Observatory theme styling to controls."""
         spinbox_style = f"""
@@ -222,14 +215,6 @@ class AxisControlPanel(QWidget):
         self._auto_fit_btn.clicked.connect(self.auto_fit_clicked.emit)
         self._grid_checkbox.toggled.connect(self.grid_toggled.emit)
 
-        # Percentile clip signals
-        self._percentile_control.clip_requested.connect(
-            self.percentile_clip_requested.emit
-        )
-        self._percentile_control.smart_auto_fit_requested.connect(
-            self.smart_auto_fit_requested.emit
-        )
-
     def _setup_debounce(self) -> None:
         """Set up debounce timer for range change signals."""
         self._debounce_timer = QTimer()
@@ -281,14 +266,3 @@ class AxisControlPanel(QWidget):
         self._grid_checkbox.blockSignals(True)
         self._grid_checkbox.setChecked(checked)
         self._grid_checkbox.blockSignals(False)
-
-    def set_clipped_state(
-        self, is_clipped: bool, percentile: float | None = None
-    ) -> None:
-        """Update clipped state indicator.
-
-        Args:
-            is_clipped: Whether bounds are currently clipped.
-            percentile: The percentile used (if clipped).
-        """
-        self._percentile_control.set_clipped_state(is_clipped, percentile)
