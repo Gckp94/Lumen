@@ -26,14 +26,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.ui.components.axis_column_selector import AxisColumnSelector
-
 from src.core.app_state import AppState
 from src.core.exceptions import ExportError
 from src.core.export_manager import ExportManager
 from src.core.filter_engine import FilterEngine
 from src.core.first_trigger import FirstTriggerEngine
 from src.core.models import FilterCriteria, TradingMetrics
+from src.ui.components.axis_column_selector import AxisColumnSelector
 from src.ui.components.axis_control_panel import AxisControlPanel
 from src.ui.components.chart_canvas import ChartCanvas
 from src.ui.components.filter_panel import FilterPanel
@@ -559,7 +558,9 @@ class FeatureExplorerTab(QWidget):
         time_filter_active = not self._all_times
 
         # Total active filters
-        total_active = column_filter_count + (1 if date_filter_active else 0) + (1 if time_filter_active else 0)
+        date_count = 1 if date_filter_active else 0
+        time_count = 1 if time_filter_active else 0
+        total_active = column_filter_count + date_count + time_count
 
         # Build display parts
         parts = []

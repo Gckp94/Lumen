@@ -1,8 +1,6 @@
 """Tests for AxisColumnSelector component."""
 
-import pytest
 from pytestqt.qtbot import QtBot
-from PyQt6.QtCore import Qt
 
 from src.ui.components.axis_column_selector import AxisColumnSelector
 

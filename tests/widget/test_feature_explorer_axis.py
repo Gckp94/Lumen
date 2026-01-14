@@ -1,9 +1,10 @@
 """Tests for FeatureExplorerTab axis column selection."""
 
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
 from pytestqt.qtbot import QtBot
-from unittest.mock import patch
 
 from src.core.app_state import AppState
 from src.tabs.feature_explorer import FeatureExplorerTab
