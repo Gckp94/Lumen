@@ -118,6 +118,87 @@ class TestAxisSelector:
         assert tab._axis_selector._x_combo.isEnabled()
 
 
+class TestTimeMinutesInAxisSelectors:
+    """Tests for time_minutes column availability in Feature Explorer axis selectors."""
+
+    def test_time_minutes_available_in_x_axis_selector(self, qtbot):
+        """Test that time_minutes column appears in X axis selector."""
+        app_state = AppState()
+        tab = FeatureExplorerTab(app_state=app_state)
+        qtbot.addWidget(tab)
+
+        # Create test DataFrame with time_minutes column (as derived during data loading)
+        df = pd.DataFrame({
+            "gain_pct": [1.0, 2.0, 3.0],
+            "mae_pct": [0.5, 0.6, 0.7],
+            "time_minutes": [570.0, 615.0, 720.0],  # 09:30, 10:15, 12:00 in minutes
+        })
+        app_state.baseline_df = df
+        app_state.data_loaded.emit(df)
+
+        # Get X axis dropdown items
+        x_combo = tab._axis_selector._x_combo
+        x_items = [x_combo.itemText(i) for i in range(x_combo.count())]
+
+        assert "time_minutes" in x_items, f"time_minutes not in X axis. Available: {x_items}"
+
+    def test_time_minutes_available_in_y_axis_selector(self, qtbot):
+        """Test that time_minutes column appears in Y axis selector."""
+        app_state = AppState()
+        tab = FeatureExplorerTab(app_state=app_state)
+        qtbot.addWidget(tab)
+
+        df = pd.DataFrame({
+            "gain_pct": [1.0, 2.0, 3.0],
+            "mae_pct": [0.5, 0.6, 0.7],
+            "time_minutes": [570.0, 615.0, 720.0],
+        })
+        app_state.baseline_df = df
+        app_state.data_loaded.emit(df)
+
+        # Get Y axis dropdown items
+        y_combo = tab._axis_selector._y_combo
+        y_items = [y_combo.itemText(i) for i in range(y_combo.count())]
+
+        assert "time_minutes" in y_items, f"time_minutes not in Y axis. Available: {y_items}"
+
+    def test_time_minutes_selectable_as_x_axis(self, qtbot):
+        """Test that time_minutes can be selected as X axis."""
+        app_state = AppState()
+        tab = FeatureExplorerTab(app_state=app_state)
+        qtbot.addWidget(tab)
+
+        df = pd.DataFrame({
+            "gain_pct": [1.0, 2.0, 3.0],
+            "time_minutes": [570.0, 615.0, 720.0],
+        })
+        app_state.baseline_df = df
+        app_state.data_loaded.emit(df)
+
+        # Select time_minutes as X axis
+        tab._axis_selector._x_combo.setCurrentText("time_minutes")
+
+        assert tab._axis_selector.x_column == "time_minutes"
+
+    def test_time_minutes_selectable_as_y_axis(self, qtbot):
+        """Test that time_minutes can be selected as Y axis."""
+        app_state = AppState()
+        tab = FeatureExplorerTab(app_state=app_state)
+        qtbot.addWidget(tab)
+
+        df = pd.DataFrame({
+            "gain_pct": [1.0, 2.0, 3.0],
+            "time_minutes": [570.0, 615.0, 720.0],
+        })
+        app_state.baseline_df = df
+        app_state.data_loaded.emit(df)
+
+        # Select time_minutes as Y axis
+        tab._axis_selector._y_combo.setCurrentText("time_minutes")
+
+        assert tab._axis_selector.y_column == "time_minutes"
+
+
 class TestDataCountLabel:
     """Tests for bottom bar data count label."""
 

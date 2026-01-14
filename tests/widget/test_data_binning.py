@@ -162,6 +162,49 @@ class TestDataBinningTabColumnDropdown:
         assert tab._column_dropdown.count() == 0
 
 
+class TestTimeMinutesInDropdown:
+    """Tests for time_minutes column availability in Data Binning dropdown."""
+
+    def test_time_minutes_available_in_column_dropdown(self, qtbot: QtBot) -> None:
+        """Test that time_minutes column appears in the column dropdown."""
+        app_state = AppState()
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Create test DataFrame with time_minutes column (as derived during data loading)
+        df = pd.DataFrame({
+            "gain_pct": [1.0, 2.0, 3.0],
+            "mae_pct": [0.5, 0.6, 0.7],
+            "time_minutes": [570.0, 615.0, 720.0],  # 09:30, 10:15, 12:00 in minutes
+        })
+        app_state.baseline_df = df
+        app_state.data_loaded.emit(df)
+
+        # Get all items from dropdown
+        dropdown = tab._column_dropdown
+        items = [dropdown.itemText(i) for i in range(dropdown.count())]
+
+        assert "time_minutes" in items, f"time_minutes not in dropdown. Available: {items}"
+
+    def test_time_minutes_is_selectable_in_dropdown(self, qtbot: QtBot) -> None:
+        """Test that time_minutes column can be selected for binning."""
+        app_state = AppState()
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+
+        df = pd.DataFrame({
+            "gain_pct": [1.0, 2.0, 3.0],
+            "time_minutes": [570.0, 615.0, 720.0],
+        })
+        app_state.baseline_df = df
+        app_state.data_loaded.emit(df)
+
+        # Select time_minutes
+        tab._column_dropdown.setCurrentText("time_minutes")
+
+        assert tab._column_dropdown.currentText() == "time_minutes"
+
+
 class TestBinRowManagement:
     """Tests for bin row add/remove functionality."""
 
