@@ -145,9 +145,13 @@ class DockManager(ads.CDockManager):
         """
         dock_widget = ads.CDockWidget(title)
         dock_widget.setWidget(widget)
-        dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetClosable, False)
+        # Allow closing only when floating (undocked)
+        dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetClosable, True)
         dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetFloatable, True)
         dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetMovable, True)
+
+        # Handle close to re-dock instead of destroy
+        dock_widget.closeRequested.connect(lambda: self._on_dock_close_requested(dock_widget))
 
         # Add to existing dock area to create tabs, or create new area
         if self._center_area is not None and area == ads.DockWidgetArea.CenterDockWidgetArea:
@@ -184,3 +188,14 @@ class DockManager(ads.CDockManager):
             The dock widget or None if not found.
         """
         return self._dock_widgets.get(title)
+
+    def _on_dock_close_requested(self, dock_widget: ads.CDockWidget) -> None:
+        """Handle dock widget close request by re-docking instead of closing.
+
+        Args:
+            dock_widget: The dock widget requesting to close.
+        """
+        if dock_widget.isFloating():
+            # Re-dock to center area instead of closing
+            dock_widget.setFloating()
+            logger.debug("Re-docked floating widget: %s", dock_widget.windowTitle())
