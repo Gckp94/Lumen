@@ -23,6 +23,7 @@ from src.ui.components.no_scroll_widgets import (
     NoScrollDoubleSpinBox,
     NoScrollSpinBox,
 )
+from src.ui.components.percentile_clip_control import PercentileClipControl
 from src.ui.components.toast import Toast
 from src.ui.components.toggle_switch import ToggleSwitch
 from src.ui.components.user_inputs_panel import UserInputsPanel
@@ -51,6 +52,7 @@ __all__ = [
     "NoScrollComboBox",
     "NoScrollDoubleSpinBox",
     "NoScrollSpinBox",
+    "PercentileClipControl",
     "Toast",
     "ToggleSwitch",
     "UserInputsPanel",
