@@ -443,7 +443,7 @@ class FeatureExplorerTab(QWidget):
         self._chart_stack.setCurrentIndex(1)
         self._chart_canvas.update_data(
             df,
-            column,
+            y_column=column,
             contrast_colors=self._contrast_colors,
         )
 
