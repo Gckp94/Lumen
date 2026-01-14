@@ -1,8 +1,7 @@
 """Application configuration constants."""
 
 # GitHub repository for update checking
-# Update these values to match your repository
-GITHUB_OWNER = "your-username"  # TODO: Update with actual owner
+GITHUB_OWNER = "Gckp94"
 GITHUB_REPO = "Lumen"
 
 # Update check settings
