@@ -38,6 +38,7 @@ from src.ui.components.chart_canvas import ChartCanvas
 from src.ui.components.filter_panel import FilterPanel
 from src.ui.components.toast import Toast
 from src.ui.constants import Animation, Colors, Spacing
+from src.ui.utils.percentile import calculate_iqr_bounds, calculate_percentile_bounds
 
 if TYPE_CHECKING:
     pass
@@ -263,11 +264,19 @@ class FeatureExplorerTab(QWidget):
 
         # Axis control panel signals
         self._axis_control_panel.range_changed.connect(self._on_axis_range_changed)
-        self._axis_control_panel.auto_fit_clicked.connect(self._chart_canvas.auto_range)
+        self._axis_control_panel.auto_fit_clicked.connect(self._on_auto_fit)
         self._axis_control_panel.grid_toggled.connect(self._chart_canvas.set_grid_visible)
 
         # Chart canvas range change for bidirectional sync
         self._chart_canvas.range_changed.connect(self._on_chart_range_changed)
+
+        # Percentile clipping
+        self._axis_control_panel.percentile_clip_requested.connect(
+            self._on_percentile_clip_requested
+        )
+        self._axis_control_panel.smart_auto_fit_requested.connect(
+            self._on_smart_auto_fit_requested
+        )
 
     def _on_data_loaded(self, df: pd.DataFrame) -> None:
         """Handle data loaded signal.
@@ -683,6 +692,121 @@ class FeatureExplorerTab(QWidget):
             y_max: Maximum Y value.
         """
         self._chart_canvas.set_range(x_min, x_max, y_min, y_max)
+
+    def _on_percentile_clip_requested(self, percentile: float) -> None:
+        """Handle percentile clip request.
+
+        Calculates bounds from current data and applies them.
+
+        Args:
+            percentile: Percentile to clip to (e.g., 99.0).
+        """
+        bounds = self._calculate_data_percentile_bounds(percentile)
+        if bounds is None:
+            return
+
+        x_min, x_max, y_min, y_max = bounds
+        self._chart_canvas.set_range(x_min, x_max, y_min, y_max)
+        self._axis_control_panel.set_range(x_min, x_max, y_min, y_max)
+        self._axis_control_panel.set_clipped_state(True, percentile)
+
+    def _on_smart_auto_fit_requested(self) -> None:
+        """Handle smart auto-fit request using IQR-based detection."""
+        bounds = self._calculate_iqr_bounds()
+        if bounds is None:
+            # Fall back to regular auto-fit
+            self._chart_canvas.auto_range()
+            self._axis_control_panel.set_clipped_state(False)
+            return
+
+        x_min, x_max, y_min, y_max = bounds
+        self._chart_canvas.set_range(x_min, x_max, y_min, y_max)
+        self._axis_control_panel.set_range(x_min, x_max, y_min, y_max)
+        self._axis_control_panel.set_clipped_state(True, None)
+
+    def _on_auto_fit(self) -> None:
+        """Handle auto-fit request and clear clipped indicator."""
+        self._chart_canvas.auto_range()
+        self._axis_control_panel.set_clipped_state(False)
+
+    def _calculate_data_percentile_bounds(
+        self, percentile: float
+    ) -> tuple[float, float, float, float] | None:
+        """Calculate percentile bounds for current data.
+
+        Args:
+            percentile: Percentile to calculate (e.g., 99.0).
+
+        Returns:
+            Tuple of (x_min, x_max, y_min, y_max) or None if no data.
+        """
+        df = self._app_state.filtered_df
+        if df is None:
+            df = self._app_state.baseline_df
+        if df is None or df.empty:
+            return None
+
+        y_column = self._axis_selector.y_column
+        x_column = self._axis_selector.x_column
+
+        if not y_column or y_column not in df.columns:
+            return None
+
+        # Calculate Y bounds
+        y_data = df[y_column]
+        y_min, y_max = calculate_percentile_bounds(y_data, percentile)
+        if y_min is None or y_max is None:
+            return None
+
+        # Calculate X bounds
+        if x_column and x_column in df.columns:
+            x_data = df[x_column]
+            x_min, x_max = calculate_percentile_bounds(x_data, percentile)
+            if x_min is None or x_max is None:
+                x_min, x_max = 0.0, float(len(df) - 1)
+        else:
+            # Index mode
+            x_min, x_max = 0.0, float(len(df) - 1)
+
+        return x_min, x_max, y_min, y_max
+
+    def _calculate_iqr_bounds(
+        self,
+    ) -> tuple[float, float, float, float] | None:
+        """Calculate IQR-based bounds for current data.
+
+        Returns:
+            Tuple of (x_min, x_max, y_min, y_max) or None if no data.
+        """
+        df = self._app_state.filtered_df
+        if df is None:
+            df = self._app_state.baseline_df
+        if df is None or df.empty:
+            return None
+
+        y_column = self._axis_selector.y_column
+        x_column = self._axis_selector.x_column
+
+        if not y_column or y_column not in df.columns:
+            return None
+
+        # Calculate Y bounds with IQR
+        y_data = df[y_column]
+        y_min, y_max = calculate_iqr_bounds(y_data)
+        if y_min is None or y_max is None:
+            return None
+
+        # Calculate X bounds with IQR
+        if x_column and x_column in df.columns:
+            x_data = df[x_column]
+            x_min, x_max = calculate_iqr_bounds(x_data)
+            if x_min is None or x_max is None:
+                x_min, x_max = 0.0, float(len(df) - 1)
+        else:
+            # Index mode
+            x_min, x_max = 0.0, float(len(df) - 1)
+
+        return x_min, x_max, y_min, y_max
 
     def _on_chart_range_changed(
         self, x_min: float, x_max: float, y_min: float, y_max: float
