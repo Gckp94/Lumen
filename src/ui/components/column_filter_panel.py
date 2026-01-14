@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -79,8 +80,11 @@ class ColumnFilterPanel(QWidget):
         header_layout.setSpacing(Spacing.SM)
 
         col_header = QLabel("Column")
-        col_header.setFixedWidth(140)
-        header_layout.addWidget(col_header)
+        col_header.setMinimumWidth(80)
+        col_header.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
+        header_layout.addWidget(col_header, stretch=1)
 
         mode_header = QLabel("Mode")
         mode_header.setFixedWidth(90)

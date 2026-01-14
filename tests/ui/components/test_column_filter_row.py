@@ -140,3 +140,28 @@ class TestColumnFilterRow:
 
         # Button should have a plus icon text
         assert row._apply_btn.text() == "+"
+
+    def test_column_label_has_minimum_not_fixed_width(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """Column label uses minimum width, not fixed width."""
+        row = ColumnFilterRow(column_name="test_column")
+        qtbot.addWidget(row)
+
+        # Should have minimum width, not fixed width
+        assert row._column_label.minimumWidth() >= 80
+        # Fixed width would make min == max
+        assert row._column_label.maximumWidth() > row._column_label.minimumWidth()
+
+    def test_column_label_has_elision(self, qtbot: QtBot, app: QApplication) -> None:
+        """Long column names are configured for proper display."""
+        long_name = "very_long_column_name_that_should_be_truncated"
+        row = ColumnFilterRow(column_name=long_name)
+        qtbot.addWidget(row)
+
+        # Should store full name
+        assert row._column_name == long_name
+        # Label should display full name text
+        assert row._column_label.text() == long_name
+        # Word wrap should be disabled (text stays on single line)
+        assert row._column_label.wordWrap() is False

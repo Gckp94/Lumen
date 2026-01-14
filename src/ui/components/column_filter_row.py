@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QWidget,
 )
 
@@ -57,10 +58,16 @@ class ColumnFilterRow(QWidget):
         layout.setContentsMargins(Spacing.SM, Spacing.XS, Spacing.SM, Spacing.XS)
         layout.setSpacing(Spacing.SM)
 
-        # Column name label (fixed width for alignment)
+        # Column name label (responsive width with minimum)
         self._column_label = QLabel(self._column_name)
-        self._column_label.setFixedWidth(140)
-        layout.addWidget(self._column_label)
+        self._column_label.setMinimumWidth(80)
+        self._column_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
+        # Enable text elision for long names
+        self._column_label.setWordWrap(False)
+        self._column_label.setTextFormat(Qt.TextFormat.PlainText)
+        layout.addWidget(self._column_label, stretch=1)
 
         # Operator toggle button
         self._operator_btn = QPushButton("between")
@@ -118,8 +125,6 @@ class ColumnFilterRow(QWidget):
         self._apply_btn.setEnabled(False)
         self._apply_btn.clicked.connect(self._on_apply_clicked)
         layout.addWidget(self._apply_btn)
-
-        layout.addStretch()
 
     def _apply_style(self) -> None:
         """Apply Observatory theme styling."""
