@@ -6,7 +6,7 @@ on the X and Y axes of a scatter chart, with inline Min/Max bound inputs.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.ui.components.no_scroll_widgets import NoScrollComboBox, NoScrollDoubleSpinBox
-from src.ui.constants import Colors, Fonts, Spacing
+from src.ui.constants import Animation, Colors, Fonts, Spacing
 
 # Sentinel value for index-based X axis
 INDEX_OPTION = "(Index)"
@@ -109,6 +109,7 @@ class AxisColumnSelector(QWidget):
         self._x_max.setRange(-1e9, 1e9)
         self._x_max.setDecimals(2)
         self._x_max.setFixedWidth(80)
+        self._x_max.setSpecialValueText("")  # Show empty when at minimum
         x_bounds_row.addWidget(self._x_max)
 
         x_bounds_row.addStretch()
@@ -143,6 +144,7 @@ class AxisColumnSelector(QWidget):
         self._y_min.setRange(-1e9, 1e9)
         self._y_min.setDecimals(2)
         self._y_min.setFixedWidth(80)
+        self._y_min.setSpecialValueText("")  # Show empty when at minimum
         y_bounds_row.addWidget(self._y_min)
 
         y_max_label = QLabel("Max:")
@@ -154,6 +156,7 @@ class AxisColumnSelector(QWidget):
         self._y_max.setRange(-1e9, 1e9)
         self._y_max.setDecimals(2)
         self._y_max.setFixedWidth(80)
+        self._y_max.setSpecialValueText("")  # Show empty when at minimum
         y_bounds_row.addWidget(self._y_max)
 
         y_bounds_row.addStretch()
@@ -267,11 +270,11 @@ class AxisColumnSelector(QWidget):
 
     def _on_x_bounds_changed(self) -> None:
         """Handle X bounds input change with debounce."""
-        self._x_debounce.start(150)
+        self._x_debounce.start(Animation.DEBOUNCE_INPUT)
 
     def _on_y_bounds_changed(self) -> None:
         """Handle Y bounds input change with debounce."""
-        self._y_debounce.start(150)
+        self._y_debounce.start(Animation.DEBOUNCE_INPUT)
 
     def _on_selection_changed(self, _text: str) -> None:
         """Handle combo selection change."""
