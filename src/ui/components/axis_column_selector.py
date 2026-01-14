@@ -168,6 +168,7 @@ class AxisColumnSelector(QWidget):
         section_style = f"""
             QLabel#section_label {{
                 color: {Colors.TEXT_PRIMARY};
+                font-family: "{Fonts.UI}";
                 font-size: 12px;
                 font-weight: bold;
             }}
@@ -177,7 +178,10 @@ class AxisColumnSelector(QWidget):
         # Axis label style
         for label in self.findChildren(QLabel):
             if label.objectName() == "axis_label":
-                label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
+                label.setStyleSheet(f'''
+                    color: {Colors.TEXT_SECONDARY};
+                    font-family: "{Fonts.UI}";
+                ''')
 
         # Combo box style (matching existing column_selector)
         combo_style = f"""
@@ -187,6 +191,7 @@ class AxisColumnSelector(QWidget):
                 border: 1px solid {Colors.BG_BORDER};
                 border-radius: 4px;
                 padding: 6px 12px;
+                font-family: "{Fonts.UI}";
                 font-size: 13px;
             }}
             QComboBox:hover {{
@@ -199,6 +204,7 @@ class AxisColumnSelector(QWidget):
             QComboBox QAbstractItemView {{
                 background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
+                font-family: "{Fonts.UI}";
                 selection-background-color: {Colors.BG_BORDER};
                 selection-color: {Colors.TEXT_PRIMARY};
                 border: 1px solid {Colors.BG_BORDER};
