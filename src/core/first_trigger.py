@@ -107,3 +107,53 @@ class FirstTriggerEngine:
         )
 
         return result.copy()
+
+    def assign_trigger_numbers(
+        self,
+        df: pd.DataFrame,
+        ticker_col: str,
+        date_col: str,
+        time_col: str,
+    ) -> pd.DataFrame:
+        """Assign trigger_number to each row based on chronological order per ticker-date.
+
+        Algorithm:
+        1. Sort by ticker, date, time
+        2. Group by ticker + date
+        3. Assign rank within each group (1 = first, 2 = second, etc.)
+
+        Args:
+            df: Input DataFrame with trade data.
+            ticker_col: Column name for ticker/symbol.
+            date_col: Column name for trade date.
+            time_col: Column name for trade time.
+
+        Returns:
+            DataFrame with new 'trigger_number' column added.
+        """
+        if len(df) == 0:
+            result = df.copy()
+            result["trigger_number"] = pd.Series(dtype=int)
+            return result
+
+        # Sort by ticker, date, time
+        sorted_df = df.sort_values(
+            by=[ticker_col, date_col, time_col],
+            na_position="first",
+        ).copy()
+
+        # Assign rank within each ticker-date group
+        sorted_df["trigger_number"] = sorted_df.groupby(
+            [ticker_col, date_col]
+        ).cumcount() + 1
+
+        # Restore original order
+        result = sorted_df.loc[df.index]
+
+        logger.info(
+            "Trigger numbers assigned: max trigger_number=%d across %d rows",
+            result["trigger_number"].max() if len(result) > 0 else 0,
+            len(result),
+        )
+
+        return result
