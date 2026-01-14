@@ -511,9 +511,9 @@ class DataBinningTab(QWidget):
         if not self._column_dropdown.currentText():
             return
 
-        # Create new bin row with default "less than" operator
+        # Create new bin row with default "Range" operator
         new_row = BinConfigRow(
-            operator="<", is_removable=True, is_time_column=self._is_time_column
+            operator="range", is_removable=True, is_time_column=self._is_time_column
         )
         # Insert before the nulls row (which should be last)
         if self._bin_rows:
