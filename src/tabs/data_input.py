@@ -1058,6 +1058,7 @@ class DataInputTab(QWidget):
             f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
+                font-family: "{Fonts.UI}";
                 font-size: 18px;
                 font-weight: bold;
             }}
@@ -1079,6 +1080,7 @@ class DataInputTab(QWidget):
                 border: 1px solid {Colors.BG_BORDER};
                 border-radius: 4px;
                 padding: 8px 16px;
+                font-family: "{Fonts.UI}";
                 font-size: 13px;
             }}
             QPushButton:hover {{
@@ -1104,6 +1106,7 @@ class DataInputTab(QWidget):
                 border: 1px solid {Colors.BG_BORDER};
                 border-radius: 4px;
                 padding: 8px;
+                font-family: "{Fonts.DATA}";
                 font-size: 13px;
             }}
         """
@@ -1117,7 +1120,7 @@ class DataInputTab(QWidget):
         sheet_row.setSpacing(Spacing.SM)
 
         sheet_label = QLabel("Sheet:")
-        sheet_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 13px;")
+        sheet_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-family: \"{Fonts.UI}\"; font-size: 13px;")
         self._sheet_label = sheet_label
 
         self._sheet_selector = NoScrollComboBox()
@@ -1130,6 +1133,7 @@ class DataInputTab(QWidget):
                 border: 1px solid {Colors.BG_BORDER};
                 border-radius: 4px;
                 padding: 8px;
+                font-family: "{Fonts.UI}";
                 font-size: 13px;
                 min-width: 200px;
             }}
@@ -1146,6 +1150,7 @@ class DataInputTab(QWidget):
                 border: 1px solid {Colors.BG_BORDER};
                 selection-background-color: {Colors.BG_BORDER};
                 selection-color: {Colors.TEXT_PRIMARY};
+                font-family: "{Fonts.UI}";
             }}
         """
         )
@@ -1174,6 +1179,7 @@ class DataInputTab(QWidget):
                 border: none;
                 border-radius: 4px;
                 padding: 10px 24px;
+                font-family: "{Fonts.UI}";
                 font-size: 13px;
                 font-weight: bold;
             }}
@@ -1219,11 +1225,12 @@ class DataInputTab(QWidget):
         self._status_label = QLabel()
         self._status_label.setObjectName("status_label")
         self._status_label.setStyleSheet(
-            """
-            QLabel {
+            f"""
+            QLabel {{
+                font-family: "{Fonts.UI}";
                 font-size: 14px;
                 padding: 8px 0;
-            }
+            }}
         """
         )
         layout.addWidget(self._status_label)
@@ -1306,6 +1313,7 @@ class DataInputTab(QWidget):
                 border: 1px solid {Colors.BG_BORDER};
                 border-radius: 4px;
                 padding: 8px;
+                font-family: "{Fonts.DATA}";
                 font-size: 13px;
             }}
         """
@@ -1405,6 +1413,7 @@ class DataInputTab(QWidget):
             f"""
             QLabel {{
                 color: {status_color};
+                font-family: "{Fonts.UI}";
                 font-size: 14px;
                 padding: 8px 0;
             }}
@@ -1440,6 +1449,7 @@ class DataInputTab(QWidget):
             f"""
             QLabel {{
                 color: {Colors.SIGNAL_CORAL};
+                font-family: "{Fonts.UI}";
                 font-size: 14px;
                 padding: 8px 0;
             }}
