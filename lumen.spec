@@ -15,6 +15,7 @@ a = Analysis(
     hiddenimports=[
         'PyQt6.QtSvg',
         'pyqtgraph.opengl',
+        'PyQt6Ads',
     ],
     hookspath=[],
     hooksconfig={},
