@@ -197,3 +197,10 @@ class TestTimeToMinutes:
         series = pd.Series([], dtype=object)
         result = time_to_minutes(series)
         assert len(result) == 0
+
+    def test_all_nan_series(self):
+        """Test that all-NaN series returns all-NaN result."""
+        series = pd.Series([None, np.nan, None])
+        result = time_to_minutes(series)
+        assert result.isna().all()
+        assert len(result) == 3  # Verify length preserved

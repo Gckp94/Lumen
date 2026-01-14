@@ -50,6 +50,13 @@ def time_to_minutes(series: pd.Series) -> pd.Series:
         col_values = series.dropna()
         if len(col_values) > 0 and col_values.between(0, 1).all():
             result = series * 24 * 60  # Convert fraction of day to minutes
+        else:
+            logger.warning(
+                "Float column values outside 0-1 range, cannot interpret as Excel serial time. "
+                "First value: %s",
+                first_val
+            )
+            # Return NaN result (already initialized as NaN)
 
     # Strategy 3: Integer HHMMSS format
     elif pd.api.types.is_integer_dtype(series):
