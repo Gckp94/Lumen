@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 
 def format_number_abbreviated(value: float) -> str:
     """Format a number with K/M/B abbreviations for readability.
@@ -18,6 +20,11 @@ def format_number_abbreviated(value: float) -> str:
     Returns:
         Formatted string with appropriate suffix (K, M, or B).
     """
+    if math.isnan(value):
+        return "NaN"
+    if math.isinf(value):
+        return "inf" if value > 0 else "-inf"
+
     abs_value = abs(value)
     sign = "-" if value < 0 else ""
 
