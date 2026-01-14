@@ -46,7 +46,7 @@ class ColumnFilterRow(QWidget):
         super().__init__(parent)
         self._column_name = column_name
         self._alternate = alternate
-        self._operator: Literal["between", "not_between"] = "between"
+        self._operator: Literal["between", "not_between", "between_blanks", "not_between_blanks"] = "between"
         self._setup_ui()
         self._apply_style()
         self._connect_signals()
@@ -64,7 +64,7 @@ class ColumnFilterRow(QWidget):
 
         # Operator toggle button
         self._operator_btn = QPushButton("between")
-        self._operator_btn.setFixedWidth(90)
+        self._operator_btn.setMinimumWidth(130)  # Increased from default to fit "not between + blanks"
         self._operator_btn.clicked.connect(self._toggle_operator)
         layout.addWidget(self._operator_btn)
 
@@ -213,13 +213,22 @@ class ColumnFilterRow(QWidget):
         self.apply_clicked.emit(self._column_name)
 
     def _toggle_operator(self) -> None:
-        """Toggle between 'between' and 'not_between' operators."""
-        if self._operator == "between":
-            self._operator = "not_between"
-            self._operator_btn.setText("not between")
-        else:
-            self._operator = "between"
-            self._operator_btn.setText("between")
+        """Cycle through filter operators: between -> not between -> between + blanks -> not between + blanks."""
+        operators: list[tuple[Literal["between", "not_between", "between_blanks", "not_between_blanks"], str]] = [
+            ("between", "between"),
+            ("not_between", "not between"),
+            ("between_blanks", "between + blanks"),
+            ("not_between_blanks", "not between + blanks"),
+        ]
+
+        # Find current index and advance to next
+        current_idx = next(
+            (i for i, (op, _) in enumerate(operators) if op == self._operator), 0
+        )
+        next_idx = (current_idx + 1) % len(operators)
+
+        self._operator, display_text = operators[next_idx]
+        self._operator_btn.setText(display_text)
         self.operator_changed.emit()
 
     def get_column_name(self) -> str:
@@ -230,7 +239,7 @@ class ColumnFilterRow(QWidget):
         """
         return self._column_name
 
-    def get_operator(self) -> Literal["between", "not_between"]:
+    def get_operator(self) -> Literal["between", "not_between", "between_blanks", "not_between_blanks"]:
         """Get current operator.
 
         Returns:
