@@ -197,5 +197,9 @@ class DockManager(ads.CDockManager):
         """
         if dock_widget.isFloating():
             # Re-dock to center area instead of closing
-            dock_widget.setFloating()
+            # Note: PyQtAds setFloating() is parameter-less and only makes widgets float,
+            # it doesn't dock them back. Use addDockWidget to re-dock.
+            self.addDockWidget(
+                ads.DockWidgetArea.CenterDockWidgetArea, dock_widget, self._center_area
+            )
             logger.debug("Re-docked floating widget: %s", dock_widget.windowTitle())
