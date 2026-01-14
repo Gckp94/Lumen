@@ -87,6 +87,8 @@ class FeatureExplorerTab(QWidget):
         self._x_filter_max: float | None = None
         self._y_filter_min: float | None = None
         self._y_filter_max: float | None = None
+        # Guard flag to prevent recursion when chart updates trigger range changes
+        self._is_updating_chart: bool = False
         self._setup_ui()
         self._connect_signals()
         self._show_empty_state()
@@ -830,18 +832,37 @@ class FeatureExplorerTab(QWidget):
     ) -> None:
         """Handle chart range change from user interaction.
 
+        Updates filter bounds and re-renders to drop out-of-view data.
+
         Args:
             x_min: Minimum X value.
             x_max: Maximum X value.
             y_min: Minimum Y value.
             y_max: Maximum Y value.
         """
+        # Guard against recursion: _update_chart() calls autoRange() which fires this signal
+        if self._is_updating_chart:
+            return
+
+        # Store as filter bounds
+        self._x_filter_min = x_min
+        self._x_filter_max = x_max
+        self._y_filter_min = y_min
+        self._y_filter_max = y_max
+
         # Update axis control panel
         self._axis_control_panel.set_range(x_min, x_max, y_min, y_max)
 
         # Update axis selector bounds
         self._axis_selector.set_x_bounds(x_min, x_max)
         self._axis_selector.set_y_bounds(y_min, y_max)
+
+        # Re-render with filtered data (set guard flag to prevent recursion)
+        self._is_updating_chart = True
+        try:
+            self._update_chart()
+        finally:
+            self._is_updating_chart = False
 
     def _on_contrast_toggled(self, checked: bool) -> None:
         """Toggle contrast coloring on scatter plot.
