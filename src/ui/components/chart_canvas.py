@@ -311,7 +311,8 @@ class ChartCanvas(QWidget):
     def update_data(
         self,
         df: pd.DataFrame,
-        column: str,
+        y_column: str,
+        x_column: str | None = None,
         color: str = Colors.SIGNAL_CYAN,
         contrast_colors: bool = False,
         color_positive: str = Colors.SIGNAL_CYAN,
@@ -319,50 +320,63 @@ class ChartCanvas(QWidget):
     ) -> None:
         """Update scatter plot with column data.
 
-        Renders the specified column values as a scatter plot with index as x-axis.
-        Auto-fits view range to the new data extent.
+        Renders the specified columns as a scatter plot. If x_column is None,
+        uses row index as x-axis (backward compatible behavior).
 
         Args:
             df: DataFrame containing the data.
-            column: Column name to plot on y-axis.
+            y_column: Column name to plot on y-axis.
+            x_column: Column name to plot on x-axis. If None, uses row index.
             color: Hex color string for points (default: plasma-cyan).
-            contrast_colors: If True, color points based on value sign.
+            contrast_colors: If True, color points based on y value sign.
             color_positive: Color for values >= 0 (default: cyan).
             color_negative: Color for values < 0 (default: coral).
         """
         try:
-            # Update Y-axis label to show selected column
             plot_item = self._plot_widget.getPlotItem()
-            plot_item.setLabel("left", column, **{
+
+            # Set Y-axis label
+            plot_item.setLabel("left", y_column, **{
                 "font-family": Fonts.DATA,
                 "color": Colors.TEXT_SECONDARY,
             })
 
-            if df is None or df.empty or column not in df.columns:
+            # Set X-axis label
+            x_label = x_column if x_column else "Index"
+            plot_item.setLabel("bottom", x_label, **{
+                "font-family": Fonts.DATA,
+                "color": Colors.TEXT_SECONDARY,
+            })
+
+            if df is None or df.empty or y_column not in df.columns:
                 self._scatter.setData([], [])
                 logger.debug("Cleared chart: empty data or missing column")
                 return
 
+            if x_column and x_column not in df.columns:
+                self._scatter.setData([], [])
+                logger.warning(f"X column '{x_column}' not found in DataFrame")
+                return
+
             # Extract data
-            y_data = df[column].values
-            x_data = np.arange(len(y_data))
+            y_data = df[y_column].values
+            if x_column:
+                x_data = df[x_column].values
+            else:
+                x_data = np.arange(len(y_data))
 
             # Update scatter plot with color(s)
             if contrast_colors:
-                # Pre-create brushes for performance (avoid creating 83k+ brush objects)
                 brush_pos = pg.mkBrush(color=color_positive)
                 brush_neg = pg.mkBrush(color=color_negative)
                 brushes = [brush_pos if val >= 0 else brush_neg for val in y_data]
                 self._scatter.setData(x=x_data, y=y_data, brush=brushes)
             else:
-                # Single color for all points (existing behavior)
                 self._scatter.setBrush(pg.mkBrush(color=color))
                 self._scatter.setData(x=x_data, y=y_data)
 
-            # Auto-fit view to new data range to ensure filtered data is visible
             self._plot_widget.autoRange()
-
-            logger.debug(f"Chart updated with {len(y_data)} points for column '{column}'")
+            logger.debug(f"Chart updated with {len(y_data)} points: x={x_label}, y={y_column}")
 
         except Exception as e:
             error_msg = f"Failed to render chart: {e}"
