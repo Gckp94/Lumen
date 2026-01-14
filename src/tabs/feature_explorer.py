@@ -846,6 +846,8 @@ class FeatureExplorerTab(QWidget):
         Only updates UI to show current view range - does NOT filter data.
         Data filtering only happens when user explicitly types bounds.
 
+        Does NOT overwrite spinboxes where user has explicitly set filter bounds.
+
         Args:
             x_min: Minimum X value.
             x_max: Maximum X value.
@@ -855,10 +857,12 @@ class FeatureExplorerTab(QWidget):
         # Update axis control panel to show current view range
         self._axis_control_panel.set_range(x_min, x_max, y_min, y_max)
 
-        # Update axis selector bounds to show current view range
-        # Note: set_x_bounds/set_y_bounds block signals, so this won't trigger filtering
-        self._axis_selector.set_x_bounds(x_min, x_max)
-        self._axis_selector.set_y_bounds(y_min, y_max)
+        # Update axis selector bounds ONLY if user hasn't set explicit filter bounds
+        # This preserves user's typed values while still showing pan/zoom changes
+        if self._x_filter_min is None and self._x_filter_max is None:
+            self._axis_selector.set_x_bounds(x_min, x_max)
+        if self._y_filter_min is None and self._y_filter_max is None:
+            self._axis_selector.set_y_bounds(y_min, y_max)
 
     def _on_contrast_toggled(self, checked: bool) -> None:
         """Toggle contrast coloring on scatter plot.
