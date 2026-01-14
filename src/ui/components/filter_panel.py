@@ -101,8 +101,8 @@ class FilterPanel(QWidget):
 
         # Column filter panel (scrollable inline filter system)
         self._column_filter_panel = ColumnFilterPanel(columns=self._columns)
-        self._column_filter_panel.setMinimumHeight(400)
-        self._column_filter_panel.setMaximumHeight(450)
+        self._column_filter_panel.setMinimumHeight(330)
+        self._column_filter_panel.setMaximumHeight(360)
         self._column_filter_panel.single_filter_applied.connect(
             self._on_single_filter_applied
         )
