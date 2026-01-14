@@ -281,6 +281,7 @@ class FeatureExplorerTab(QWidget):
         # Axis bounds from column selector
         self._axis_selector.x_bounds_changed.connect(self._on_x_bounds_changed)
         self._axis_selector.y_bounds_changed.connect(self._on_y_bounds_changed)
+        self._axis_selector.bounds_reset.connect(self._on_bounds_reset)
 
     def _on_data_loaded(self, df: pd.DataFrame) -> None:
         """Handle data loaded signal.
@@ -817,15 +818,25 @@ class FeatureExplorerTab(QWidget):
         """
         self._y_filter_min = y_min
         self._y_filter_max = y_max
-        
+
         # Re-render chart with filtered data
         self._update_chart()
-        
+
         # Sync axis control panel with new bounds
         if self._chart_canvas:
             view_box = self._chart_canvas._plot_widget.getViewBox()
             x_range = view_box.viewRange()[0]
             self._axis_control_panel.set_range(x_range[0], x_range[1], y_min, y_max)
+
+    def _on_bounds_reset(self) -> None:
+        """Reset axis bounds to show all data."""
+        self._x_filter_min = None
+        self._x_filter_max = None
+        self._y_filter_min = None
+        self._y_filter_max = None
+        self._update_chart()
+        # Auto-range chart to show all data
+        self._chart_canvas._plot_widget.autoRange()
 
     def _on_chart_range_changed(
         self, x_min: float, x_max: float, y_min: float, y_max: float

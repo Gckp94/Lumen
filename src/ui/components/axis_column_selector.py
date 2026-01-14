@@ -10,6 +10,7 @@ from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -43,6 +44,7 @@ class AxisColumnSelector(QWidget):
     selection_changed = pyqtSignal()
     x_bounds_changed = pyqtSignal(float, float)  # x_min, x_max
     y_bounds_changed = pyqtSignal(float, float)  # y_min, y_max
+    bounds_reset = pyqtSignal()  # Emitted when user wants to reset bounds
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the AxisColumnSelector.
@@ -162,6 +164,16 @@ class AxisColumnSelector(QWidget):
         y_bounds_row.addStretch()
         layout.addLayout(y_bounds_row)
 
+        # Reset bounds button row
+        reset_row = QHBoxLayout()
+        reset_row.setContentsMargins(20, Spacing.XS, 0, 0)  # Indent to align with bounds
+        self._reset_btn = QPushButton("Reset")
+        self._reset_btn.setFixedWidth(50)
+        self._reset_btn.clicked.connect(self.bounds_reset.emit)
+        reset_row.addWidget(self._reset_btn)
+        reset_row.addStretch()
+        layout.addLayout(reset_row)
+
     def _apply_style(self) -> None:
         """Apply Observatory theme styling."""
         # Section label style
@@ -244,6 +256,27 @@ class AxisColumnSelector(QWidget):
         self._x_max.setStyleSheet(spinbox_style)
         self._y_min.setStyleSheet(spinbox_style)
         self._y_max.setStyleSheet(spinbox_style)
+
+        # Reset button style
+        button_style = f"""
+            QPushButton {{
+                background-color: {Colors.BG_SURFACE};
+                color: {Colors.TEXT_PRIMARY};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-family: "{Fonts.UI}";
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                border-color: {Colors.SIGNAL_CYAN};
+                background-color: {Colors.BG_ELEVATED};
+            }}
+            QPushButton:pressed {{
+                background-color: {Colors.BG_BORDER};
+            }}
+        """
+        self._reset_btn.setStyleSheet(button_style)
 
     def _connect_signals(self) -> None:
         """Connect combo box and spin box signals."""
