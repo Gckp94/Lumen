@@ -82,6 +82,7 @@ class AxisColumnSelector(QWidget):
         self._x_combo.addItem(INDEX_OPTION)
         self._x_combo.setEnabled(False)
         x_row.addWidget(self._x_combo, stretch=1)
+        self._x_combo.setMaxVisibleItems(6)
 
         layout.addLayout(x_row)
 
@@ -129,6 +130,7 @@ class AxisColumnSelector(QWidget):
         self._y_combo = NoScrollComboBox()
         self._y_combo.setEnabled(False)
         y_row.addWidget(self._y_combo, stretch=1)
+        self._y_combo.setMaxVisibleItems(6)
 
         layout.addLayout(y_row)
 
