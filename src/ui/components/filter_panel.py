@@ -291,8 +291,9 @@ class FilterPanel(QWidget):
 
     def _update_chips(self) -> None:
         """Update chip display based on active filters."""
-        # Clear existing chips
+        # Clear existing chips - must remove from layout before deleting
         for chip in self._filter_chips[:]:
+            self._chips_layout.removeWidget(chip)
             chip.deleteLater()
         self._filter_chips.clear()
 
