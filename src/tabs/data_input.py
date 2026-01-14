@@ -1537,22 +1537,23 @@ class DataInputTab(QWidget):
         self._column_mapper.save_mapping(self._selected_path, mapping, self._selected_sheet)
         logger.info("Column mapping saved to cache")
 
-        # Apply first trigger algorithm
+        # Assign trigger numbers to all rows (trigger_number = 1, 2, 3, etc. per ticker-date)
+        # First trigger filtering now happens later in feature_explorer when toggle is enabled
         raw_df = self._df
-        baseline_df = self._first_trigger_engine.apply(
+        baseline_df = self._first_trigger_engine.assign_trigger_numbers(
             raw_df,
             ticker_col=mapping.ticker,
             date_col=mapping.date,
             time_col=mapping.time,
         )
 
-        total_rows = len(raw_df)
-        baseline_rows = len(baseline_df)
+        total_rows = len(baseline_df)
+        max_trigger = baseline_df["trigger_number"].max() if len(baseline_df) > 0 else 0
 
         logger.info(
-            "First trigger applied: %d baseline rows from %d total",
-            baseline_rows,
+            "Trigger numbers assigned: %d rows, max trigger_number=%d",
             total_rows,
+            max_trigger,
         )
 
         # Get current adjustment params (default: 8% stop-loss, 5% efficiency)
