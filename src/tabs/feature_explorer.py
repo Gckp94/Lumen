@@ -30,7 +30,6 @@ from src.core.app_state import AppState
 from src.core.exceptions import ExportError
 from src.core.export_manager import ExportManager
 from src.core.filter_engine import FilterEngine
-from src.core.first_trigger import FirstTriggerEngine
 from src.core.models import FilterCriteria, TradingMetrics
 from src.ui.components.axis_column_selector import AxisColumnSelector
 from src.ui.components.axis_control_panel import AxisControlPanel
@@ -635,16 +634,14 @@ class FeatureExplorerTab(QWidget):
         if self._app_state.filters:
             df = engine.apply_filters(df, self._app_state.filters)
 
-        # Apply first trigger if enabled and column mapping available
-        if self._app_state.first_trigger_enabled and self._app_state.column_mapping:
-            ft_engine = FirstTriggerEngine()
-            mapping = self._app_state.column_mapping
-            df = ft_engine.apply_filtered(
-                df,
-                mapping.ticker,
-                mapping.date,
-                mapping.time,
-            )
+        # Apply first trigger filter using pre-computed trigger_number column
+        if self._app_state.first_trigger_enabled:
+            if "trigger_number" in df.columns:
+                df = df[df["trigger_number"] == 1].copy()
+                logger.debug(
+                    "First trigger filter applied: %d rows with trigger_number=1",
+                    len(df),
+                )
 
         self._app_state.filtered_df = df
         self._app_state.filtered_data_updated.emit(df)
