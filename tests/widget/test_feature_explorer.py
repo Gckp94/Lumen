@@ -20,13 +20,13 @@ class TestFeatureExplorerLayout:
         assert tab._chart_canvas is not None
         assert tab._bottom_bar is not None
 
-    def test_layout_has_column_selector(self, qtbot):
-        """Feature Explorer has column selector dropdown."""
+    def test_layout_has_axis_selector(self, qtbot):
+        """Feature Explorer has axis column selector dropdown."""
         app_state = AppState()
         tab = FeatureExplorerTab(app_state=app_state)
         qtbot.addWidget(tab)
 
-        assert tab._column_selector is not None
+        assert tab._axis_selector is not None
 
     def test_layout_has_data_count_label(self, qtbot):
         """Feature Explorer has data count label in bottom bar."""
@@ -37,11 +37,11 @@ class TestFeatureExplorerLayout:
         assert tab._data_count_label is not None
 
 
-class TestColumnSelector:
-    """Tests for column selector functionality."""
+class TestAxisSelector:
+    """Tests for axis column selector functionality."""
 
-    def test_column_selector_populates_with_numeric_columns(self, qtbot):
-        """Column selector shows numeric columns only."""
+    def test_axis_selector_populates_with_numeric_columns(self, qtbot):
+        """Axis selector shows numeric columns only."""
         app_state = AppState()
         tab = FeatureExplorerTab(app_state=app_state)
         qtbot.addWidget(tab)
@@ -56,15 +56,15 @@ class TestColumnSelector:
 
         # Should have gain_pct and volume (numeric), not ticker (string)
         items = [
-            tab._column_selector.itemText(i)
-            for i in range(tab._column_selector.count())
+            tab._axis_selector._y_combo.itemText(i)
+            for i in range(tab._axis_selector._y_combo.count())
         ]
         assert "gain_pct" in items
         assert "volume" in items
         assert "ticker" not in items
 
-    def test_column_selector_defaults_to_gain_pct(self, qtbot):
-        """Column selector defaults to gain_pct if available."""
+    def test_axis_selector_defaults_y_to_gain_pct(self, qtbot):
+        """Axis selector defaults Y to gain_pct if available."""
         app_state = AppState()
         tab = FeatureExplorerTab(app_state=app_state)
         qtbot.addWidget(tab)
@@ -77,10 +77,10 @@ class TestColumnSelector:
         app_state.baseline_df = df
         app_state.data_loaded.emit(df)
 
-        assert tab._column_selector.currentText() == "gain_pct"
+        assert tab._axis_selector.y_column == "gain_pct"
 
-    def test_column_selector_defaults_to_first_if_no_gain_pct(self, qtbot):
-        """Column selector defaults to first column if gain_pct not available."""
+    def test_axis_selector_defaults_to_first_if_no_gain_pct(self, qtbot):
+        """Axis selector defaults to first column if gain_pct not available."""
         app_state = AppState()
         tab = FeatureExplorerTab(app_state=app_state)
         qtbot.addWidget(tab)
@@ -93,18 +93,19 @@ class TestColumnSelector:
         app_state.data_loaded.emit(df)
 
         # Should default to first numeric column
-        assert tab._column_selector.currentIndex() == 0
+        assert tab._axis_selector._y_combo.currentIndex() == 0
 
-    def test_column_selector_disabled_when_no_data(self, qtbot):
-        """Column selector is disabled when no data is loaded."""
+    def test_axis_selector_disabled_when_no_data(self, qtbot):
+        """Axis selector is disabled when no data is loaded."""
         app_state = AppState()
         tab = FeatureExplorerTab(app_state=app_state)
         qtbot.addWidget(tab)
 
-        assert not tab._column_selector.isEnabled()
+        assert not tab._axis_selector._y_combo.isEnabled()
+        assert not tab._axis_selector._x_combo.isEnabled()
 
-    def test_column_selector_enabled_after_data_load(self, qtbot):
-        """Column selector is enabled after data is loaded."""
+    def test_axis_selector_enabled_after_data_load(self, qtbot):
+        """Axis selector is enabled after data is loaded."""
         app_state = AppState()
         tab = FeatureExplorerTab(app_state=app_state)
         qtbot.addWidget(tab)
@@ -113,7 +114,8 @@ class TestColumnSelector:
         app_state.baseline_df = df
         app_state.data_loaded.emit(df)
 
-        assert tab._column_selector.isEnabled()
+        assert tab._axis_selector._y_combo.isEnabled()
+        assert tab._axis_selector._x_combo.isEnabled()
 
 
 class TestDataCountLabel:
@@ -182,7 +184,7 @@ class TestEmptyStates:
         app_state.data_loaded.emit(df)
 
         assert "No numeric columns" in tab._empty_label.text()
-        assert not tab._column_selector.isEnabled()
+        assert not tab._axis_selector._y_combo.isEnabled()
 
 
 class TestChartUpdates:
@@ -205,7 +207,7 @@ class TestChartUpdates:
         assert len(tab._chart_canvas._scatter.data) == 5
 
     def test_chart_updates_on_column_change(self, qtbot):
-        """Chart updates when column selector changes."""
+        """Chart updates when axis selector changes."""
         app_state = AppState()
         tab = FeatureExplorerTab(app_state=app_state)
         qtbot.addWidget(tab)
@@ -218,8 +220,8 @@ class TestChartUpdates:
         app_state.data_loaded.emit(df)
         app_state.baseline_calculated.emit(None)
 
-        # Change column
-        tab._column_selector.setCurrentText("volume")
+        # Change Y column
+        tab._axis_selector._y_combo.setCurrentText("volume")
 
         # Wait for debounce timer
         qtbot.wait(200)

@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.ui.components.no_scroll_widgets import NoScrollComboBox
+from src.ui.components.axis_column_selector import AxisColumnSelector
 
 from src.core.app_state import AppState
 from src.core.exceptions import ExportError
@@ -54,10 +54,10 @@ class FeatureExplorerTab(QWidget):
 
     Attributes:
         _app_state: Reference to the centralized application state.
-        _sidebar: Left sidebar containing column selector.
+        _sidebar: Left sidebar containing axis column selector.
         _chart_canvas: Main chart area for scatter plots.
         _bottom_bar: Bottom bar showing data point count.
-        _column_selector: Dropdown for selecting numeric columns.
+        _axis_selector: Selector for X and Y axis columns.
         _filter_panel: Panel for managing filters.
         _axis_control_panel: Panel for axis range and grid controls.
         _data_count_label: Label displaying current data point count.
@@ -154,45 +154,9 @@ class FeatureExplorerTab(QWidget):
         layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
         layout.setSpacing(Spacing.SM)
 
-        # Column selector label
-        label = QLabel("Select Column")
-        label.setStyleSheet(f"""
-            QLabel {{
-                color: {Colors.TEXT_PRIMARY};
-                font-size: 12px;
-                font-weight: bold;
-            }}
-        """)
-        layout.addWidget(label)
-
-        # Column selector dropdown
-        self._column_selector = NoScrollComboBox()
-        self._column_selector.setStyleSheet(f"""
-            QComboBox {{
-                background-color: {Colors.BG_SURFACE};
-                color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BG_BORDER};
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-size: 13px;
-            }}
-            QComboBox:hover {{
-                border-color: {Colors.SIGNAL_CYAN};
-            }}
-            QComboBox::drop-down {{
-                border: none;
-                width: 20px;
-            }}
-            QComboBox QAbstractItemView {{
-                background-color: {Colors.BG_ELEVATED};
-                color: {Colors.TEXT_PRIMARY};
-                selection-background-color: {Colors.BG_BORDER};
-                selection-color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BG_BORDER};
-            }}
-        """)
-        self._column_selector.setEnabled(False)  # Disabled until data loads
-        layout.addWidget(self._column_selector)
+        # Axis column selector (replaces single column selector)
+        self._axis_selector = AxisColumnSelector()
+        layout.addWidget(self._axis_selector)
 
         # Filter panel below column selector
         self._filter_panel = FilterPanel()
@@ -285,7 +249,7 @@ class FeatureExplorerTab(QWidget):
         self._app_state.column_mapping_changed.connect(self._on_column_mapping_changed)
 
         # Local events
-        self._column_selector.currentTextChanged.connect(self._on_column_changed_debounced)
+        self._axis_selector.selection_changed.connect(self._on_column_changed_debounced)
 
         # Filter panel signals
         self._filter_panel.filters_applied.connect(self._on_filters_applied)
@@ -309,7 +273,7 @@ class FeatureExplorerTab(QWidget):
     def _on_data_loaded(self, df: pd.DataFrame) -> None:
         """Handle data loaded signal.
 
-        Populates the column selector and filter panel with numeric columns.
+        Populates the axis selector and filter panel with numeric columns.
         Handles edge case of empty DataFrame by disabling toggle.
 
         Args:
@@ -317,23 +281,19 @@ class FeatureExplorerTab(QWidget):
         """
         numeric_columns = self._get_numeric_columns(df)
 
-        self._column_selector.blockSignals(True)
-        self._column_selector.clear()
-
         # Edge case: empty DataFrame - disable toggle
         if df is None or df.empty:
-            self._column_selector.setEnabled(False)
+            self._axis_selector.set_columns([])
             self._filter_panel.set_columns([])
             self._filter_panel._first_trigger_toggle.setEnabled(False)
             self._empty_label.setText("No data loaded")
             self._chart_stack.setCurrentIndex(0)
             self._data_count_label.setText("No data loaded")
             logger.warning("Empty DataFrame loaded")
-            self._column_selector.blockSignals(False)
             return
 
         if not numeric_columns:
-            self._column_selector.setEnabled(False)
+            self._axis_selector.set_columns([])
             self._filter_panel.set_columns([])
             self._filter_panel._first_trigger_toggle.setEnabled(False)
             self._empty_label.setText("No numeric columns available for visualization")
@@ -341,23 +301,18 @@ class FeatureExplorerTab(QWidget):
             self._data_count_label.setText("No numeric columns")
             logger.warning("No numeric columns found in loaded data")
         else:
-            self._column_selector.addItems(numeric_columns)
-            self._column_selector.setEnabled(True)
+            self._axis_selector.set_columns(numeric_columns)
             self._filter_panel.set_columns(numeric_columns)
             # Enable toggle only when column mapping is available
             self._filter_panel._first_trigger_toggle.setEnabled(
                 self._app_state.column_mapping is not None
             )
 
-            # Default to gain_pct if available, otherwise first column
+            # Default Y to gain_pct if available
             if "gain_pct" in numeric_columns:
-                self._column_selector.setCurrentText("gain_pct")
-            else:
-                self._column_selector.setCurrentIndex(0)
+                self._axis_selector.set_y_column("gain_pct")
 
-            logger.info(f"Column selector populated with {len(numeric_columns)} columns")
-
-        self._column_selector.blockSignals(False)
+            logger.info(f"Axis selector populated with {len(numeric_columns)} columns")
 
     def _on_column_mapping_changed(self, mapping: object) -> None:
         """Handle column mapping changed signal.
@@ -391,12 +346,8 @@ class FeatureExplorerTab(QWidget):
         )
         self._export_button.setEnabled(has_data)
 
-    def _on_column_changed_debounced(self, _column: str) -> None:
-        """Handle column selector change with debounce.
-
-        Args:
-            _column: The selected column name (unused, we read from widget).
-        """
+    def _on_column_changed_debounced(self) -> None:
+        """Handle axis column selector change with debounce."""
         # Cancel any pending timer
         if self._debounce_timer is not None:
             self._debounce_timer.stop()
@@ -408,7 +359,7 @@ class FeatureExplorerTab(QWidget):
         self._debounce_timer.start(Animation.DEBOUNCE_INPUT)
 
     def _update_chart(self) -> None:
-        """Update the chart with current data and selected column.
+        """Update the chart with current data and selected columns.
 
         Uses filtered_df if filters are applied, otherwise baseline_df.
         """
@@ -417,7 +368,8 @@ class FeatureExplorerTab(QWidget):
         if df is None:
             df = self._app_state.baseline_df
 
-        column = self._column_selector.currentText()
+        y_column = self._axis_selector.y_column
+        x_column = self._axis_selector.x_column
 
         if df is None or df.empty:
             # Edge case: zero matches after filter or zero first triggers
@@ -435,15 +387,16 @@ class FeatureExplorerTab(QWidget):
             self._data_count_label.setText("No matching data")
             return
 
-        if not column or column not in df.columns:
-            logger.warning(f"Column '{column}' not found in DataFrame")
+        if not y_column or y_column not in df.columns:
+            logger.warning(f"Y column '{y_column}' not found in DataFrame")
             return
 
         # Show chart and update data
         self._chart_stack.setCurrentIndex(1)
         self._chart_canvas.update_data(
             df,
-            y_column=column,
+            y_column=y_column,
+            x_column=x_column,
             contrast_colors=self._contrast_colors,
         )
 
@@ -493,14 +446,13 @@ class FeatureExplorerTab(QWidget):
             # "Showing {n:,} data points"
             self._data_count_label.setText(f"Showing {count:,} data points")
 
-        logger.debug(f"Chart updated: column='{column}', points={count}")
+        logger.debug(f"Chart updated: y_column='{y_column}', x_column='{x_column}', points={count}")
 
     def _show_empty_state(self) -> None:
         """Show the empty state message."""
         self._empty_label.setText("Load a data file to explore features")
         self._chart_stack.setCurrentIndex(0)
         self._data_count_label.setText("No data loaded")
-        self._column_selector.setEnabled(False)
         self._export_button.setEnabled(False)
 
     def _on_filters_applied(self, filters: list[FilterCriteria]) -> None:
