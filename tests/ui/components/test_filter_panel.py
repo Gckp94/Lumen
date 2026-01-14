@@ -76,3 +76,14 @@ def test_column_filter_panel_height_shows_9_rows(qtbot: QtBot) -> None:
 
     assert min_height == 330, f"Min height {min_height} should be 330"
     assert max_height == 360, f"Max height {max_height} should be 360"
+
+
+def test_chips_use_flow_layout(qtbot: QtBot) -> None:
+    """Chips area uses FlowLayout for wrapping."""
+    from src.ui.utils.flow_layout import FlowLayout
+
+    panel = FilterPanel(columns=["col1", "col2"])
+    qtbot.addWidget(panel)
+
+    # The chips layout should be a FlowLayout
+    assert isinstance(panel._chips_layout, FlowLayout)

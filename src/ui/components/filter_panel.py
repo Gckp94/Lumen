@@ -17,6 +17,7 @@ from src.ui.components.time_range_filter import TimeRangeFilter
 from src.ui.components.column_filter_panel import ColumnFilterPanel
 from src.ui.components.toggle_switch import ToggleSwitch
 from src.ui.constants import Colors, Spacing
+from src.ui.utils.flow_layout import FlowLayout
 
 
 class FilterPanel(QWidget):
@@ -91,12 +92,10 @@ class FilterPanel(QWidget):
         self._time_range_filter.time_range_changed.connect(self._on_time_range_changed)
         layout.addWidget(self._time_range_filter)
 
-        # Chips area for active filters
+        # Chips area for active filters (uses FlowLayout for wrapping)
         self._chips_frame = QFrame()
-        self._chips_layout = QHBoxLayout(self._chips_frame)
-        self._chips_layout.setContentsMargins(0, 0, 0, 0)
-        self._chips_layout.setSpacing(Spacing.XS)
-        self._chips_layout.addStretch()
+        self._chips_layout = FlowLayout(margin=0, spacing=Spacing.XS)
+        self._chips_frame.setLayout(self._chips_layout)
         layout.addWidget(self._chips_frame)
 
         # Column filter panel (scrollable inline filter system)
@@ -258,15 +257,12 @@ class FilterPanel(QWidget):
             chip.deleteLater()
         self._filter_chips.clear()
 
-        # Add new chips (insert before stretch)
+        # Add new chips (FlowLayout handles positioning)
         for criteria in self._active_filters:
             chip = FilterChip(criteria)
             chip.removed.connect(self._on_chip_removed)
             self._filter_chips.append(chip)
-            # Insert before stretch (at count - 1 position)
-            self._chips_layout.insertWidget(
-                self._chips_layout.count() - 1, chip
-            )
+            self._chips_layout.addWidget(chip)
 
     def _on_chip_removed(self, criteria: FilterCriteria) -> None:
         """Handle chip removal.
