@@ -108,6 +108,21 @@ class TestIsTimeColumn:
         assert is_time_column("volume") is False
         assert is_time_column("price") is False
 
+    def test_numeric_time_columns_excluded(self) -> None:
+        """Columns with numeric time suffixes are NOT detected as time columns.
+
+        These columns contain pre-computed numeric values (minutes, seconds, hours)
+        and should be treated as regular numeric columns, not HH:MM:SS time columns.
+        """
+        assert is_time_column("time_minutes") is False
+        assert is_time_column("time_seconds") is False
+        assert is_time_column("time_hours") is False
+        assert is_time_column("entry_mins") is False
+        assert is_time_column("exit_secs") is False
+        # But regular time columns should still be detected
+        assert is_time_column("entry_time") is True
+        assert is_time_column("trigger_time_et") is True
+
 
 class TestBinDefinition:
     """Tests for BinDefinition dataclass."""

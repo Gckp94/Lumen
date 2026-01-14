@@ -99,14 +99,23 @@ def parse_time_input(value: str | int) -> str:
 def is_time_column(column_name: str) -> bool:
     """Check if a column appears to be time-based by its name.
 
+    Columns that are already in numeric time format (like time_minutes)
+    are excluded since they should be treated as regular numeric columns.
+
     Args:
         column_name: Name of the column to check.
 
     Returns:
-        True if the column name suggests it contains time data.
+        True if the column name suggests it contains time data in HH:MM:SS format.
     """
-    time_indicators = ["time", "timestamp", "hour", "minute", "second"]
     column_lower = column_name.lower()
+
+    # Exclude columns that are already in numeric time format
+    numeric_time_suffixes = ["_minutes", "_seconds", "_hours", "_mins", "_secs"]
+    if any(column_lower.endswith(suffix) for suffix in numeric_time_suffixes):
+        return False
+
+    time_indicators = ["time", "timestamp", "hour", "minute", "second"]
     return any(indicator in column_lower for indicator in time_indicators)
 
 
