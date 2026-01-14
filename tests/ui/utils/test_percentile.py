@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.ui.utils.percentile import calculate_percentile_bounds
+from src.ui.utils.percentile import calculate_iqr_bounds, calculate_percentile_bounds
 
 
 class TestCalculatePercentileBounds:
@@ -68,3 +68,61 @@ class TestCalculatePercentileBounds:
         lower, upper = calculate_percentile_bounds(data, 95.0)
         assert lower == 42.0
         assert upper == 42.0
+
+
+class TestCalculateIqrBounds:
+    """Tests for IQR-based outlier detection."""
+
+    def test_normal_distribution_no_outliers(self) -> None:
+        """Normal data without outliers keeps full range."""
+        data = pd.Series(range(1, 101))  # 1 to 100
+        lower, upper = calculate_iqr_bounds(data)
+        # Should include most of the data
+        assert lower <= 1
+        assert upper >= 100
+
+    def test_detects_extreme_outlier(self) -> None:
+        """Extreme outlier is excluded from bounds."""
+        normal_data = list(range(-100, 101))  # -100 to 100
+        normal_data.append(13_000_000_000_000)  # 13 trillion outlier
+        data = pd.Series(normal_data)
+
+        lower, upper = calculate_iqr_bounds(data)
+        # Upper should exclude the 13T outlier
+        assert upper < 1000
+
+    def test_symmetric_outliers(self) -> None:
+        """Handles outliers on both tails."""
+        normal_data = list(range(0, 100))
+        normal_data.extend([-1000, 1000])  # Outliers on both ends
+        data = pd.Series(normal_data)
+
+        lower, upper = calculate_iqr_bounds(data)
+        assert lower > -500
+        assert upper < 500
+
+    def test_empty_returns_none(self) -> None:
+        """Empty series returns (None, None)."""
+        data = pd.Series([], dtype=float)
+        lower, upper = calculate_iqr_bounds(data)
+        assert lower is None
+        assert upper is None
+
+    def test_handles_nan_inf(self) -> None:
+        """NaN and inf values are excluded."""
+        data = pd.Series([1.0, 2.0, np.nan, 50.0, np.inf, 100.0])
+        lower, upper = calculate_iqr_bounds(data)
+        assert np.isfinite(lower)
+        assert np.isfinite(upper)
+
+    def test_custom_multiplier(self) -> None:
+        """Custom IQR multiplier adjusts sensitivity."""
+        data = pd.Series(list(range(100)) + [500])
+
+        # Tight multiplier (1.0) excludes more
+        lower_tight, upper_tight = calculate_iqr_bounds(data, multiplier=1.0)
+
+        # Loose multiplier (3.0) includes more
+        lower_loose, upper_loose = calculate_iqr_bounds(data, multiplier=3.0)
+
+        assert upper_tight < upper_loose
