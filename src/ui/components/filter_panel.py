@@ -1,11 +1,12 @@
 """FilterPanel container for managing filters."""
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -92,11 +93,24 @@ class FilterPanel(QWidget):
         self._time_range_filter.time_range_changed.connect(self._on_time_range_changed)
         layout.addWidget(self._time_range_filter)
 
-        # Chips area for active filters (uses FlowLayout for wrapping)
+        # Chips area for active filters (scrollable, uses FlowLayout for wrapping)
+        self._chips_scroll = QScrollArea()
+        self._chips_scroll.setWidgetResizable(True)
+        self._chips_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._chips_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self._chips_scroll.setMaximumHeight(80)  # Limit height, scroll if more chips
+        self._chips_scroll.setMinimumHeight(0)
+
         self._chips_frame = QFrame()
         self._chips_layout = FlowLayout(margin=0, spacing=Spacing.XS)
         self._chips_frame.setLayout(self._chips_layout)
-        layout.addWidget(self._chips_frame)
+
+        self._chips_scroll.setWidget(self._chips_frame)
+        layout.addWidget(self._chips_scroll)
 
         # Column filter panel (scrollable inline filter system)
         self._column_filter_panel = ColumnFilterPanel(columns=self._columns)
@@ -173,6 +187,31 @@ class FilterPanel(QWidget):
             }}
         """
         self._clear_btn.setStyleSheet(secondary_btn_style)
+
+        # Add chips scroll area styling
+        self._chips_scroll.setStyleSheet(f"""
+            QScrollArea {{
+                background-color: transparent;
+                border: none;
+            }}
+            QScrollBar:vertical {{
+                background-color: {Colors.BG_ELEVATED};
+                width: 6px;
+                border-radius: 3px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {Colors.BG_BORDER};
+                border-radius: 3px;
+                min-height: 15px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: {Colors.TEXT_SECONDARY};
+            }}
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+        """)
 
     def _on_date_range_changed(
         self, start: str | None, end: str | None, all_dates: bool

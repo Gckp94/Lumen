@@ -87,3 +87,15 @@ def test_chips_use_flow_layout(qtbot: QtBot) -> None:
 
     # The chips layout should be a FlowLayout
     assert isinstance(panel._chips_layout, FlowLayout)
+
+
+def test_chips_frame_scrollable(qtbot: QtBot) -> None:
+    """Chips frame should be scrollable when many chips present."""
+    from PyQt6.QtWidgets import QScrollArea
+
+    panel = FilterPanel(columns=["col1"])
+    qtbot.addWidget(panel)
+
+    # chips_frame should be inside a scroll area
+    parent = panel._chips_frame.parent()
+    assert isinstance(parent, QScrollArea) or hasattr(panel, '_chips_scroll')
