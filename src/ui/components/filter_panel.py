@@ -101,12 +101,15 @@ class FilterPanel(QWidget):
 
         # Column filter panel (scrollable inline filter system)
         self._column_filter_panel = ColumnFilterPanel(columns=self._columns)
-        self._column_filter_panel.setMinimumHeight(290)
-        self._column_filter_panel.setMaximumHeight(320)
+        self._column_filter_panel.setMinimumHeight(330)
+        self._column_filter_panel.setMaximumHeight(360)
         self._column_filter_panel.single_filter_applied.connect(
             self._on_single_filter_applied
         )
         layout.addWidget(self._column_filter_panel)
+
+        # Add spacing before toggle
+        layout.addSpacing(Spacing.MD)
 
         # First trigger toggle (above buttons)
         self._first_trigger_toggle = ToggleSwitch(
