@@ -37,7 +37,93 @@ class DockManager(ads.CDockManager):
         self.setConfigFlag(ads.CDockManager.eConfigFlag.FloatingContainerHasWidgetIcon, True)
         self.setConfigFlag(ads.CDockManager.eConfigFlag.AllTabsHaveCloseButton, False)
 
+        # Apply dock-specific styling
+        self._apply_styling()
+
         logger.debug("DockManager initialized")
+
+    def _apply_styling(self) -> None:
+        """Apply custom styling to dock widgets."""
+        from src.ui.constants import Colors, Fonts, Spacing
+
+        stylesheet = f"""
+            /* Dock Area Widget */
+            ads--CDockAreaWidget {{
+                background-color: {Colors.BG_SURFACE};
+                border: 1px solid {Colors.BG_BORDER};
+            }}
+
+            /* Dock Area Title Bar */
+            ads--CDockAreaTitleBar {{
+                background-color: {Colors.BG_BASE};
+                border-bottom: 1px solid {Colors.BG_BORDER};
+                min-height: 36px;
+            }}
+
+            /* Dock Area Tab Bar */
+            ads--CDockAreaTabBar {{
+                background-color: {Colors.BG_BASE};
+            }}
+
+            /* Individual Dock Widget Tabs */
+            ads--CDockWidgetTab {{
+                background-color: {Colors.TEXT_SECONDARY};
+                color: {Colors.TEXT_PRIMARY};
+                padding: {Spacing.SM}px {Spacing.LG}px;
+                border: none;
+                min-width: 120px;
+                font-family: "{Fonts.UI}";
+                font-size: 13px;
+            }}
+
+            ads--CDockWidgetTab[activeTab="true"] {{
+                background-color: {Colors.BG_SURFACE};
+                border-bottom: 2px solid {Colors.SIGNAL_CYAN};
+            }}
+
+            ads--CDockWidgetTab:hover {{
+                background-color: {Colors.BG_ELEVATED};
+            }}
+
+            /* Tab label */
+            ads--CDockWidgetTab QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: "{Fonts.UI}";
+                font-size: 13px;
+            }}
+
+            ads--CDockWidgetTab[activeTab="true"] QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+            }}
+
+            /* Floating Dock Container */
+            ads--CFloatingDockContainer {{
+                background-color: {Colors.BG_BASE};
+                border: 1px solid {Colors.BG_BORDER};
+            }}
+
+            /* Title bar buttons */
+            ads--CTitleBarButton {{
+                background-color: transparent;
+                border: none;
+                padding: 4px;
+            }}
+
+            ads--CTitleBarButton:hover {{
+                background-color: {Colors.BG_ELEVATED};
+                border-radius: 4px;
+            }}
+
+            /* Splitter */
+            ads--CDockSplitter::handle {{
+                background-color: {Colors.BG_BORDER};
+            }}
+
+            ads--CDockSplitter::handle:hover {{
+                background-color: {Colors.SIGNAL_CYAN};
+            }}
+        """
+        self.setStyleSheet(stylesheet)
 
     def add_dock(
         self,
@@ -66,7 +152,9 @@ class DockManager(ads.CDockManager):
         # Add to existing dock area to create tabs, or create new area
         if self._center_area is not None and area == ads.DockWidgetArea.CenterDockWidgetArea:
             # Add to existing center area as a tab
-            self.addDockWidget(ads.DockWidgetArea.CenterDockWidgetArea, dock_widget, self._center_area)
+            self.addDockWidget(
+                ads.DockWidgetArea.CenterDockWidgetArea, dock_widget, self._center_area
+            )
         else:
             # Create new dock area
             dock_area = self.addDockWidget(area, dock_widget)
