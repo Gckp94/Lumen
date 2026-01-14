@@ -745,22 +745,23 @@ class FeatureExplorerTab(QWidget):
     def _on_x_bounds_changed(self, x_min: float, x_max: float) -> None:
         """Handle X axis bounds change from selector.
 
+        Stores bounds as filter criteria and re-renders chart with filtered data.
+
         Args:
             x_min: New X minimum.
             x_max: New X maximum.
         """
-        if self._chart_canvas is None:
-            return
+        self._x_filter_min = x_min
+        self._x_filter_max = x_max
 
-        # Get current Y range from chart
-        view_box = self._chart_canvas._plot_widget.getViewBox()
-        y_range = view_box.viewRange()[1]
+        # Re-render chart with filtered data
+        self._update_chart()
 
-        # Update chart with new X bounds, keep Y
-        self._chart_canvas._plot_widget.setXRange(x_min, x_max, padding=0)
-
-        # Sync axis control panel
-        self._axis_control_panel.set_range(x_min, x_max, y_range[0], y_range[1])
+        # Sync axis control panel with new bounds
+        if self._chart_canvas:
+            view_box = self._chart_canvas._plot_widget.getViewBox()
+            y_range = view_box.viewRange()[1]
+            self._axis_control_panel.set_range(x_min, x_max, y_range[0], y_range[1])
 
     def _on_y_bounds_changed(self, y_min: float, y_max: float) -> None:
         """Handle Y axis bounds change from selector.
