@@ -16,7 +16,7 @@ from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
-from src.ui.constants import Colors
+from src.ui.constants import Colors, Fonts
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -87,6 +87,13 @@ class ChartCanvas(QWidget):
             axis = self._plot_widget.getPlotItem().getAxis(axis_name)
             axis.setPen(axis_pen)
             axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
+
+        # Add X-axis label
+        plot_item = self._plot_widget.getPlotItem()
+        plot_item.setLabel("bottom", "Trade #", **{
+            "font-family": Fonts.DATA,
+            "color": Colors.TEXT_SECONDARY,
+        })
 
         # Create scatter plot item optimized for performance
         # Performance optimizations: small size (3px), no pen outline, OpenGL enabled
@@ -324,6 +331,13 @@ class ChartCanvas(QWidget):
             color_negative: Color for values < 0 (default: coral).
         """
         try:
+            # Update Y-axis label to show selected column
+            plot_item = self._plot_widget.getPlotItem()
+            plot_item.setLabel("left", column, **{
+                "font-family": Fonts.DATA,
+                "color": Colors.TEXT_SECONDARY,
+            })
+
             if df is None or df.empty or column not in df.columns:
                 self._scatter.setData([], [])
                 logger.debug("Cleared chart: empty data or missing column")
