@@ -16,7 +16,7 @@ class DockManager(ads.CDockManager):
     """Manager for dockable tabs using PyQt6Ads.
 
     Wraps CDockManager to provide a simplified API for adding
-    and managing dockable widgets.
+    and managing dockable widgets as tabbed panels.
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -27,6 +27,7 @@ class DockManager(ads.CDockManager):
         """
         super().__init__(parent)
         self._dock_widgets: dict[str, ads.CDockWidget] = {}
+        self._center_area: ads.CDockAreaWidget | None = None
 
         # Configure docking behavior
         self.setConfigFlag(ads.CDockManager.eConfigFlag.OpaqueSplitterResize, True)
@@ -46,6 +47,8 @@ class DockManager(ads.CDockManager):
     ) -> ads.CDockWidget:
         """Add a dockable widget.
 
+        Widgets added to the same area will be tabbed together.
+
         Args:
             title: Tab title.
             widget: Widget to dock.
@@ -60,7 +63,16 @@ class DockManager(ads.CDockManager):
         dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetFloatable, True)
         dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetMovable, True)
 
-        self.addDockWidget(area, dock_widget)
+        # Add to existing dock area to create tabs, or create new area
+        if self._center_area is not None and area == ads.DockWidgetArea.CenterDockWidgetArea:
+            # Add to existing center area as a tab
+            self.addDockWidget(ads.DockWidgetArea.CenterDockWidgetArea, dock_widget, self._center_area)
+        else:
+            # Create new dock area
+            dock_area = self.addDockWidget(area, dock_widget)
+            if area == ads.DockWidgetArea.CenterDockWidgetArea and self._center_area is None:
+                self._center_area = dock_area
+
         self._dock_widgets[title] = dock_widget
 
         logger.debug("Added dock widget: %s", title)
