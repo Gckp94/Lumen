@@ -97,6 +97,82 @@ QTabBar::tab:hover:!selected {{
     background-color: {Colors.BG_ELEVATED};
 }}
 
+/* ========================================
+   PyQtAds Dock Widget Styling
+   ======================================== */
+
+/* Dock Area Widget (container for tabbed docks) */
+ads--CDockAreaWidget {{
+    background-color: {Colors.BG_SURFACE};
+    border: 1px solid {Colors.BG_BORDER};
+}}
+
+/* Dock Area Title Bar */
+ads--CDockAreaTitleBar {{
+    background-color: {Colors.BG_BASE};
+    border-bottom: 1px solid {Colors.BG_BORDER};
+    padding: 0px;
+    min-height: 32px;
+}}
+
+/* Dock Area Tab Bar */
+ads--CDockAreaTabBar {{
+    background-color: {Colors.BG_BASE};
+}}
+
+/* Individual Dock Widget Tabs */
+ads--CDockWidgetTab {{
+    background-color: {Colors.TEXT_SECONDARY};
+    color: {Colors.TEXT_PRIMARY};
+    padding: {Spacing.SM}px {Spacing.LG}px;
+    border: none;
+    min-width: 120px;
+    font-family: "{Fonts.UI}";
+    font-size: 13px;
+}}
+
+ads--CDockWidgetTab[activeTab="true"] {{
+    background-color: {Colors.BG_SURFACE};
+    border-bottom: 2px solid {Colors.SIGNAL_CYAN};
+}}
+
+ads--CDockWidgetTab:hover {{
+    background-color: {Colors.BG_ELEVATED};
+}}
+
+/* Dock Widget Tab Close Button - Hidden since tabs aren't closable */
+ads--CDockWidgetTab > QPushButton {{
+    background-color: transparent;
+    border: none;
+}}
+
+/* Floating Dock Container (undocked window) */
+ads--CFloatingDockContainer {{
+    background-color: {Colors.BG_BASE};
+    border: 1px solid {Colors.BG_BORDER};
+}}
+
+/* Dock Splitter */
+ads--CDockSplitter::handle {{
+    background-color: {Colors.BG_BORDER};
+}}
+
+ads--CDockSplitter::handle:hover {{
+    background-color: {Colors.SIGNAL_CYAN};
+}}
+
+/* Dock Area Menu Button */
+ads--CTitleBarButton {{
+    background-color: transparent;
+    border: none;
+    padding: 4px;
+}}
+
+ads--CTitleBarButton:hover {{
+    background-color: {Colors.BG_ELEVATED};
+    border-radius: 4px;
+}}
+
 /* General Widget Styling */
 QWidget {{
     background-color: transparent;
