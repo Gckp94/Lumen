@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.ui.components.no_scroll_widgets import NoScrollDoubleSpinBox
-from src.ui.constants import Animation, Colors, Spacing
+from src.ui.constants import Animation, Colors, Fonts, Spacing
 
 
 class AxisControlPanel(QWidget):
@@ -67,6 +67,7 @@ class AxisControlPanel(QWidget):
         section_label.setStyleSheet(f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
+                font-family: "{Fonts.UI}";
                 font-size: 12px;
                 font-weight: bold;
             }}
@@ -147,6 +148,7 @@ class AxisControlPanel(QWidget):
                 border: 1px solid {Colors.BG_BORDER};
                 border-radius: 4px;
                 padding: 4px;
+                font-family: "{Fonts.DATA}";
             }}
             QDoubleSpinBox:hover {{
                 border-color: {Colors.SIGNAL_CYAN};
@@ -167,6 +169,7 @@ class AxisControlPanel(QWidget):
                 border: 1px solid {Colors.BG_BORDER};
                 border-radius: 4px;
                 padding: {Spacing.XS}px {Spacing.SM}px;
+                font-family: "{Fonts.UI}";
             }}
             QPushButton:hover {{
                 background-color: {Colors.BG_BORDER};
@@ -181,6 +184,7 @@ class AxisControlPanel(QWidget):
             QCheckBox {{
                 color: {Colors.TEXT_PRIMARY};
                 spacing: {Spacing.XS}px;
+                font-family: "{Fonts.UI}";
             }}
             QCheckBox::indicator {{
                 width: 16px;
@@ -201,7 +205,10 @@ class AxisControlPanel(QWidget):
         # Style labels
         for label in self.findChildren(QLabel):
             if label.text() in ("X:", "Y:", "to"):
-                label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
+                label.setStyleSheet(f'''
+                    color: {Colors.TEXT_SECONDARY};
+                    font-family: "{Fonts.UI}";
+                ''')
 
     def _connect_signals(self) -> None:
         """Connect spin box and button signals."""
