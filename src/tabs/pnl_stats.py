@@ -30,7 +30,7 @@ from src.core.metrics import MetricsCalculator, calculate_suggested_bins
 from src.core.models import AdjustmentParams, MetricsUserInputs, TradingMetrics
 from src.ui.components import (
     CalculationStatusIndicator,
-    ComparisonGrid,
+    ComparisonGridHorizontal,
     ComparisonRibbon,
     EmptyState,
     UserInputsPanel,
@@ -158,8 +158,8 @@ class PnLStatsTab(QWidget):
         )
         self._metrics_stack.addWidget(self._metrics_empty)
 
-        # Index 1: ComparisonGrid (shown when data is available)
-        self._comparison_grid = ComparisonGrid()
+        # Index 1: ComparisonGridHorizontal (shown when data is available)
+        self._comparison_grid = ComparisonGridHorizontal()
         self._metrics_stack.addWidget(self._comparison_grid)
 
         main_layout.addWidget(self._metrics_stack, stretch=1)
