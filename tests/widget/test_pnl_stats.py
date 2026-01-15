@@ -284,15 +284,15 @@ class TestPnLStatsTabMetricsGrid:
         tab.cleanup()
 
     def test_comparison_grid_exists(self, qtbot):
-        """Tab contains ComparisonGrid widget."""
-        from src.ui.components import ComparisonGrid
+        """Tab contains ComparisonGridHorizontal widget."""
+        from src.ui.components import ComparisonGridHorizontal
 
         app_state = AppState()
         tab = PnLStatsTab(app_state)
         qtbot.addWidget(tab)
 
         assert hasattr(tab, "_comparison_grid")
-        assert isinstance(tab._comparison_grid, ComparisonGrid)
+        assert isinstance(tab._comparison_grid, ComparisonGridHorizontal)
 
         tab.cleanup()
 

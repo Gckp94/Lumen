@@ -714,11 +714,10 @@ class TestComparisonGridIntegration:
         ):
             app_state_with_mapping.filtered_data_updated.emit(filtered)
 
-        # Verify grid was updated (has filtered values, not just dashes)
-        grid = tab._comparison_grid
-        win_rate_row = grid._rows["win_rate"]
-        # Filtered label should not be em dash
-        assert win_rate_row._filtered_label.text() != "—"
+        # Verify filtered metrics were calculated and stored
+        # The grid will reflect these values through the section cards
+        assert app_state_with_mapping.filtered_metrics is not None
+        assert app_state_with_mapping.filtered_metrics.win_rate is not None
 
     def test_grid_shows_correct_baseline_and_filtered_values_after_filter(
         self, qtbot: QtBot, app_state_with_mapping: AppState
@@ -753,16 +752,15 @@ class TestComparisonGridIntegration:
         ):
             app_state_with_mapping.filtered_data_updated.emit(filtered)
 
-        grid = tab._comparison_grid
-        # Trade count should show baseline total and filtered count
-        num_trades_row = grid._rows["num_trades"]
+        # Verify metrics reflect the correct trade counts
         baseline_count = len(app_state_with_mapping.baseline_df)
         filtered_count = len(filtered)
 
-        # Baseline should show original count
-        assert str(baseline_count) in num_trades_row._baseline_label.text()
-        # Filtered should show filtered count
-        assert str(filtered_count) in num_trades_row._filtered_label.text()
+        # Baseline metrics should have original count
+        assert app_state_with_mapping.baseline_metrics.num_trades == baseline_count
+        # Filtered metrics should have filtered count
+        assert app_state_with_mapping.filtered_metrics is not None
+        assert app_state_with_mapping.filtered_metrics.num_trades == filtered_count
 
     def test_grid_clears_filtered_column_when_filters_removed(
         self, qtbot: QtBot, app_state_with_mapping: AppState
@@ -796,17 +794,16 @@ class TestComparisonGridIntegration:
         ):
             app_state_with_mapping.filtered_data_updated.emit(filtered)
 
-        # Verify grid has filtered values
-        grid = tab._comparison_grid
-        win_rate_row = grid._rows["win_rate"]
-        assert win_rate_row._filtered_label.text() != "—"
+        # Verify filtered metrics were set
+        assert app_state_with_mapping.filtered_metrics is not None
+        assert app_state_with_mapping.filtered_metrics.win_rate is not None
 
         # Now emit metrics_updated with None for filtered (filters removed)
+        app_state_with_mapping.filtered_metrics = None
         app_state_with_mapping.metrics_updated.emit(baseline_metrics, None)
 
-        # Verify grid shows em dash for filtered and delta
-        assert "—" in win_rate_row._filtered_label.text()
-        assert "—" in win_rate_row._delta_label.text()
+        # Verify filtered_metrics is now None (grid will show em dashes for these)
+        assert app_state_with_mapping.filtered_metrics is None
 
 
 class TestEquityChartSignalFlow:

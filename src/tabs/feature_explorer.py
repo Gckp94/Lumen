@@ -30,6 +30,7 @@ from src.core.app_state import AppState
 from src.core.exceptions import ExportError
 from src.core.export_manager import ExportManager
 from src.core.filter_engine import FilterEngine
+from src.core.first_trigger import FirstTriggerEngine
 from src.core.models import FilterCriteria, TradingMetrics
 from src.ui.components.axis_column_selector import AxisColumnSelector
 from src.ui.components.axis_control_panel import AxisControlPanel
@@ -683,13 +684,33 @@ class FeatureExplorerTab(QWidget):
         if self._app_state.filters:
             df = engine.apply_filters(df, self._app_state.filters)
 
-        # Apply first trigger filter using pre-computed trigger_number column
+        # Apply first trigger filter: take lowest trigger_number per ticker-date
+        # from the already-filtered data.
+        # This ensures we get the first trigger that PASSES the filters,
+        # not just trigger_number == 1 which might have been filtered out.
         if self._app_state.first_trigger_enabled and "trigger_number" in df.columns:
-            df = df[df["trigger_number"] == 1].copy()
-            logger.debug(
-                "First trigger filter applied: %d rows with trigger_number=1",
-                len(df),
-            )
+            mapping = self._app_state.column_mapping
+            if mapping and mapping.ticker and mapping.date and mapping.time:
+                before_count = len(df)
+                first_trigger_engine = FirstTriggerEngine()
+                df = first_trigger_engine.apply_filtered(
+                    df,
+                    ticker_col=mapping.ticker,
+                    date_col=mapping.date,
+                    time_col=mapping.time,
+                )
+                logger.debug(
+                    "First trigger filter applied: %d first triggers from %d filtered rows",
+                    len(df),
+                    before_count,
+                )
+            else:
+                # Fallback to simple filter if column mapping incomplete
+                df = df[df["trigger_number"] == 1].copy()
+                logger.debug(
+                    "First trigger filter (fallback): %d rows with trigger_number=1",
+                    len(df),
+                )
 
         self._app_state.filtered_df = df
         self._app_state.filtered_data_updated.emit(df)
