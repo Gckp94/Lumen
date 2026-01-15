@@ -220,20 +220,41 @@ class MetricsCalculator:
         if kelly is not None:
             fractional_kelly = kelly * (fractional_kelly_pct / 100)
 
-        # Expected Growth (EG) = f * m - (f² * σ²) / 2
-        # where f = Kelly fraction (decimal), m = EV, σ² = combined variance
-        # Only valid when Kelly > 0 (positive edge). Negative Kelly produces
-        # mathematically valid but conceptually meaningless results.
-        expected_growth: float | None = None
-        if kelly is not None and ev is not None and kelly > 0:
-            all_gains = winner_gains + loser_gains
-            if len(all_gains) >= 2:
-                var_result = pd.Series(all_gains).var()
-                if pd.notna(var_result):
-                    combined_variance = cast(float, var_result)
-                    kelly_decimal = kelly / 100  # Convert percentage to decimal
-                    expected_growth = (kelly_decimal * ev) - (
-                        (kelly_decimal**2) * combined_variance / 2
+        # Expected Growth calculations
+        # EG = f * μ - (f² * σ²) / 2
+        # where f = bet fraction, μ = EV, σ² = variance
+        eg_full_kelly: float | None = None
+        eg_frac_kelly: float | None = None
+        eg_flat_stake: float | None = None
+
+        all_gains = winner_gains + loser_gains
+        combined_variance: float | None = None
+        if len(all_gains) >= 2:
+            var_result = pd.Series(all_gains).var()
+            if pd.notna(var_result):
+                combined_variance = cast(float, var_result)
+
+        if combined_variance is not None and ev is not None:
+            # EG Full Kelly - only when Kelly > 0
+            if kelly is not None and kelly > 0:
+                kelly_decimal = kelly / 100
+                eg_full_kelly = (kelly_decimal * ev) - (
+                    (kelly_decimal**2) * combined_variance / 2
+                )
+
+            # EG Fractional Kelly - only when fractional Kelly > 0
+            if fractional_kelly is not None and fractional_kelly > 0:
+                frac_kelly_decimal = fractional_kelly / 100
+                eg_frac_kelly = (frac_kelly_decimal * ev) - (
+                    (frac_kelly_decimal**2) * combined_variance / 2
+                )
+
+            # EG Flat Stake - when flat_stake and start_capital provided
+            if flat_stake is not None and start_capital is not None:
+                if flat_stake > 0 and start_capital > 0:
+                    flat_fraction = flat_stake / start_capital
+                    eg_flat_stake = (flat_fraction * ev) - (
+                        (flat_fraction**2) * combined_variance / 2
                     )
 
         # Median calculations (vectorized, multiply by 100 for percentage format)
@@ -370,7 +391,9 @@ class MetricsCalculator:
                 loser_gains=loser_gains,
                 edge=edge,
                 fractional_kelly=fractional_kelly,
-                expected_growth=expected_growth,
+                eg_full_kelly=eg_full_kelly,
+                eg_frac_kelly=eg_frac_kelly,
+                eg_flat_stake=eg_flat_stake,
                 median_winner=median_winner,
                 median_loser=median_loser,
                 winner_min=winner_min,

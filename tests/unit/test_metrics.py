@@ -298,13 +298,13 @@ class TestMetricsCalculatorExtended:
             metrics_100.kelly, abs=0.01
         )
 
-    def test_expected_growth_calculation(self, known_trades_df: pd.DataFrame) -> None:
-        """Expected growth formula: EG = f * m - (f² * σ²) / 2."""
+    def test_eg_full_kelly_formula(self, known_trades_df: pd.DataFrame) -> None:
+        """EG Full Kelly formula: EG = f * m - (f² * σ²) / 2."""
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
-        # Verify expected_growth is calculated
-        assert metrics.expected_growth is not None
+        # Verify eg_full_kelly is calculated
+        assert metrics.eg_full_kelly is not None
 
         # Manually calculate for verification
         kelly_decimal = metrics.kelly / 100
@@ -313,7 +313,7 @@ class TestMetricsCalculatorExtended:
         expected_eg = (kelly_decimal * metrics.ev) - (
             (kelly_decimal**2) * combined_variance / 2
         )
-        assert metrics.expected_growth == pytest.approx(expected_eg, abs=0.001)
+        assert metrics.eg_full_kelly == pytest.approx(expected_eg, abs=0.001)
 
     def test_median_calculations(self, known_trades_df: pd.DataFrame) -> None:
         """Median winner and loser calculations."""
@@ -358,16 +358,16 @@ class TestMetricsCalculatorExtended:
         assert metrics.kelly is None
         assert metrics.fractional_kelly is None
 
-    def test_expected_growth_none_when_kelly_none(self) -> None:
-        """Expected growth is None when Kelly cannot be calculated."""
+    def test_eg_full_kelly_none_when_kelly_none(self) -> None:
+        """EG Full Kelly is None when Kelly cannot be calculated."""
         calc = MetricsCalculator()
         df = pd.DataFrame({"gain_pct": [-1.0, -2.0, -3.0]})
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
-        assert metrics.expected_growth is None
+        assert metrics.eg_full_kelly is None
 
-    def test_expected_growth_none_when_kelly_negative(self) -> None:
-        """Expected growth is None when Kelly is negative (no edge)."""
+    def test_eg_full_kelly_none_when_kelly_negative(self) -> None:
+        """EG Full Kelly is None when Kelly is negative (no edge)."""
         calc = MetricsCalculator()
         # Create data with more losers than winners -> negative Kelly
         df = pd.DataFrame({
@@ -378,17 +378,77 @@ class TestMetricsCalculatorExtended:
         # Kelly should be negative with 20% win rate and poor R:R
         assert metrics.kelly is not None
         assert metrics.kelly < 0
-        # Expected growth should be None when Kelly is negative
-        assert metrics.expected_growth is None
+        # EG Full Kelly should be None when Kelly is negative
+        assert metrics.eg_full_kelly is None
 
-    def test_expected_growth_none_with_single_trade(self) -> None:
-        """Expected growth is None with single trade (can't calculate variance)."""
+    def test_eg_full_kelly_none_with_single_trade(self) -> None:
+        """EG Full Kelly is None with single trade (can't calculate variance)."""
         calc = MetricsCalculator()
         df = pd.DataFrame({"gain_pct": [5.0]})
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
 
         # Single trade, variance needs at least 2
-        assert metrics.expected_growth is None
+        assert metrics.eg_full_kelly is None
+
+    def test_eg_full_kelly_calculation(self) -> None:
+        """EG Full Kelly calculated with full Kelly fraction."""
+        calc = MetricsCalculator()
+        df = pd.DataFrame({
+            "gain_pct": [0.05, 0.03, -0.02, 0.04, -0.01],  # Positive edge
+        })
+        metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
+
+        assert metrics.kelly is not None
+        assert metrics.kelly > 0
+        assert metrics.eg_full_kelly is not None
+        # EG = f*μ - f²σ²/2, should be positive with positive Kelly
+
+    def test_eg_frac_kelly_calculation(self) -> None:
+        """EG Frac Kelly calculated with fractional Kelly."""
+        calc = MetricsCalculator()
+        df = pd.DataFrame({
+            "gain_pct": [0.05, 0.03, -0.02, 0.04, -0.01],
+        })
+        metrics, _, _ = calc.calculate(
+            df, "gain_pct", derived=True, fractional_kelly_pct=25.0
+        )
+
+        assert metrics.eg_frac_kelly is not None
+        assert metrics.eg_full_kelly is not None
+        # Fractional should be less than full Kelly EG
+        assert metrics.eg_frac_kelly < metrics.eg_full_kelly
+
+    def test_eg_flat_stake_calculation(self) -> None:
+        """EG Flat Stake calculated with flat stake / capital fraction."""
+        calc = MetricsCalculator()
+        df = pd.DataFrame({
+            "gain_pct": [0.05, 0.03, -0.02, 0.04, -0.01],
+        })
+        metrics, _, _ = calc.calculate(
+            df, "gain_pct", derived=True,
+            flat_stake=10000.0, start_capital=100000.0
+        )
+
+        assert metrics.eg_flat_stake is not None
+        # 10k/100k = 10% bet fraction
+
+    def test_all_eg_none_when_kelly_negative(self) -> None:
+        """All EG metrics are None when Kelly is negative."""
+        calc = MetricsCalculator()
+        df = pd.DataFrame({
+            "gain_pct": [0.02, -0.05, -0.04, -0.03, -0.06],  # Negative edge
+        })
+        metrics, _, _ = calc.calculate(
+            df, "gain_pct", derived=True,
+            flat_stake=10000.0, start_capital=100000.0
+        )
+
+        assert metrics.kelly is not None
+        assert metrics.kelly < 0
+        assert metrics.eg_full_kelly is None
+        assert metrics.eg_frac_kelly is None
+        # eg_flat_stake can still be calculated even with negative Kelly
+        # because flat stake doesn't depend on Kelly
 
     def test_median_winner_none_with_no_winners(self) -> None:
         """Median winner is None when no winners."""
@@ -418,7 +478,9 @@ class TestMetricsCalculatorExtended:
 
         assert metrics.edge is None
         assert metrics.fractional_kelly is None
-        assert metrics.expected_growth is None
+        assert metrics.eg_full_kelly is None
+        assert metrics.eg_frac_kelly is None
+        assert metrics.eg_flat_stake is None
         assert metrics.median_winner is None
         assert metrics.median_loser is None
         assert metrics.winner_min is None
