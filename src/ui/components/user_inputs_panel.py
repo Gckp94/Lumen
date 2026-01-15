@@ -92,7 +92,7 @@ class UserInputsPanel(QWidget):
         self._flat_stake_spin = self._create_spinbox(
             min_val=1.0,
             max_val=1_000_000.0,
-            default=1000.0,
+            default=10000.0,
             step=100.0,
             decimals=0,
             prefix="$ ",
@@ -103,7 +103,7 @@ class UserInputsPanel(QWidget):
         self._starting_capital_spin = self._create_spinbox(
             min_val=1.0,
             max_val=10_000_000.0,
-            default=10000.0,
+            default=100000.0,
             step=1000.0,
             decimals=0,
             prefix="$ ",
