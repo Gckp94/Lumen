@@ -97,8 +97,11 @@ class MetricsCalculator:
             return (TradingMetrics.empty(), None, None)
 
         # Apply adjustments if provided
+        # Track whether adjustments were applied (affects gains format)
+        adjustments_applied = False
         if adjustment_params is not None and mae_col is not None:
             gains = adjustment_params.calculate_adjusted_gains(df, gain_col, mae_col)
+            adjustments_applied = True
             logger.info(
                 "Applied adjustments: stop_loss=%.1f%%, efficiency=%.1f%% - "
                 "DIAGNOSTIC: adjusted gains min=%.6f, max=%.6f, mean=%.6f, "
@@ -310,9 +313,14 @@ class MetricsCalculator:
         if flat_stake is not None and num_trades > 0:
             equity_calculator = EquityCalculator()
             # Use adjusted gains for equity calculation (same as metrics)
-            # Create a copy with the adjusted gains to ensure consistency
+            # IMPORTANT: If adjustments were applied, gains are in decimal format (0.20 = 20%)
+            # but equity calculator expects percentage format (20 = 20%)
+            # So we multiply by 100 to convert decimal -> percentage ONLY when adjustments applied
             equity_df = df.copy()
-            equity_df["_adjusted_gains_for_equity"] = gains
+            if adjustments_applied:
+                equity_df["_adjusted_gains_for_equity"] = gains * 100
+            else:
+                equity_df["_adjusted_gains_for_equity"] = gains
             flat_stake_result = equity_calculator.calculate_flat_stake_metrics(
                 equity_df,
                 gain_col="_adjusted_gains_for_equity",
@@ -352,9 +360,14 @@ class MetricsCalculator:
 
         if start_capital is not None and num_trades > 0:
             # Use adjusted gains for Kelly calculation (same as metrics)
-            # Create equity_df with adjusted gains if not already created for flat stake
+            # IMPORTANT: If adjustments were applied, gains are in decimal format (0.20 = 20%)
+            # but equity calculator expects percentage format (20 = 20%)
+            # So we multiply by 100 to convert decimal -> percentage ONLY when adjustments applied
             kelly_equity_df = df.copy()
-            kelly_equity_df["_adjusted_gains_for_equity"] = gains
+            if adjustments_applied:
+                kelly_equity_df["_adjusted_gains_for_equity"] = gains * 100
+            else:
+                kelly_equity_df["_adjusted_gains_for_equity"] = gains
             equity_calculator = EquityCalculator()
             kelly_result = equity_calculator.calculate_kelly_metrics(
                 kelly_equity_df, "_adjusted_gains_for_equity", start_capital, fractional_kelly_pct, kelly, date_col=date_col
