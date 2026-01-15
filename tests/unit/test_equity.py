@@ -30,7 +30,10 @@ class TestEquityCalculatorFlatStake:
         """Basic equity curve calculation."""
         df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0]})
         calc = EquityCalculator()
-        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        result = calc.calculate_flat_stake(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         # Expected: 50 + 30 - 40 - 20 + 80 = 100
         assert result["equity"].iloc[-1] == pytest.approx(100.0, abs=0.01)
@@ -40,7 +43,10 @@ class TestEquityCalculatorFlatStake:
         """Empty DataFrame returns empty result."""
         df = pd.DataFrame({"gain_pct": []})
         calc = EquityCalculator()
-        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        result = calc.calculate_flat_stake(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
         assert len(result) == 0
         assert list(result.columns) == ["trade_num", "pnl", "equity", "peak", "drawdown"]
 
@@ -48,7 +54,10 @@ class TestEquityCalculatorFlatStake:
         """Single trade edge case."""
         df = pd.DataFrame({"gain_pct": [5.0]})
         calc = EquityCalculator()
-        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        result = calc.calculate_flat_stake(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         assert len(result) == 1
         assert result["pnl"].iloc[0] == pytest.approx(50.0, abs=0.01)
@@ -60,14 +69,20 @@ class TestEquityCalculatorFlatStake:
         """All winners means no drawdown."""
         df = pd.DataFrame({"gain_pct": [5.0, 3.0, 2.0, 4.0]})
         calc = EquityCalculator()
-        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        result = calc.calculate_flat_stake(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
         assert (result["drawdown"] == 0).all()
 
     def test_flat_stake_all_losers(self) -> None:
         """All losers - continuous drawdown."""
         df = pd.DataFrame({"gain_pct": [-3.0, -2.0, -5.0]})
         calc = EquityCalculator()
-        result = calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        result = calc.calculate_flat_stake(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         # With all losers: equity = -30, -50, -100
         # np.maximum.accumulate of negative values gives the "least negative"
@@ -82,7 +97,9 @@ class TestEquityCalculatorFlatStake:
         df = pd.DataFrame({"other_col": [5.0, 3.0]})
         calc = EquityCalculator()
         with pytest.raises(EquityCalculationError):
-            calc.calculate_flat_stake(df, gain_col="gain_pct", stake=1000.0)
+            calc.calculate_flat_stake(
+                df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+            )
 
 
 class TestDrawdownMetrics:
@@ -110,21 +127,27 @@ class TestDrawdownMetrics:
         """Max DD in dollars calculated correctly."""
         df = pd.DataFrame({"gain_pct": [5.0, -10.0, 3.0]})
         calc = EquityCalculator()
-        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        metrics = calc.calculate_flat_stake_metrics(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         # Peak at 50, drops to -50, max_dd = 100
         assert metrics["max_dd"] == pytest.approx(100.0, abs=0.01)
 
     def test_max_dd_pct_calculation(self) -> None:
-        """Max DD percentage calculation."""
+        """Max DD percentage calculation with start_capital=0."""
         # Use the sample data from the story
         df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0, -6.0, 4.0, 3.0]})
         calc = EquityCalculator()
-        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior for this specific test
+        metrics = calc.calculate_flat_stake_metrics(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         # Trade 4: $60 drawdown from $80 peak = 75%
         # Trade 6: $60 drawdown from $100 peak = 60%
-        # Max DD % should be 75% at trade 4
+        # Original expected value unchanged since start_capital=0
         assert metrics["max_dd_pct"] == pytest.approx(75.0, abs=0.01)
 
     def test_dd_duration_recovered(self) -> None:
@@ -135,7 +158,10 @@ class TestDrawdownMetrics:
         """
         df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0]})
         calc = EquityCalculator()
-        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        metrics = calc.calculate_flat_stake_metrics(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         # Peak of 80 at trade 2 (index 1), max DD at trade 4, recovered at trade 5
         # Duration = 4 - 1 = 3 trades (from peak to recovery)
@@ -146,7 +172,10 @@ class TestDrawdownMetrics:
         """'Not recovered' returned when drawdown ongoing."""
         df = pd.DataFrame({"gain_pct": [5.0, -10.0, 3.0]})
         calc = EquityCalculator()
-        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        metrics = calc.calculate_flat_stake_metrics(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         # Peak at 50, never returns to 50
         assert metrics["dd_duration"] == "Not recovered"
@@ -155,7 +184,10 @@ class TestDrawdownMetrics:
         """All None when equity only increases."""
         df = pd.DataFrame({"gain_pct": [5.0, 3.0, 2.0, 4.0]})
         calc = EquityCalculator()
-        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        metrics = calc.calculate_flat_stake_metrics(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         assert metrics["max_dd"] is None
         assert metrics["max_dd_pct"] is None
@@ -165,7 +197,10 @@ class TestDrawdownMetrics:
         """Zero peak edge case returns None for max_dd_pct."""
         df = pd.DataFrame({"gain_pct": [-5.0, -3.0]})  # Equity never positive
         calc = EquityCalculator()
-        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        metrics = calc.calculate_flat_stake_metrics(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         # Peak is 0, cannot calculate percentage
         assert metrics["max_dd_pct"] is None
@@ -174,7 +209,10 @@ class TestDrawdownMetrics:
         """Empty DataFrame returns None for all metrics."""
         df = pd.DataFrame({"gain_pct": []})
         calc = EquityCalculator()
-        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        metrics = calc.calculate_flat_stake_metrics(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         assert metrics["pnl"] is None
         assert metrics["max_dd"] is None
@@ -185,7 +223,10 @@ class TestDrawdownMetrics:
         """Total PnL calculated correctly."""
         df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0, -6.0, 4.0, 3.0]})
         calc = EquityCalculator()
-        metrics = calc.calculate_flat_stake_metrics(df, gain_col="gain_pct", stake=1000.0)
+        # Use start_capital=0 to maintain original behavior
+        metrics = calc.calculate_flat_stake_metrics(
+            df, gain_col="gain_pct", stake=1000.0, start_capital=0.0
+        )
 
         # Expected final equity: 50 + 30 - 40 - 20 + 80 - 60 + 40 + 30 = 110
         assert metrics["pnl"] == pytest.approx(110.0, abs=0.01)
@@ -322,7 +363,10 @@ class TestFlatStakeDateColumn:
         })
 
         calculator = EquityCalculator()
-        result = calculator.calculate_flat_stake(df, "gain_pct", stake=1000, date_col="date")
+        # Use start_capital=0 to maintain original behavior
+        result = calculator.calculate_flat_stake(
+            df, "gain_pct", stake=1000, date_col="date", start_capital=0.0
+        )
 
         assert "date" in result.columns
         assert len(result["date"]) == 3
