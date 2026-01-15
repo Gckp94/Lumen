@@ -57,6 +57,10 @@ class ComparisonGridHorizontal(QFrame):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
+        # Set minimum height based on tallest section
+        # Core Statistics: 14 rows × 26px + ~56px headers ≈ 420px
+        self.setMinimumHeight(350)
+
         # Horizontal scroll area for sections
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
