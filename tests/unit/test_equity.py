@@ -88,6 +88,24 @@ class TestEquityCalculatorFlatStake:
 class TestDrawdownMetrics:
     """Tests for drawdown metric calculations."""
 
+    def test_flat_stake_metrics_dd_pct_with_starting_capital(self) -> None:
+        """Max DD % is calculated relative to equity (including starting capital)."""
+        # Scenario: $100k capital, $10k stake
+        # Trade 1: +10% = +$1000 -> equity = $101,000
+        # Trade 2: -30% = -$3000 -> equity = $98,000
+        # DD from peak ($101k) = $3000 = 2.97% of $101k
+        df = pd.DataFrame({"gain_pct": [10.0, -30.0]})
+        calc = EquityCalculator()
+
+        metrics = calc.calculate_flat_stake_metrics(
+            df, gain_col="gain_pct", stake=10000.0, start_capital=100000.0
+        )
+
+        # Max DD should be $3000
+        assert metrics["max_dd"] == pytest.approx(3000.0, abs=0.01)
+        # Max DD % should be ~2.97% (3000/101000 * 100)
+        assert metrics["max_dd_pct"] == pytest.approx(2.97, abs=0.1)
+
     def test_max_dd_dollars(self) -> None:
         """Max DD in dollars calculated correctly."""
         df = pd.DataFrame({"gain_pct": [5.0, -10.0, 3.0]})

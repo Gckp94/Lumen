@@ -170,6 +170,7 @@ class EquityCalculator:
         df: pd.DataFrame,
         gain_col: str,
         stake: float,
+        start_capital: float = 0.0,
         date_col: str | None = None,
     ) -> dict[str, float | int | str | pd.DataFrame | None]:
         """Calculate all flat stake metrics.
@@ -178,13 +179,14 @@ class EquityCalculator:
             df: DataFrame containing trade data
             gain_col: Column name containing gain percentages
             stake: Fixed stake amount in dollars
+            start_capital: Starting capital in dollars (default 0.0 for backward compatibility)
             date_col: Optional date column name to include in equity curve
 
         Returns:
             Dict with keys: pnl, max_dd, max_dd_pct, dd_duration, equity_curve
         """
         # Calculate equity curve
-        equity_df = self.calculate_flat_stake(df, gain_col, stake, date_col=date_col)
+        equity_df = self.calculate_flat_stake(df, gain_col, stake, start_capital, date_col=date_col)
 
         if equity_df.empty:
             return {
