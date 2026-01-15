@@ -5,6 +5,7 @@ from src.ui.components.axis_mode_toggle import AxisMode, AxisModeToggle
 from src.ui.components.calculation_status import CalculationStatusIndicator
 from src.ui.components.chart_canvas import ChartCanvas
 from src.ui.components.comparison_grid import ComparisonGrid
+from src.ui.components.comparison_grid_horizontal import ComparisonGridHorizontal
 from src.ui.components.comparison_ribbon import ComparisonRibbon
 from src.ui.components.date_range_filter import DateRangeFilter
 from src.ui.components.distribution_card import DistributionCard
@@ -17,6 +18,7 @@ from src.ui.components.filter_panel import FilterPanel
 from src.ui.components.filter_row import FilterRow
 from src.ui.components.metric_card import MetricCard
 from src.ui.components.metrics_grid import MetricsGrid
+from src.ui.components.metrics_section_card import MetricsSectionCard
 from src.ui.components.no_scroll_widgets import (
     NoScrollComboBox,
     NoScrollDoubleSpinBox,
@@ -34,6 +36,7 @@ __all__ = [
     "CalculationStatusIndicator",
     "ChartCanvas",
     "ComparisonGrid",
+    "ComparisonGridHorizontal",
     "ComparisonRibbon",
     "DateRangeFilter",
     "TimeRangeFilter",
@@ -48,6 +51,7 @@ __all__ = [
     "HistogramDialog",
     "MetricCard",
     "MetricsGrid",
+    "MetricsSectionCard",
     "NoScrollComboBox",
     "NoScrollDoubleSpinBox",
     "NoScrollSpinBox",
