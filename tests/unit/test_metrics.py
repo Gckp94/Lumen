@@ -366,6 +366,21 @@ class TestMetricsCalculatorExtended:
 
         assert metrics.expected_growth is None
 
+    def test_expected_growth_none_when_kelly_negative(self) -> None:
+        """Expected growth is None when Kelly is negative (no edge)."""
+        calc = MetricsCalculator()
+        # Create data with more losers than winners -> negative Kelly
+        df = pd.DataFrame({
+            "gain_pct": [0.02, -0.05, -0.04, -0.03, -0.06],  # 1 win, 4 losses
+        })
+        metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
+
+        # Kelly should be negative with 20% win rate and poor R:R
+        assert metrics.kelly is not None
+        assert metrics.kelly < 0
+        # Expected growth should be None when Kelly is negative
+        assert metrics.expected_growth is None
+
     def test_expected_growth_none_with_single_trade(self) -> None:
         """Expected growth is None with single trade (can't calculate variance)."""
         calc = MetricsCalculator()

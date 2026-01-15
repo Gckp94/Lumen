@@ -222,8 +222,10 @@ class MetricsCalculator:
 
         # Expected Growth (EG) = f * m - (f² * σ²) / 2
         # where f = Kelly fraction (decimal), m = EV, σ² = combined variance
+        # Only valid when Kelly > 0 (positive edge). Negative Kelly produces
+        # mathematically valid but conceptually meaningless results.
         expected_growth: float | None = None
-        if kelly is not None and ev is not None:
+        if kelly is not None and ev is not None and kelly > 0:
             all_gains = winner_gains + loser_gains
             if len(all_gains) >= 2:
                 var_result = pd.Series(all_gains).var()
