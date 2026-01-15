@@ -301,8 +301,8 @@ class MetricsUserInputs:
         fractional_kelly: Fractional Kelly percentage (e.g., 25 = 25%).
     """
 
-    flat_stake: float = 1000.0
-    starting_capital: float = 10000.0
+    flat_stake: float = 10000.0
+    starting_capital: float = 100000.0
     fractional_kelly: float = 25.0
 
     def validate(self) -> list[str]:
@@ -339,8 +339,8 @@ class MetricsUserInputs:
             New MetricsUserInputs instance.
         """
         return cls(
-            flat_stake=data.get("flat_stake", 1000.0),
-            starting_capital=data.get("starting_capital", 10000.0),
+            flat_stake=data.get("flat_stake", 10000.0),
+            starting_capital=data.get("starting_capital", 100000.0),
             fractional_kelly=data.get("fractional_kelly", 25.0),
         )
 

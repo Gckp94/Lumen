@@ -1566,8 +1566,8 @@ class DataInputTab(QWidget):
         metrics_inputs = (
             self._app_state.metrics_user_inputs if self._app_state else None
         )
-        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 1000.0
-        start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
+        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 10000.0
+        start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
 
         # Filter to first triggers only for baseline metrics calculation
         # baseline_df retains all triggers for storage; metrics use first triggers only
@@ -1706,8 +1706,8 @@ class DataInputTab(QWidget):
 
         # Get flat stake and start capital from AppState or use defaults
         metrics_inputs = self._app_state.metrics_user_inputs
-        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 1000.0
-        start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
+        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 10000.0
+        start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
 
         # Filter to first triggers only for baseline metrics recalculation
         first_triggers_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
