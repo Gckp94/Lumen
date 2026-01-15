@@ -298,7 +298,7 @@ class TestMetricsExportIntegration:
         )
 
         result = pd.read_csv(path, comment="#")
-        assert len(result) == 25  # All 25 metrics
+        assert len(result) == 27  # All 27 metrics
 
         # Check that filtered column has values (not all "-")
         trades_row = result[result["Metric"] == "Trades"]
@@ -314,7 +314,7 @@ class TestMetricsExportIntegration:
         exporter.metrics_to_csv(sample_baseline_metrics, None, path)
 
         result = pd.read_csv(path, comment="#")
-        assert len(result) == 25
+        assert len(result) == 27
 
         # All filtered/delta columns should be "-"
         assert all(result["Filtered"] == "-")

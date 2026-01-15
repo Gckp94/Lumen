@@ -285,14 +285,14 @@ class TestExportManagerMetricsCSV:
     def test_metrics_csv_has_all_metrics(
         self, sample_baseline_metrics, tmp_path: Path
     ) -> None:
-        """Metrics CSV includes all 25 metrics."""
+        """Metrics CSV includes all 27 metrics."""
         exporter = ExportManager()
         path = tmp_path / "metrics.csv"
         exporter.metrics_to_csv(sample_baseline_metrics, None, path)
 
         result = pd.read_csv(path, comment="#")
-        # Should have 25 metrics
-        assert len(result) == 25
+        # Should have 27 metrics
+        assert len(result) == 27
 
     def test_metrics_csv_columns(
         self, sample_baseline_metrics, tmp_path: Path
