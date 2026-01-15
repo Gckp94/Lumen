@@ -309,9 +309,13 @@ class MetricsCalculator:
 
         if flat_stake is not None and num_trades > 0:
             equity_calculator = EquityCalculator()
+            # Use adjusted gains for equity calculation (same as metrics)
+            # Create a copy with the adjusted gains to ensure consistency
+            equity_df = df.copy()
+            equity_df["_adjusted_gains_for_equity"] = gains
             flat_stake_result = equity_calculator.calculate_flat_stake_metrics(
-                df,
-                gain_col=gain_col,
+                equity_df,
+                gain_col="_adjusted_gains_for_equity",
                 stake=flat_stake,
                 start_capital=start_capital if start_capital else 0.0,
                 date_col=date_col,
@@ -347,9 +351,13 @@ class MetricsCalculator:
         kelly_equity_curve: pd.DataFrame | None = None
 
         if start_capital is not None and num_trades > 0:
+            # Use adjusted gains for Kelly calculation (same as metrics)
+            # Create equity_df with adjusted gains if not already created for flat stake
+            kelly_equity_df = df.copy()
+            kelly_equity_df["_adjusted_gains_for_equity"] = gains
             equity_calculator = EquityCalculator()
             kelly_result = equity_calculator.calculate_kelly_metrics(
-                df, gain_col, start_capital, fractional_kelly_pct, kelly, date_col=date_col
+                kelly_equity_df, "_adjusted_gains_for_equity", start_capital, fractional_kelly_pct, kelly, date_col=date_col
             )
             pnl_val = kelly_result["pnl"]
             if isinstance(pnl_val, (int, float)):
