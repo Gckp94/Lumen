@@ -17,7 +17,9 @@ METRIC_TOOLTIPS = {
     "Edge": "Total expected edge (EV × Trades)",
     "Kelly %": "Kelly criterion optimal bet fraction",
     "Frac Kelly %": "Fractional Kelly based on user input",
-    "Expected Growth": "Expected geometric growth rate",
+    "EG Full Kelly": "Expected growth at full Kelly fraction",
+    "EG Frac Kelly": "Expected growth at fractional Kelly",
+    "EG Flat Stake": "Expected growth at flat stake fraction",
     "Median Winner": "Median gain of winning trades",
     "Median Loser": "Median loss of losing trades",
     "Max Win Streak": "Maximum consecutive winning trades",
@@ -46,7 +48,9 @@ METRIC_CONFIG = [
     ("Edge", "edge", ".2f"),
     ("Kelly %", "kelly", ".2f"),
     ("Frac Kelly %", "fractional_kelly", ".2f"),
-    ("Expected Growth", "expected_growth", ".2f"),
+    ("EG Full Kelly", "eg_full_kelly", ".2f"),
+    ("EG Frac Kelly", "eg_frac_kelly", ".2f"),
+    ("EG Flat Stake", "eg_flat_stake", ".2f"),
     ("Median Winner", "median_winner", ".2f"),
     ("Median Loser", "median_loser", ".2f"),
     # Streak & Loss (Story 3.3 - metrics 13-15)
@@ -110,8 +114,8 @@ class MetricsGrid(QWidget):
         for col in range(3):
             layout.setColumnStretch(col, 1)
 
-        # Add stretch at the bottom to push cards up (row 8 after 23 metrics in 8 rows)
-        layout.setRowStretch(8, 1)
+        # Add stretch at the bottom to push cards up (row 9 after 25 metrics in 9 rows)
+        layout.setRowStretch(9, 1)
 
     def update_metrics(self, metrics: TradingMetrics) -> None:
         """Update all cards with new metrics values.

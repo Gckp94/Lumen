@@ -16,11 +16,11 @@ class TestMetricsGridCreation:
         qtbot.addWidget(grid)
         assert grid is not None
 
-    def test_metrics_grid_has_23_cards(self, qtbot) -> None:
-        """Grid displays all 23 metrics (15 core + 4 flat stake + 4 Kelly)."""
+    def test_metrics_grid_has_25_cards(self, qtbot) -> None:
+        """Grid displays all 25 metrics (17 core + 4 flat stake + 4 Kelly)."""
         grid = MetricsGrid()
         qtbot.addWidget(grid)
-        assert len(grid._cards) == 23
+        assert len(grid._cards) == 25
 
     def test_metrics_grid_has_all_metric_fields(self, qtbot) -> None:
         """Grid has cards for all metric fields."""
@@ -37,7 +37,9 @@ class TestMetricsGridCreation:
             "edge",
             "kelly",
             "fractional_kelly",
-            "expected_growth",
+            "eg_full_kelly",
+            "eg_frac_kelly",
+            "eg_flat_stake",
             "median_winner",
             "median_loser",
             "max_consecutive_wins",
@@ -105,7 +107,9 @@ class TestMetricsGridUpdate:
             loser_gains=[-4.0, -3.0, -5.0],
             edge=300.0,
             fractional_kelly=7.5,
-            expected_growth=0.5,
+            eg_full_kelly=0.5,
+            eg_frac_kelly=0.3,
+            eg_flat_stake=0.1,
             median_winner=10.0,
             median_loser=-4.0,
             winner_min=5.0,
@@ -172,7 +176,9 @@ class TestMetricsGridColorCoding:
             kelly=30.0,
             edge=300.0,
             fractional_kelly=7.5,
-            expected_growth=0.5,
+            eg_full_kelly=0.5,
+            eg_frac_kelly=0.3,
+            eg_flat_stake=0.1,
             median_winner=10.0,
             median_loser=-4.0,
         )
@@ -224,16 +230,16 @@ class TestMetricsGridColorCoding:
 class TestMetricsGridLayout:
     """Tests for MetricsGrid layout."""
 
-    def test_grid_has_8_rows_3_columns(self, qtbot) -> None:
-        """Grid has 8 rows and 3 columns (23 metrics)."""
+    def test_grid_has_9_rows_3_columns(self, qtbot) -> None:
+        """Grid has 9 rows and 3 columns (25 metrics)."""
         grid = MetricsGrid()
         qtbot.addWidget(grid)
 
         layout = grid.layout()
         assert layout is not None
 
-        # 23 items in 3 columns = 8 rows
-        assert layout.count() == 23
+        # 25 items in 3 columns = 9 rows
+        assert layout.count() == 25
 
 
 
