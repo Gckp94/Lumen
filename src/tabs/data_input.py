@@ -1569,9 +1569,13 @@ class DataInputTab(QWidget):
         flat_stake = metrics_inputs.flat_stake if metrics_inputs else 1000.0
         start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
 
+        # Filter to first triggers only for baseline metrics calculation
+        # baseline_df retains all triggers for storage; metrics use first triggers only
+        first_triggers_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
+
         # Calculate metrics WITH adjustment params (3-tuple: metrics, flat_equity, kelly_equity)
         metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
-            df=baseline_df,
+            df=first_triggers_df,
             gain_col=mapping.gain_pct,
             win_loss_col=mapping.win_loss,
             derived=mapping.win_loss_derived,
@@ -1700,9 +1704,12 @@ class DataInputTab(QWidget):
         flat_stake = metrics_inputs.flat_stake if metrics_inputs else 1000.0
         start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
 
+        # Filter to first triggers only for baseline metrics recalculation
+        first_triggers_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
+
         # Recalculate baseline metrics with adjustment params (3-tuple)
         metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
-            df=baseline_df,
+            df=first_triggers_df,
             gain_col=mapping.gain_pct,
             win_loss_col=mapping.win_loss,
             derived=mapping.win_loss_derived,
