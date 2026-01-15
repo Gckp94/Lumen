@@ -88,7 +88,7 @@ METRIC_CONFIG: dict[str, tuple[str, str | None, str, str]] = {
     "edge": ("Edge", ".2f", "pp", "higher"),
     "kelly": ("Kelly %", ".2f", "pp", "higher"),
     "fractional_kelly": ("Frac Kelly %", ".2f", "pp", "higher"),
-    "expected_growth": ("Expected Growth", ".4f", "pp", "higher"),
+    "expected_growth": ("Expected Growth", ".2f", "pp", "higher"),
     "median_winner": ("Median Winner", ".2f", "pp", "higher"),
     "median_loser": ("Median Loser", ".2f", "pp", "higher"),  # Less negative is better
     # Streak & Loss

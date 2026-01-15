@@ -46,7 +46,7 @@ METRIC_CONFIG = [
     ("Edge", "edge", ".2f"),
     ("Kelly %", "kelly", ".2f"),
     ("Frac Kelly %", "fractional_kelly", ".2f"),
-    ("Expected Growth", "expected_growth", ".4f"),
+    ("Expected Growth", "expected_growth", ".2f"),
     ("Median Winner", "median_winner", ".2f"),
     ("Median Loser", "median_loser", ".2f"),
     # Streak & Loss (Story 3.3 - metrics 13-15)
