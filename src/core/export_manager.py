@@ -206,27 +206,29 @@ class ExportManager:
             ("R:R Ratio", "rr_ratio", "ratio"),
             ("EV", "ev", "pct"),
             ("Kelly", "kelly", "pct"),
-            # Extended Core (8-12)
+            # Extended Core (8-14)
             ("Edge", "edge", "pct"),
             ("Fractional Kelly", "fractional_kelly", "pct"),
-            ("Expected Growth", "expected_growth", "pct"),
+            ("EG Full Kelly", "eg_full_kelly", "pct"),
+            ("EG Frac Kelly", "eg_frac_kelly", "pct"),
+            ("EG Flat Stake", "eg_flat_stake", "pct"),
             ("Median Winner", "median_winner", "pct"),
             ("Median Loser", "median_loser", "pct"),
-            # Streak & Loss (13-15)
+            # Streak & Loss (15-17)
             ("Max Consecutive Wins", "max_consecutive_wins", "count"),
             ("Max Consecutive Losses", "max_consecutive_losses", "count"),
             ("Max Loss %", "max_loss_pct", "pct"),
-            # Flat Stake (16-19)
+            # Flat Stake (18-21)
             ("Flat Stake PnL", "flat_stake_pnl", "dollar"),
             ("Flat Stake Max DD", "flat_stake_max_dd", "dollar"),
             ("Flat Stake Max DD %", "flat_stake_max_dd_pct", "pct"),
             ("Flat Stake DD Duration", "flat_stake_dd_duration", "duration"),
-            # Kelly (20-23)
+            # Kelly (22-25)
             ("Kelly PnL", "kelly_pnl", "dollar"),
             ("Kelly Max DD", "kelly_max_dd", "dollar"),
             ("Kelly Max DD %", "kelly_max_dd_pct", "pct"),
             ("Kelly DD Duration", "kelly_dd_duration", "duration"),
-            # Distribution (24-25)
+            # Distribution (26-27)
             ("Winner Count", "winner_count", "count"),
             ("Loser Count", "loser_count", "count"),
         ]
