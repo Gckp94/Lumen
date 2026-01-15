@@ -71,20 +71,14 @@ class ComparisonGridHorizontal(QFrame):
         self._cards_layout.setContentsMargins(0, 0, 0, 0)
         self._cards_layout.setSpacing(Spacing.SM)
 
-        # Proportional stretch factors per section:
-        # - Core Statistics: largest (14 metrics) - gets most space
-        # - Streak & Loss: smallest (3 metrics) - 60% relative
-        # - Flat Stake: medium (4 metrics) - 80% relative
-        # - Compounded Kelly: medium (4 metrics) - 80% relative
-        section_stretch = {
-            "core_statistics": 5,   # Largest - takes remaining space
-            "streak_loss": 3,       # 60% relative
-            "flat_stake": 4,        # 80% relative
-            "kelly": 4,             # 80% relative
+        # Section configuration: (stretch, col_width_name, col_width_value, col_spacing)
+        # Streak & Loss uses narrower columns and tighter spacing
+        section_config = {
+            "core_statistics": (5, 130, 120, Spacing.XS),  # Full width
+            "streak_loss": (2, 100, 80, 2),                # Narrower columns, tighter spacing
+            "flat_stake": (4, 130, 120, Spacing.XS),       # Full width
+            "kelly": (4, 130, 120, Spacing.XS),            # Full width
         }
-
-        # Minimum content width: name(130) + values(120×3) + tight padding ≈ 500px
-        MIN_CARD_WIDTH = 500
 
         # Create section cards
         for section_id, title, metrics in SECTIONS:
@@ -95,14 +89,22 @@ class ComparisonGridHorizontal(QFrame):
                 display_label = config[0] if config else field_name
                 metric_tuples.append((field_name, display_label))
 
-            # Create the section card
-            card = MetricsSectionCard(title, metric_tuples)
-            card.setMinimumWidth(MIN_CARD_WIDTH)
+            # Get section configuration
+            stretch, col_name, col_value, col_spacing = section_config.get(
+                section_id, (1, 130, 120, Spacing.XS)
+            )
+
+            # Create the section card with custom column widths
+            card = MetricsSectionCard(
+                title,
+                metric_tuples,
+                col_width_name=col_name,
+                col_width_value=col_value,
+                col_spacing=col_spacing,
+            )
 
             # Apply proportional stretch factor
-            stretch = section_stretch.get(section_id, 1)
             self._cards_layout.addWidget(card, stretch=stretch)
-
             self._section_cards[section_id] = card
 
         scroll_area.setWidget(scroll_content)

@@ -32,18 +32,30 @@ class _MetricRow(QFrame):
     """Single row displaying metric name, baseline, filtered, and delta values."""
 
     def __init__(
-        self, field_name: str, display_label: str, parent: QWidget | None = None
+        self,
+        field_name: str,
+        display_label: str,
+        col_width_name: int = COL_WIDTH_NAME,
+        col_width_value: int = COL_WIDTH_VALUE,
+        col_spacing: int = Spacing.XS,
+        parent: QWidget | None = None,
     ) -> None:
         """Initialize metric row.
 
         Args:
             field_name: Name of the metric field (e.g., "num_trades").
             display_label: Display label for the metric (e.g., "Trades").
+            col_width_name: Width of the metric name column.
+            col_width_value: Width of each value column.
+            col_spacing: Spacing between columns.
             parent: Optional parent widget.
         """
         super().__init__(parent)
         self._field_name = field_name
         self._display_label = display_label
+        self._col_width_name = col_width_name
+        self._col_width_value = col_width_value
+        self._col_spacing = col_spacing
         self._setup_ui()
         self._apply_style()
         self.clear()
@@ -53,33 +65,33 @@ class _MetricRow(QFrame):
         self.setFixedHeight(26)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(Spacing.XS, 2, Spacing.XS, 2)
-        layout.setSpacing(Spacing.XS)
+        layout.setContentsMargins(self._col_spacing, 2, self._col_spacing, 2)
+        layout.setSpacing(self._col_spacing)
 
         # Column 1: Metric name (left-aligned)
         self._name_label = QLabel(self._display_label)
         self._name_label.setObjectName("metricName")
-        self._name_label.setFixedWidth(COL_WIDTH_NAME)
+        self._name_label.setFixedWidth(self._col_width_name)
         layout.addWidget(self._name_label)
 
         # Column 2: Baseline value (right-aligned)
         self._baseline_label = QLabel("—")
         self._baseline_label.setObjectName("baselineValue")
-        self._baseline_label.setFixedWidth(COL_WIDTH_VALUE)
-        self._baseline_label.setMinimumWidth(COL_WIDTH_VALUE)
+        self._baseline_label.setFixedWidth(self._col_width_value)
+        self._baseline_label.setMinimumWidth(self._col_width_value)
         layout.addWidget(self._baseline_label)
 
         # Column 3: Filtered value (right-aligned)
         self._filtered_label = QLabel("—")
         self._filtered_label.setObjectName("filteredValue")
-        self._filtered_label.setFixedWidth(COL_WIDTH_VALUE)
-        self._filtered_label.setMinimumWidth(COL_WIDTH_VALUE)
+        self._filtered_label.setFixedWidth(self._col_width_value)
+        self._filtered_label.setMinimumWidth(self._col_width_value)
         layout.addWidget(self._filtered_label)
 
         # Column 4: Delta value with arrow + color (right-aligned)
         self._delta_label = QLabel("—")
         self._delta_label.setObjectName("deltaValue")
-        self._delta_label.setFixedWidth(COL_WIDTH_VALUE)
+        self._delta_label.setFixedWidth(self._col_width_value)
         layout.addWidget(self._delta_label)
 
         layout.addStretch()
@@ -186,6 +198,9 @@ class MetricsSectionCard(QFrame):
         self,
         title: str,
         metrics: list[tuple[str, str]],
+        col_width_name: int = COL_WIDTH_NAME,
+        col_width_value: int = COL_WIDTH_VALUE,
+        col_spacing: int = Spacing.XS,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize MetricsSectionCard.
@@ -193,11 +208,17 @@ class MetricsSectionCard(QFrame):
         Args:
             title: Section title (e.g., "Core Statistics").
             metrics: List of (field_name, display_label) tuples.
+            col_width_name: Width of the metric name column.
+            col_width_value: Width of each value column.
+            col_spacing: Spacing between columns.
             parent: Optional parent widget.
         """
         super().__init__(parent)
         self._title = title
         self._metrics = metrics
+        self._col_width_name = col_width_name
+        self._col_width_value = col_width_value
+        self._col_spacing = col_spacing
         self._rows: dict[str, _MetricRow] = {}
         self._setup_ui()
         self._apply_style()
@@ -228,31 +249,31 @@ class MetricsSectionCard(QFrame):
         col_header = QFrame()
         col_header.setFixedHeight(22)
         col_header_layout = QHBoxLayout(col_header)
-        col_header_layout.setContentsMargins(Spacing.XS, 0, Spacing.XS, 0)
-        col_header_layout.setSpacing(Spacing.XS)
+        col_header_layout.setContentsMargins(self._col_spacing, 0, self._col_spacing, 0)
+        col_header_layout.setSpacing(self._col_spacing)
 
         # Metric column header
         metric_header = QLabel("Metric")
         metric_header.setObjectName("columnHeader")
-        metric_header.setFixedWidth(COL_WIDTH_NAME)
+        metric_header.setFixedWidth(self._col_width_name)
         col_header_layout.addWidget(metric_header)
 
         # Baseline column header
         baseline_header = QLabel("Baseline")
         baseline_header.setObjectName("columnHeader")
-        baseline_header.setFixedWidth(COL_WIDTH_VALUE)
+        baseline_header.setFixedWidth(self._col_width_value)
         col_header_layout.addWidget(baseline_header)
 
         # Filtered column header
         filtered_header = QLabel("Filtered")
         filtered_header.setObjectName("columnHeader")
-        filtered_header.setFixedWidth(COL_WIDTH_VALUE)
+        filtered_header.setFixedWidth(self._col_width_value)
         col_header_layout.addWidget(filtered_header)
 
         # Delta column header
         delta_header = QLabel("Delta")
         delta_header.setObjectName("columnHeader")
-        delta_header.setFixedWidth(COL_WIDTH_VALUE)
+        delta_header.setFixedWidth(self._col_width_value)
         col_header_layout.addWidget(delta_header)
 
         col_header_layout.addStretch()
@@ -270,7 +291,13 @@ class MetricsSectionCard(QFrame):
 
         # Create rows for each metric
         for field_name, display_label in self._metrics:
-            row = _MetricRow(field_name, display_label)
+            row = _MetricRow(
+                field_name,
+                display_label,
+                col_width_name=self._col_width_name,
+                col_width_value=self._col_width_value,
+                col_spacing=self._col_spacing,
+            )
             scroll_layout.addWidget(row)
             self._rows[field_name] = row
 
