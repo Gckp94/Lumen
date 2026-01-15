@@ -39,7 +39,9 @@ def _create_test_metrics(
         kelly=kelly,
         edge=250.0,
         fractional_kelly=3.0,
-        expected_growth=0.5,
+        eg_full_kelly=0.5,
+        eg_frac_kelly=0.4,
+        eg_flat_stake=0.3,
         median_winner=4.5,
         median_loser=-1.8,
         max_consecutive_wins=5,
@@ -79,16 +81,16 @@ class TestComparisonGridSections:
             assert header.isVisible()
 
     def test_each_section_contains_correct_metrics(self, qtbot: QtBot) -> None:
-        """Each section contains correct number of metrics (12 + 3 + 4 + 4 = 23)."""
+        """Each section contains correct number of metrics (14 + 3 + 4 + 4 = 25)."""
         grid = ComparisonGrid()
         qtbot.addWidget(grid)
 
         # Verify total metrics
-        assert len(grid._rows) == 23
+        assert len(grid._rows) == 25
 
         # Verify section breakdown
         expected_counts = {
-            "core_statistics": 12,
+            "core_statistics": 14,
             "streak_loss": 3,
             "flat_stake": 4,
             "kelly": 4,
