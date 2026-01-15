@@ -142,6 +142,14 @@ def _format_value(
             return f"{value} days"
         return str(value)  # "Not recovered" or "Blown"
 
+    # Cap Max DD % at 100% for display (account is bust beyond 100%)
+    if (
+        field_name in ("flat_stake_max_dd_pct", "kelly_max_dd_pct")
+        and isinstance(value, (int, float))
+        and value > 100
+    ):
+        return ">100%"
+
     if format_spec is None:
         return str(value)
 
