@@ -83,8 +83,8 @@ class ComparisonGridHorizontal(QFrame):
             "kelly": 4,             # 80% relative
         }
 
-        # Minimum content width: name(130) + values(120×3) + padding ≈ 520px
-        MIN_CARD_WIDTH = 520
+        # Minimum content width: name(130) + values(120×3) + tight padding ≈ 500px
+        MIN_CARD_WIDTH = 500
 
         # Create section cards
         for section_id, title, metrics in SECTIONS:

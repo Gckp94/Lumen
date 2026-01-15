@@ -53,8 +53,8 @@ class _MetricRow(QFrame):
         self.setFixedHeight(26)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(Spacing.SM, 2, Spacing.SM, 2)
-        layout.setSpacing(Spacing.SM)
+        layout.setContentsMargins(Spacing.XS, 2, Spacing.XS, 2)
+        layout.setSpacing(Spacing.XS)
 
         # Column 1: Metric name (left-aligned)
         self._name_label = QLabel(self._display_label)
@@ -228,8 +228,8 @@ class MetricsSectionCard(QFrame):
         col_header = QFrame()
         col_header.setFixedHeight(22)
         col_header_layout = QHBoxLayout(col_header)
-        col_header_layout.setContentsMargins(Spacing.SM, 0, Spacing.SM, 0)
-        col_header_layout.setSpacing(Spacing.SM)
+        col_header_layout.setContentsMargins(Spacing.XS, 0, Spacing.XS, 0)
+        col_header_layout.setSpacing(Spacing.XS)
 
         # Metric column header
         metric_header = QLabel("Metric")
