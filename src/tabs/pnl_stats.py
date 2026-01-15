@@ -916,6 +916,11 @@ class PnLStatsTab(QWidget):
         # Filter to first triggers only for baseline metrics calculation
         # baseline_df retains all triggers for storage; metrics use first triggers only
         first_triggers_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
+        logger.info(
+            "pnl_stats._recalculate_metrics: Using %d first triggers (from %d total rows)",
+            len(first_triggers_df),
+            len(baseline_df),
+        )
 
         # Recalculate baseline metrics (returns 3-tuple: metrics, flat_equity, kelly_equity)
         metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(

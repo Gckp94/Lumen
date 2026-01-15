@@ -1572,6 +1572,11 @@ class DataInputTab(QWidget):
         # Filter to first triggers only for baseline metrics calculation
         # baseline_df retains all triggers for storage; metrics use first triggers only
         first_triggers_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
+        logger.info(
+            "data_input._handle_load_click: Using %d first triggers (from %d total rows)",
+            len(first_triggers_df),
+            len(baseline_df),
+        )
 
         # Calculate metrics WITH adjustment params (3-tuple: metrics, flat_equity, kelly_equity)
         metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
@@ -1706,6 +1711,11 @@ class DataInputTab(QWidget):
 
         # Filter to first triggers only for baseline metrics recalculation
         first_triggers_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
+        logger.info(
+            "data_input._recalculate_metrics: Using %d first triggers (from %d total rows)",
+            len(first_triggers_df),
+            len(baseline_df),
+        )
 
         # Recalculate baseline metrics with adjustment params (3-tuple)
         metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
