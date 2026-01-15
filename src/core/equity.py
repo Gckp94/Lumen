@@ -26,6 +26,7 @@ class EquityCalculator:
         df: pd.DataFrame,
         gain_col: str,
         stake: float,
+        start_capital: float = 0.0,
         date_col: str | None = None,
     ) -> pd.DataFrame:
         """Calculate flat stake equity curve.
@@ -34,6 +35,7 @@ class EquityCalculator:
             df: DataFrame containing trade data
             gain_col: Column name containing gain percentages (e.g., 5.0 = 5%)
             stake: Fixed stake amount in dollars
+            start_capital: Starting capital in dollars (default 0.0 for backward compatibility)
 
         Returns:
             DataFrame with columns: trade_num, pnl, equity, peak, drawdown
@@ -53,11 +55,14 @@ class EquityCalculator:
             # Calculate PnL for each trade
             pnl: np.ndarray = stake * (gains / 100.0)
 
-            # Calculate equity curve
-            equity = np.cumsum(pnl)
+            # Calculate equity curve (including starting capital)
+            equity = start_capital + np.cumsum(pnl)
 
-            # Calculate running peak
+            # Calculate running peak (starting from start_capital)
             peak = np.maximum.accumulate(equity)
+            # Ensure peak is at least start_capital for the first trade
+            if start_capital > 0 and len(peak) > 0:
+                peak = np.maximum(peak, start_capital)
 
             # Calculate drawdown (always <= 0)
             drawdown = equity - peak

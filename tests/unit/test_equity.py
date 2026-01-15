@@ -10,6 +10,22 @@ from src.core.exceptions import EquityCalculationError
 class TestEquityCalculatorFlatStake:
     """Tests for flat stake equity calculations."""
 
+    def test_flat_stake_equity_includes_starting_capital(self) -> None:
+        """Equity curve starts at starting_capital, not zero."""
+        df = pd.DataFrame({"gain_pct": [10.0, -5.0, 15.0]})
+        calc = EquityCalculator()
+        # $10,000 stake on $100,000 starting capital
+        result = calc.calculate_flat_stake(
+            df, gain_col="gain_pct", stake=10000.0, start_capital=100000.0
+        )
+
+        # Trade 1: 10% of $10k stake = $1000 profit, equity = $101,000
+        assert result["equity"].iloc[0] == pytest.approx(101000.0, abs=0.01)
+        # Trade 2: -5% of $10k stake = -$500, equity = $100,500
+        assert result["equity"].iloc[1] == pytest.approx(100500.0, abs=0.01)
+        # Trade 3: 15% of $10k stake = $1500, equity = $102,000
+        assert result["equity"].iloc[2] == pytest.approx(102000.0, abs=0.01)
+
     def test_flat_stake_basic(self) -> None:
         """Basic equity curve calculation."""
         df = pd.DataFrame({"gain_pct": [5.0, 3.0, -4.0, -2.0, 8.0]})
