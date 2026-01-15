@@ -1205,7 +1205,10 @@ class PnLStatsTab(QWidget):
         elif kelly_equity is not None:
             # Clear the Kelly chart when Kelly is negative
             self._app_state.filtered_kelly_equity_curve_updated.emit(pd.DataFrame())
-            logger.debug("Filtered Kelly is negative (%.2f%%), not plotting Kelly equity curve", metrics.kelly)
+            if metrics.kelly is not None:
+                logger.debug("Filtered Kelly is negative (%.2f%%), not plotting Kelly equity curve", metrics.kelly)
+            else:
+                logger.debug("Filtered Kelly is None, not plotting Kelly equity curve")
         else:
             # Clear filtered Kelly when no equity curve
             self._kelly_chart_panel.set_filtered(None)

@@ -1628,7 +1628,10 @@ class DataInputTab(QWidget):
             elif kelly_equity is not None:
                 # Clear the Kelly chart when Kelly is negative
                 self._app_state.kelly_equity_curve_updated.emit(pd.DataFrame())
-                logger.info("Baseline Kelly is negative (%.2f%%), not plotting Kelly equity curve", metrics.kelly)
+                if metrics.kelly is not None:
+                    logger.info("Baseline Kelly is negative (%.2f%%), not plotting Kelly equity curve", metrics.kelly)
+                else:
+                    logger.info("Baseline Kelly is None, not plotting Kelly equity curve")
 
         # Display baseline info card
         self._baseline_card.update_counts(total_rows, baseline_rows)
@@ -1754,7 +1757,10 @@ class DataInputTab(QWidget):
         elif kelly_equity is not None:
             # Clear the Kelly chart when Kelly is negative
             self._app_state.kelly_equity_curve_updated.emit(pd.DataFrame())
-            logger.info("Baseline Kelly is negative (%.2f%%), not plotting Kelly equity curve", metrics.kelly)
+            if metrics.kelly is not None:
+                logger.info("Baseline Kelly is negative (%.2f%%), not plotting Kelly equity curve", metrics.kelly)
+            else:
+                logger.info("Baseline Kelly is None, not plotting Kelly equity curve")
 
         # Update metrics display
         self._metrics_panel.update_metrics(metrics)
