@@ -947,12 +947,25 @@ class PnLStatsTab(QWidget):
             self._app_state.equity_curve_updated.emit(flat_equity)
 
         # Store Kelly equity curve in app state and emit signal
+        # Store Kelly equity curve in app state
         self._app_state.kelly_equity_curve = kelly_equity
-        if kelly_equity is not None:
+        # Only emit Kelly equity curve if baseline Kelly is positive
+        if kelly_equity is not None and metrics.kelly is not None and metrics.kelly > 0:
             self._app_state.kelly_equity_curve_updated.emit(kelly_equity)
+        elif kelly_equity is not None:
+            # Clear the Kelly chart when Kelly is negative
+            self._app_state.kelly_equity_curve_updated.emit(pd.DataFrame())
+            if metrics.kelly is not None:
+                logger.info(
+                    "Baseline Kelly is negative (%.2f%%), not plotting Kelly curve",
+                    metrics.kelly,
+                )
+            else:
+                logger.info("Baseline Kelly is None, not plotting Kelly equity curve")
+            self._kelly_chart_panel.set_baseline(None)
         else:
-            # Clear Kelly chart when no equity curve (e.g., negative Kelly)
-            logger.info("Kelly equity curve is None (negative Kelly?), clearing chart")
+            # kelly_equity is None
+            logger.info("Kelly equity curve is None, clearing chart")
             self._kelly_chart_panel.set_baseline(None)
 
         # Recalculate filtered metrics if there is filtered data
