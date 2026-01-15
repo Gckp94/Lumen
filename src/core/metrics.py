@@ -306,7 +306,11 @@ class MetricsCalculator:
         if flat_stake is not None and num_trades > 0:
             equity_calculator = EquityCalculator()
             flat_stake_result = equity_calculator.calculate_flat_stake_metrics(
-                df, gain_col, flat_stake, date_col=date_col
+                df,
+                gain_col=gain_col,
+                stake=flat_stake,
+                start_capital=start_capital if start_capital else 0.0,
+                date_col=date_col,
             )
             pnl_val = flat_stake_result["pnl"]
             if isinstance(pnl_val, (int, float)):

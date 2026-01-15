@@ -881,6 +881,20 @@ class TestMetricsCalculatorMaxLoss:
 class TestMetricsCalculatorFlatStake:
     """Tests for flat stake metrics integration (Story 3.4)."""
 
+    def test_flat_stake_metrics_include_starting_capital(self) -> None:
+        """Flat stake equity includes starting capital in calculations."""
+        calc = MetricsCalculator()
+        df = pd.DataFrame({"gain_pct": [10.0, -30.0, 20.0]})
+
+        metrics, flat_equity, _ = calc.calculate(
+            df, "gain_pct", derived=True,
+            flat_stake=10000.0, start_capital=100000.0
+        )
+
+        # First equity point should be 100000 + 1000 = 101000
+        assert flat_equity is not None
+        assert flat_equity["equity"].iloc[0] == pytest.approx(101000.0, abs=1.0)
+
     def test_flat_stake_metrics_populated(self) -> None:
         """Flat stake metrics populated when flat_stake provided."""
         calc = MetricsCalculator()
