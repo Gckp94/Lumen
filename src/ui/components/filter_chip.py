@@ -36,7 +36,7 @@ class FilterChip(QFrame):
         """Set up the chip UI layout."""
         # Prevent chip from expanding to fill container
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        
+
         layout = QHBoxLayout(self)
         layout.setContentsMargins(Spacing.SM, Spacing.XS, Spacing.SM, Spacing.XS)
         layout.setSpacing(Spacing.XS)

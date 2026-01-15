@@ -684,13 +684,12 @@ class FeatureExplorerTab(QWidget):
             df = engine.apply_filters(df, self._app_state.filters)
 
         # Apply first trigger filter using pre-computed trigger_number column
-        if self._app_state.first_trigger_enabled:
-            if "trigger_number" in df.columns:
-                df = df[df["trigger_number"] == 1].copy()
-                logger.debug(
-                    "First trigger filter applied: %d rows with trigger_number=1",
-                    len(df),
-                )
+        if self._app_state.first_trigger_enabled and "trigger_number" in df.columns:
+            df = df[df["trigger_number"] == 1].copy()
+            logger.debug(
+                "First trigger filter applied: %d rows with trigger_number=1",
+                len(df),
+            )
 
         self._app_state.filtered_df = df
         self._app_state.filtered_data_updated.emit(df)

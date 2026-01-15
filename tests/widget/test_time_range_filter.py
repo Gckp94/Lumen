@@ -1,6 +1,6 @@
 """Widget tests for TimeRangeFilter component."""
 
-from PyQt6.QtCore import QTime, Qt
+from PyQt6.QtCore import QTime
 from pytestqt.qtbot import QtBot
 
 from src.ui.components.time_range_filter import TimeRangeFilter

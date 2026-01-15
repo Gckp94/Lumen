@@ -12,14 +12,14 @@ from src.ui.main_window import MainWindow
 class TestMainWindow:
     """Tests for the MainWindow class."""
 
-    def test_main_window_has_five_tabs(self, qtbot: QtBot) -> None:
-        """MainWindow contains exactly 5 tabs."""
+    def test_main_window_has_five_docks(self, qtbot: QtBot) -> None:
+        """MainWindow contains exactly 5 docks."""
         window = MainWindow()
         qtbot.addWidget(window)
-        assert window.tab_widget.count() == 5
+        assert window.dock_manager.dock_count() == 5
 
-    def test_tab_titles_match_workflow(self, qtbot: QtBot) -> None:
-        """Tab titles match expected workflow order."""
+    def test_dock_titles_match_workflow(self, qtbot: QtBot) -> None:
+        """Dock titles match expected workflow order."""
         window = MainWindow()
         qtbot.addWidget(window)
         expected = [
@@ -29,20 +29,30 @@ class TestMainWindow:
             "PnL & Trading Stats",
             "Monte Carlo",
         ]
-        for i, title in enumerate(expected):
-            assert window.tab_widget.tabText(i) == title
+        for title in expected:
+            assert window.dock_manager.get_dock(title) is not None
 
-    def test_tabs_not_closable(self, qtbot: QtBot) -> None:
-        """Tabs cannot be closed."""
+    def test_docks_not_closable(self, qtbot: QtBot) -> None:
+        """Docks tabs are not closable by default (config flag set)."""
         window = MainWindow()
         qtbot.addWidget(window)
-        assert not window.tab_widget.tabsClosable()
+        # DockManager configured with AllTabsHaveCloseButton = False
+        import PyQt6Ads as ads
+        # Use testConfigFlag method to check if AllTabsHaveCloseButton is disabled
+        # The flag should NOT be set (i.e., tabs don't have close buttons)
+        assert not window.dock_manager.testConfigFlag(
+            ads.CDockManager.eConfigFlag.AllTabsHaveCloseButton
+        )
 
-    def test_tabs_not_movable(self, qtbot: QtBot) -> None:
-        """Tabs cannot be reordered."""
+    def test_docks_exist(self, qtbot: QtBot) -> None:
+        """All docks are created successfully."""
         window = MainWindow()
         qtbot.addWidget(window)
-        assert not window.tab_widget.isMovable()
+        assert window.dock_manager.get_dock("Data Input") is not None
+        assert window.dock_manager.get_dock("Feature Explorer") is not None
+        assert window.dock_manager.get_dock("Data Binning") is not None
+        assert window.dock_manager.get_dock("PnL & Trading Stats") is not None
+        assert window.dock_manager.get_dock("Monte Carlo") is not None
 
     def test_window_minimum_size(self, qtbot: QtBot) -> None:
         """Window has correct minimum size."""

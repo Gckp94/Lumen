@@ -242,8 +242,8 @@ class TestBinRowManagement:
 
         assert len(tab._bin_rows) == initial_count + 1
 
-    def test_new_bin_has_less_than_operator(self, qtbot: QtBot) -> None:
-        """Newly added bin has less than operator by default."""
+    def test_new_bin_has_range_operator(self, qtbot: QtBot) -> None:
+        """Newly added bin has range operator by default."""
         app_state = AppState()
         tab = DataBinningTab(app_state)
         qtbot.addWidget(tab)
@@ -258,7 +258,7 @@ class TestBinRowManagement:
 
         # First row should be the new one (before nulls)
         new_row = tab._bin_rows[0]
-        assert new_row.get_operator() == "<"
+        assert new_row.get_operator() == "range"
 
     def test_nulls_row_not_removable(self, qtbot: QtBot) -> None:
         """Nulls bin row cannot be removed."""
@@ -495,7 +495,8 @@ class TestBinChartPanel:
         qtbot.addWidget(panel)
 
         charts = panel.findChildren(HorizontalBarChart)
-        assert len(charts) == 5, "Should have 5 charts: Average, Median, Count, Win Rate, % of Total"
+        # Should have 5 charts: Average, Median, Count, Win Rate, % of Total
+        assert len(charts) == 5
 
     def test_chart_panel_has_all_chart_attributes(self, qtbot: QtBot) -> None:
         """BinChartPanel contains all five chart sections."""
@@ -790,8 +791,10 @@ class TestCumulativeToggle:
         buttons = panel.findChildren(QPushButton)
         button_texts = [b.text() for b in buttons]
 
-        assert "Abs" in button_texts or "Absolute" in button_texts, "Should have Absolute toggle"
-        assert "Cum" in button_texts or "Cumulative" in button_texts, "Should have Cumulative toggle"
+        has_abs = "Abs" in button_texts or "Absolute" in button_texts
+        has_cum = "Cum" in button_texts or "Cumulative" in button_texts
+        assert has_abs, "Should have Absolute toggle"
+        assert has_cum, "Should have Cumulative toggle"
 
     def test_cumulative_mode_calculates_running_totals(self) -> None:
         """Test that cumulative mode shows running totals summing to ~100%."""
@@ -931,8 +934,8 @@ class TestBrightnessGradient:
             return 0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()
 
         # Higher values should have higher brightness
-        assert brightness(high_color) > brightness(mid_color), "High value should be brighter than mid"
-        assert brightness(mid_color) > brightness(low_color), "Mid value should be brighter than low"
+        assert brightness(high_color) > brightness(mid_color), "High > mid brightness"
+        assert brightness(mid_color) > brightness(low_color), "Mid > low brightness"
 
         # Alpha should be 255 (fully opaque, no transparency)
         assert high_color.alpha() == 255, "Colors should be fully opaque"
@@ -948,8 +951,8 @@ class TestBrightnessGradient:
         neg_color = chart._calculate_gradient_color(-50, -100, 0)
 
         # Should be in coral range (red > green, red > blue)
-        assert neg_color.red() > neg_color.green(), "Negative values should use coral (red dominant)"
-        assert neg_color.red() > neg_color.blue(), "Negative values should use coral (red dominant)"
+        assert neg_color.red() > neg_color.green(), "Coral: red > green"
+        assert neg_color.red() > neg_color.blue(), "Coral: red > blue"
 
 
 class TestResizableSidebar:

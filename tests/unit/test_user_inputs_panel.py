@@ -22,8 +22,8 @@ class TestUserInputsPanel:
         qtbot.addWidget(panel)
 
         inputs = panel.get_metrics_inputs()
-        assert inputs.flat_stake == 1000.0
-        assert inputs.starting_capital == 10000.0
+        assert inputs.flat_stake == 10000.0
+        assert inputs.starting_capital == 100000.0
         assert inputs.fractional_kelly == 25.0
 
         params = panel.get_adjustment_params()

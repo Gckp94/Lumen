@@ -250,12 +250,16 @@ class MetricsCalculator:
                 )
 
             # EG Flat Stake - when flat_stake and start_capital provided
-            if flat_stake is not None and start_capital is not None:
-                if flat_stake > 0 and start_capital > 0:
-                    flat_fraction = flat_stake / start_capital
-                    eg_flat_stake = (flat_fraction * ev) - (
-                        (flat_fraction**2) * combined_variance / 2
-                    )
+            if (
+                flat_stake is not None
+                and start_capital is not None
+                and flat_stake > 0
+                and start_capital > 0
+            ):
+                flat_fraction = flat_stake / start_capital
+                eg_flat_stake = (flat_fraction * ev) - (
+                    (flat_fraction**2) * combined_variance / 2
+                )
 
         # Median calculations (vectorized, multiply by 100 for percentage format)
         median_winner: float | None = None
@@ -267,7 +271,7 @@ class MetricsCalculator:
             loser_median = pd.Series(loser_gains).median()
             median_loser = float(loser_median) * 100 if pd.notna(loser_median) else None
 
-        # Distribution min/max (Story 3.2 - metrics 24-25 prep, multiply by 100 for percentage format)
+        # Distribution min/max (Story 3.2 - metrics 24-25, multiply by 100 for pct format)
         winner_min: float | None = None
         winner_max: float | None = None
         loser_min: float | None = None

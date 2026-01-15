@@ -46,7 +46,6 @@ class TestFormatNumberAbbreviated:
 
     def test_special_float_values(self) -> None:
         """Special float values handled gracefully."""
-        import math
         assert format_number_abbreviated(float("inf")) == "inf"
         assert format_number_abbreviated(float("-inf")) == "-inf"
         assert format_number_abbreviated(float("nan")) == "NaN"

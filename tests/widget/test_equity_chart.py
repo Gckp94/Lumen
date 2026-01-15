@@ -257,7 +257,9 @@ class TestEquityChartLegend:
 class TestChartPanelDateAxisSwitching:
     """Tests for date axis switching in both chart panels."""
 
-    def _create_equity_df_with_dates(self, n_points: int = 10, include_dates: bool = True) -> pd.DataFrame:
+    def _create_equity_df_with_dates(
+        self, n_points: int = 10, include_dates: bool = True
+    ) -> pd.DataFrame:
         """Create equity DataFrame with optional date column."""
         np.random.seed(42)
         pnl = np.random.normal(50, 100, n_points)

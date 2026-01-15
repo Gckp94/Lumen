@@ -1,7 +1,6 @@
 """Tests for trigger_number column assignment."""
 
 import pandas as pd
-import pytest
 
 from src.core.first_trigger import FirstTriggerEngine
 

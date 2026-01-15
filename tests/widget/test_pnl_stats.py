@@ -374,10 +374,11 @@ class TestPnLStatsTabRecalculation:
         tab = PnLStatsTab(app_state)
         qtbot.addWidget(tab)
 
-        # Set up data
+        # Set up data with trigger_number for first-trigger filtering
         app_state.baseline_df = pd.DataFrame({
             "gain_pct": [5.0, -2.0, 3.0],
             "mae_pct": [1.0, 2.0, 1.5],
+            "trigger_number": [1, 1, 1],
         })
         app_state.column_mapping = ColumnMapping(
             ticker="ticker",
@@ -410,10 +411,11 @@ class TestPnLStatsTabRecalculation:
         tab = PnLStatsTab(app_state)
         qtbot.addWidget(tab)
 
-        # Set up data
+        # Set up data with trigger_number for first-trigger filtering
         app_state.baseline_df = pd.DataFrame({
             "gain_pct": [5.0, -2.0, 3.0],
             "mae_pct": [1.0, 2.0, 1.5],
+            "trigger_number": [1, 1, 1],
         })
         app_state.column_mapping = ColumnMapping(
             ticker="ticker",
@@ -445,10 +447,11 @@ class TestPnLStatsTabRecalculation:
         tab = PnLStatsTab(app_state)
         qtbot.addWidget(tab)
 
-        # Set up data
+        # Set up data with trigger_number for first-trigger filtering
         app_state.baseline_df = pd.DataFrame({
             "gain_pct": [5.0, -2.0, 3.0],
             "mae_pct": [1.0, 2.0, 1.5],
+            "trigger_number": [1, 1, 1],
         })
         app_state.column_mapping = ColumnMapping(
             ticker="ticker",

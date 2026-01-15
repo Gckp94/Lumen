@@ -1,6 +1,6 @@
 """FilterPanel container for managing filters."""
 
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -12,10 +12,10 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.models import FilterCriteria
+from src.ui.components.column_filter_panel import ColumnFilterPanel
 from src.ui.components.date_range_filter import DateRangeFilter
 from src.ui.components.filter_chip import FilterChip
 from src.ui.components.time_range_filter import TimeRangeFilter
-from src.ui.components.column_filter_panel import ColumnFilterPanel
 from src.ui.components.toggle_switch import ToggleSwitch
 from src.ui.constants import Colors, Spacing
 from src.ui.utils.flow_layout import FlowLayout

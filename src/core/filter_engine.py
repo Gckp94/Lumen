@@ -223,9 +223,12 @@ class FilterEngine:
                 hours = (total_seconds // 3600).astype(int) % 24
                 minutes = ((total_seconds % 3600) // 60).astype(int)
                 seconds = (total_seconds % 60).astype(int)
-                time_strings = hours.astype(str) + ":" + minutes.astype(str) + ":" + seconds.astype(str)
+                time_strings = (
+                    hours.astype(str) + ":" + minutes.astype(str) + ":" + seconds.astype(str)
+                )
                 # Set NaN positions back to NaT
-                time_series = pd.to_datetime(time_strings, format="%H:%M:%S", errors="coerce").dt.time
+                parsed_times = pd.to_datetime(time_strings, format="%H:%M:%S", errors="coerce")
+                time_series = parsed_times.dt.time
                 time_series = time_series.where(df[time_col].notna(), None)
                 logger.info("Time filter: converted from Excel serial time (float 0-1)")
             else:
@@ -290,7 +293,10 @@ class FilterEngine:
 
         if start_time is not None:
             # Handle both string and datetime.time inputs
-            start = start_time if isinstance(start_time, dt_time) else dt_time.fromisoformat(start_time)
+            if isinstance(start_time, dt_time):
+                start = start_time
+            else:
+                start = dt_time.fromisoformat(start_time)
             mask &= time_series >= start
 
         if end_time is not None:

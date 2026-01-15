@@ -944,7 +944,7 @@ class MetricsPanel(QWidget):
 
         # Debug logging to help diagnose display issues
         logger.debug(
-            "MetricsPanel update - win_rate=%.4f, avg_winner=%.4f, avg_loser=%.4f, ev=%.4f, kelly=%.4f",
+            "MetricsPanel update - win=%.4f, avg_w=%.4f, avg_l=%.4f, ev=%.4f, kelly=%.4f",
             metrics.win_rate if metrics.win_rate else 0,
             metrics.avg_winner if metrics.avg_winner else 0,
             metrics.avg_loser if metrics.avg_loser else 0,
@@ -1121,7 +1121,8 @@ class DataInputTab(QWidget):
         sheet_row.setSpacing(Spacing.SM)
 
         sheet_label = QLabel("Sheet:")
-        sheet_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-family: \"{Fonts.UI}\"; font-size: 13px;")
+        sheet_style = f'color: {Colors.TEXT_SECONDARY}; font-family: "{Fonts.UI}"; font-size: 13px;'
+        sheet_label.setStyleSheet(sheet_style)
         self._sheet_label = sheet_label
 
         self._sheet_selector = NoScrollComboBox()
@@ -1549,7 +1550,10 @@ class DataInputTab(QWidget):
 
         total_rows = len(baseline_df)
         # Count first triggers (trigger_number == 1) for baseline info display
-        baseline_rows = len(baseline_df[baseline_df["trigger_number"] == 1]) if len(baseline_df) > 0 else 0
+        if len(baseline_df) > 0:
+            baseline_rows = len(baseline_df[baseline_df["trigger_number"] == 1])
+        else:
+            baseline_rows = 0
         max_trigger = baseline_df["trigger_number"].max() if len(baseline_df) > 0 else 0
 
         logger.info(
@@ -1629,9 +1633,12 @@ class DataInputTab(QWidget):
                 # Clear the Kelly chart when Kelly is negative
                 self._app_state.kelly_equity_curve_updated.emit(pd.DataFrame())
                 if metrics.kelly is not None:
-                    logger.info("Baseline Kelly is negative (%.2f%%), not plotting Kelly equity curve", metrics.kelly)
+                    logger.info(
+                        "Baseline Kelly is negative (%.2f%%), not plotting Kelly curve",
+                        metrics.kelly,
+                    )
                 else:
-                    logger.info("Baseline Kelly is None, not plotting Kelly equity curve")
+                    logger.info("Baseline Kelly is None, not plotting Kelly curve")
 
         # Display baseline info card
         self._baseline_card.update_counts(total_rows, baseline_rows)
@@ -1707,10 +1714,10 @@ class DataInputTab(QWidget):
             baseline_df["adjusted_gain_pct"] = adjusted_gains
 
         # Ensure time_minutes column exists for time-based analysis
-        if mapping.time and mapping.time in baseline_df.columns:
-            if "time_minutes" not in baseline_df.columns:
-                baseline_df["time_minutes"] = time_to_minutes(baseline_df[mapping.time])
-                logger.debug("Added time_minutes column derived from '%s'", mapping.time)
+        has_time_col = mapping.time and mapping.time in baseline_df.columns
+        if has_time_col and "time_minutes" not in baseline_df.columns:
+            baseline_df["time_minutes"] = time_to_minutes(baseline_df[mapping.time])
+            logger.debug("Added time_minutes column derived from '%s'", mapping.time)
 
         # Get flat stake and start capital from AppState or use defaults
         metrics_inputs = self._app_state.metrics_user_inputs
@@ -1758,9 +1765,12 @@ class DataInputTab(QWidget):
             # Clear the Kelly chart when Kelly is negative
             self._app_state.kelly_equity_curve_updated.emit(pd.DataFrame())
             if metrics.kelly is not None:
-                logger.info("Baseline Kelly is negative (%.2f%%), not plotting Kelly equity curve", metrics.kelly)
+                logger.info(
+                    "Baseline Kelly is negative (%.2f%%), not plotting Kelly curve",
+                    metrics.kelly,
+                )
             else:
-                logger.info("Baseline Kelly is None, not plotting Kelly equity curve")
+                logger.info("Baseline Kelly is None, not plotting Kelly curve")
 
         # Update metrics display
         self._metrics_panel.update_metrics(metrics)

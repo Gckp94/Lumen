@@ -1,9 +1,9 @@
 # src/ui/components/column_filter_row.py
 """ColumnFilterRow component for inline column filtering."""
 
-from typing import Literal
+from typing import Literal, TypeAlias
 
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -16,6 +16,11 @@ from PyQt6.QtWidgets import (
 
 from src.core.models import FilterCriteria
 from src.ui.constants import Colors, Fonts, Spacing
+
+# Type alias for filter operator to avoid long lines
+FilterOp: TypeAlias = Literal[
+    "between", "not_between", "between_blanks", "not_between_blanks"
+]
 
 
 class ColumnFilterRow(QWidget):
@@ -47,7 +52,7 @@ class ColumnFilterRow(QWidget):
         super().__init__(parent)
         self._column_name = column_name
         self._alternate = alternate
-        self._operator: Literal["between", "not_between", "between_blanks", "not_between_blanks"] = "between"
+        self._operator: FilterOp = "between"
         self._setup_ui()
         self._apply_style()
         self._connect_signals()
@@ -71,7 +76,8 @@ class ColumnFilterRow(QWidget):
 
         # Operator toggle button
         self._operator_btn = QPushButton("between")
-        self._operator_btn.setMinimumWidth(130)  # Increased from default to fit "not between + blanks"
+        # Width sized to fit "not between + blanks"
+        self._operator_btn.setMinimumWidth(130)
         self._operator_btn.clicked.connect(self._toggle_operator)
         layout.addWidget(self._operator_btn)
 
@@ -218,8 +224,8 @@ class ColumnFilterRow(QWidget):
         self.apply_clicked.emit(self._column_name)
 
     def _toggle_operator(self) -> None:
-        """Cycle through filter operators: between -> not between -> between + blanks -> not between + blanks."""
-        operators: list[tuple[Literal["between", "not_between", "between_blanks", "not_between_blanks"], str]] = [
+        """Cycle through filter operators: between, not between, +blanks variants."""
+        operators: list[tuple[FilterOp, str]] = [
             ("between", "between"),
             ("not_between", "not between"),
             ("between_blanks", "between + blanks"),
@@ -244,7 +250,7 @@ class ColumnFilterRow(QWidget):
         """
         return self._column_name
 
-    def get_operator(self) -> Literal["between", "not_between", "between_blanks", "not_between_blanks"]:
+    def get_operator(self) -> FilterOp:
         """Get current operator.
 
         Returns:

@@ -392,6 +392,7 @@ class TestExportManagerChartsZIP:
     def test_charts_to_zip_creates_archive(self, tmp_path: Path, qtbot) -> None:
         """Charts ZIP export creates archive file."""
         import zipfile
+
         from PyQt6.QtWidgets import QWidget
 
         exporter = ExportManager()
@@ -418,6 +419,7 @@ class TestExportManagerChartsZIP:
     def test_charts_to_zip_contains_all_charts(self, tmp_path: Path, qtbot) -> None:
         """Charts ZIP archive contains all chart PNGs."""
         import zipfile
+
         from PyQt6.QtWidgets import QWidget
 
         exporter = ExportManager()

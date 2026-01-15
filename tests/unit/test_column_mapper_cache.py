@@ -1,6 +1,5 @@
 """Tests for ColumnMapper cache path normalization."""
 
-import pytest
 from pathlib import Path
 
 from src.core.column_mapper import ColumnMapper

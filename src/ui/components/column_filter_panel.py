@@ -1,7 +1,7 @@
 # src/ui/components/column_filter_panel.py
 """ColumnFilterPanel component for scrollable column filter list."""
 
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -220,10 +220,7 @@ class ColumnFilterPanel(QWidget):
         """
         search_lower = text.lower().strip()
         for row in self._rows:
-            if search_lower:
-                visible = search_lower in row.get_column_name().lower()
-            else:
-                visible = True
+            visible = search_lower in row.get_column_name().lower() if search_lower else True
             row.setVisible(visible)
 
     def _on_clear_search(self) -> None:

@@ -1,10 +1,9 @@
 """Tests for FilterPanel component."""
 
-import pytest
 from pytestqt.qtbot import QtBot
 
-from src.ui.components.filter_panel import FilterPanel
 from src.core.models import FilterCriteria
+from src.ui.components.filter_panel import FilterPanel
 
 
 def test_single_filter_apply_creates_chip(qtbot: QtBot) -> None:

@@ -1,8 +1,7 @@
 """Tests for FlowLayout utility."""
 
 import pytest
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication, QPushButton, QWidget
 
 from src.ui.utils.flow_layout import FlowLayout
 

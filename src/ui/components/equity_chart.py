@@ -11,7 +11,6 @@ import logging
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg  # type: ignore[import-untyped]
-from pyqtgraph import DateAxisItem
 from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import (
@@ -21,6 +20,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from pyqtgraph import DateAxisItem
 
 from src.ui.components.axis_mode_toggle import AxisMode, AxisModeToggle
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing

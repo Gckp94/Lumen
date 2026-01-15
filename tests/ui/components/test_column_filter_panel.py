@@ -2,8 +2,8 @@
 """Tests for ColumnFilterPanel component."""
 
 import pytest
-from pytestqt.qtbot import QtBot
 from PyQt6.QtWidgets import QApplication
+from pytestqt.qtbot import QtBot
 
 from src.ui.components.column_filter_panel import ColumnFilterPanel
 

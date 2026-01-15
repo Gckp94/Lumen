@@ -320,7 +320,7 @@ class TestMetricsCalculatorExtended:
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
-        # Winners: [0.05, 0.10, 0.15, 0.08, 0.12] -> sorted: [0.05,0.08,0.10,0.12,0.15] -> median=0.10 (10%)
+        # Winners: [0.05, 0.10, 0.15, 0.08, 0.12] -> sorted -> median=0.10 (10%)
         # Multiplied by 100 for percentage format: 0.10 * 100 = 10.0%
         assert metrics.median_winner == pytest.approx(10.0, abs=0.1)
         # Losers: [-0.03, -0.05, -0.04, -0.06, -0.02] -> sorted -> median=-0.04 (-4%)
@@ -335,8 +335,10 @@ class TestMetricsCalculatorExtended:
         # Multiplied by 100 for percentage format
         assert metrics.winner_min == pytest.approx(5.0, abs=0.1)   # 0.05 * 100 = 5.0%
         assert metrics.winner_max == pytest.approx(15.0, abs=0.1)  # 0.15 * 100 = 15.0%
-        assert metrics.loser_min == pytest.approx(-6.0, abs=0.1)   # -0.06 * 100 = -6.0% (Most negative)
-        assert metrics.loser_max == pytest.approx(-2.0, abs=0.1)   # -0.02 * 100 = -2.0% (Least negative)
+        # -0.06 * 100 = -6.0% (Most negative)
+        assert metrics.loser_min == pytest.approx(-6.0, abs=0.1)
+        # -0.02 * 100 = -2.0% (Least negative)
+        assert metrics.loser_max == pytest.approx(-2.0, abs=0.1)
 
     def test_edge_none_when_rr_ratio_none(self) -> None:
         """Edge is None when R:R ratio cannot be calculated."""
@@ -637,7 +639,7 @@ class TestMetricsCalculatorWithAdjustments:
 
         # Gains in decimal format (0.10 = 10%), MAE in percentage format (10.0 = 10%)
         # Trade 1: 10% gain, 10% MAE > 8% stop -> -8% - 5% = -13% (LOSS)
-        # Trade 2: 5% gain, 2% MAE < 8% stop -> 5% - 5% = 0% (LOSS with default breakeven_is_win=False)
+        # Trade 2: 5% gain, 2% MAE < 8% stop -> 5%-5%=0% (LOSS, breakeven_is_win=False)
         # Trade 3: -3% loss, 2% MAE < 8% stop -> -3% - 5% = -8% (LOSS)
         df = pd.DataFrame({
             "gain_pct": [0.10, 0.05, -0.03],  # Decimal format

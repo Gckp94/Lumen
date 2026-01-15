@@ -22,8 +22,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.ui.components.empty_state import EmptyState
 from src.core.models import BinConfig, BinDefinition
+from src.ui.components.empty_state import EmptyState
 from src.ui.components.toast import Toast
 from src.ui.constants import Colors, Fonts, Spacing
 
@@ -146,7 +146,7 @@ class DataBinningTab(QWidget):
         """
         super().__init__(parent)
         self._app_state = app_state
-        self._bin_rows: list["BinConfigRow"] = []
+        self._bin_rows: list[BinConfigRow] = []
         self._is_time_column: bool = False
         self._debounce_timer = QTimer()
         self._debounce_timer.setSingleShot(True)
@@ -1437,7 +1437,7 @@ class BinChartPanel(QWidget):
         super().__init__(parent)
         self._app_state = app_state
         self._current_metric_column = "adjusted_gain_pct"
-        self._bin_definitions: list["BinDefinition"] = []
+        self._bin_definitions: list[BinDefinition] = []
         self._selected_column: str = ""
         self._cumulative_mode = False
         self._setup_ui()
@@ -1792,7 +1792,7 @@ class BinChartPanel(QWidget):
                 cumulative_values.append(running_total)
             pct_values = cumulative_values
 
-        pct_total_data = list(zip(ordered_labels, pct_values))
+        pct_total_data = list(zip(ordered_labels, pct_values, strict=False))
 
         # Update charts
         self._average_chart.set_data(average_data, is_percentage=False)

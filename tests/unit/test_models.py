@@ -472,8 +472,8 @@ class TestMetricsUserInputs:
     def test_default_values(self) -> None:
         """MetricsUserInputs has correct default values."""
         inputs = MetricsUserInputs()
-        assert inputs.flat_stake == 1000.0
-        assert inputs.starting_capital == 10000.0
+        assert inputs.flat_stake == 10000.0
+        assert inputs.starting_capital == 100000.0
         assert inputs.fractional_kelly == 25.0
 
     def test_custom_values(self) -> None:
@@ -573,15 +573,15 @@ class TestMetricsUserInputs:
         inputs = MetricsUserInputs.from_dict(data)
 
         assert inputs.flat_stake == 5000.0
-        assert inputs.starting_capital == 10000.0  # default
+        assert inputs.starting_capital == 100000.0  # default
         assert inputs.fractional_kelly == 25.0  # default
 
     def test_from_dict_empty(self) -> None:
         """from_dict() with empty dict uses all defaults."""
         inputs = MetricsUserInputs.from_dict({})
 
-        assert inputs.flat_stake == 1000.0
-        assert inputs.starting_capital == 10000.0
+        assert inputs.flat_stake == 10000.0
+        assert inputs.starting_capital == 100000.0
         assert inputs.fractional_kelly == 25.0
 
     def test_round_trip(self) -> None:

@@ -4,7 +4,6 @@ from datetime import time
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from src.core.filter_engine import FilterEngine, time_to_minutes
 

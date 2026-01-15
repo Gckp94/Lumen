@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QTime, Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QTime, pyqtSignal
 from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QTimeEdit, QWidget
 

@@ -1,8 +1,8 @@
 """Integration tests for Feature Explorer filter functionality."""
 
 import pytest
-from pytestqt.qtbot import QtBot
 from PyQt6.QtWidgets import QApplication
+from pytestqt.qtbot import QtBot
 
 from src.core.app_state import AppState
 from src.tabs.feature_explorer import FeatureExplorerTab
@@ -44,7 +44,7 @@ class TestFeatureExplorerFilters:
         qtbot.addWidget(tab)
 
         # Initially no rows (no data)
-        initial_rows = len(tab._filter_panel._column_filter_panel._rows)
+        _ = len(tab._filter_panel._column_filter_panel._rows)
 
         # Load data with numeric columns
         df = pd.DataFrame({

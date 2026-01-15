@@ -1,7 +1,6 @@
 """Tests for BinningEngine."""
 
 import pandas as pd
-import pytest
 
 from src.core.binning_engine import BinningEngine
 from src.core.models import BinDefinition, BinMetrics

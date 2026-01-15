@@ -474,7 +474,8 @@ class TestMaxDrawdownDollarVsPercent:
         # Scenario: max % drawdown at different point than max $ drawdown
         equity_df = pd.DataFrame({
             "trade_num": [1, 2, 3, 4, 5],
-            "equity": [100.0, 50.0, 200.0, 150.0, 180.0],  # Point 2: 50% DD, $50. Point 4: 25% DD, $50
+            # Point 2: 50% DD, $50. Point 4: 25% DD, $50
+            "equity": [100.0, 50.0, 200.0, 150.0, 180.0],
             "peak": [100.0, 100.0, 200.0, 200.0, 200.0],
             "drawdown": [0.0, -50.0, 0.0, -50.0, -20.0],  # Max $ DD is $50 at both points 2 and 4
         })

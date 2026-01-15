@@ -107,7 +107,7 @@ class TestTimeMinutesColumnDerivation:
         expected_minutes = [570.0, 615.0, 885.0, 960.0]
         actual_minutes = baseline_df["time_minutes"].tolist()
 
-        for expected, actual in zip(expected_minutes, actual_minutes):
+        for expected, actual in zip(expected_minutes, actual_minutes, strict=True):
             assert abs(actual - expected) < 0.01, (
                 f"Expected {expected} minutes, got {actual}"
             )
@@ -115,7 +115,7 @@ class TestTimeMinutesColumnDerivation:
     def test_time_minutes_not_added_when_time_column_missing_from_df(
         self, qtbot: QtBot, app_state: AppState, tmp_path
     ) -> None:
-        """Test that time_minutes column is NOT added when time column doesn't exist in DataFrame."""
+        """Test time_minutes NOT added when time column missing from DataFrame."""
         # Create CSV with a time column but we'll map to a non-existent column
         csv_file = tmp_path / "trades_with_time.csv"
         df = pd.DataFrame(
@@ -147,9 +147,8 @@ class TestTimeMinutesColumnDerivation:
 
         tab._on_mapping_continue(mapping)
 
-        # This test verifies the column IS added when mapping and column exist
+        # Verify time_minutes IS added when mapping and column exist
         # The "not added" case is when mapping.time is falsy (empty string)
-        # Since ColumnMapping requires time, we verify that time_minutes IS added when all is correct
         baseline_df = app_state.baseline_df
         assert baseline_df is not None
         assert "time_minutes" in baseline_df.columns, (

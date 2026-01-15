@@ -3,8 +3,8 @@
 import pandas as pd
 import pytest
 
-from src.core.metrics import MetricsCalculator
 from src.core.first_trigger import FirstTriggerEngine
+from src.core.metrics import MetricsCalculator
 
 
 class TestBaselineMetricsFirstTriggerOnly:

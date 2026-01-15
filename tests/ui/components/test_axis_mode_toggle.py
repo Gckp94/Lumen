@@ -1,10 +1,9 @@
 """Tests for AxisModeToggle component."""
 
 import pytest
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
-from src.ui.components.axis_mode_toggle import AxisModeToggle, AxisMode
+from src.ui.components.axis_mode_toggle import AxisMode, AxisModeToggle
 
 
 @pytest.fixture(scope="module")

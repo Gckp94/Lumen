@@ -1,7 +1,6 @@
 """Tests for axis bounds data filtering."""
 
 import pandas as pd
-import pytest
 
 
 class TestAxisBoundsFilter:

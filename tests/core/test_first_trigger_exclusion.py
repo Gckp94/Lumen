@@ -1,7 +1,6 @@
 """Tests to verify first trigger exclusion logic."""
 
 import pandas as pd
-import pytest
 
 from src.core.first_trigger import FirstTriggerEngine
 
@@ -11,7 +10,7 @@ class TestFirstTriggerExclusion:
 
     def test_first_trigger_keeps_only_first(self):
         """If trigger 1 exists, triggers 2+ for same ticker-date are excluded."""
-        engine = FirstTriggerEngine()
+        _ = FirstTriggerEngine()  # Verify import works
 
         # Create data with trigger_number already assigned
         df = pd.DataFrame({

@@ -975,7 +975,10 @@ class PnLStatsTab(QWidget):
             self._app_state.filtered_metrics = filtered_metrics
 
         # Update comparison components with both baseline and filtered
-        self._comparison_ribbon.set_values(metrics, filtered_metrics) if filtered_metrics else self._comparison_ribbon.clear()
+        if filtered_metrics:
+            self._comparison_ribbon.set_values(metrics, filtered_metrics)
+        else:
+            self._comparison_ribbon.clear()
         self._comparison_grid.set_values(metrics, filtered_metrics)
         # Update distribution cards: use filtered metrics if available, else baseline
         if filtered_metrics is not None:
@@ -1206,9 +1209,12 @@ class PnLStatsTab(QWidget):
             # Clear the Kelly chart when Kelly is negative
             self._app_state.filtered_kelly_equity_curve_updated.emit(pd.DataFrame())
             if metrics.kelly is not None:
-                logger.debug("Filtered Kelly is negative (%.2f%%), not plotting Kelly equity curve", metrics.kelly)
+                logger.debug(
+                    "Filtered Kelly is negative (%.2f%%), not plotting Kelly curve",
+                    metrics.kelly,
+                )
             else:
-                logger.debug("Filtered Kelly is None, not plotting Kelly equity curve")
+                logger.debug("Filtered Kelly is None, not plotting Kelly curve")
         else:
             # Clear filtered Kelly when no equity curve
             self._kelly_chart_panel.set_filtered(None)

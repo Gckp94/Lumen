@@ -209,6 +209,7 @@ class TestNoScrollSpinBox:
     def test_parent_argument_passed(self, qtbot: QtBot) -> None:
         """Parent argument should be passed to QSpinBox."""
         from PyQt6.QtWidgets import QWidget
+
         from src.ui.components.no_scroll_widgets import NoScrollSpinBox
 
         parent = QWidget()

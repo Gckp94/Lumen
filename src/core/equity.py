@@ -313,7 +313,7 @@ class EquityCalculator:
                 result["date"] = df[date_col].values
 
             logger.debug(
-                "Calculated Kelly equity curve: %d trades, final equity=%.2f, effective_kelly=%.2f%%",
+                "Calculated Kelly equity curve: %d trades, final=%.2f, kelly=%.2f%%",
                 n_trades,
                 equity[-1] if n_trades > 0 else 0,
                 effective_kelly,

@@ -2,8 +2,8 @@
 """Tests for ColumnFilterRow component."""
 
 import pytest
-from pytestqt.qtbot import QtBot
 from PyQt6.QtWidgets import QApplication
+from pytestqt.qtbot import QtBot
 
 from src.ui.components.column_filter_row import ColumnFilterRow
 
@@ -33,12 +33,19 @@ class TestColumnFilterRow:
         assert row.get_operator() == "between"
 
     def test_toggle_operator_changes_mode(self, qtbot: QtBot, app: QApplication) -> None:
-        """Clicking toggle should switch between 'between' and 'not_between'."""
+        """Clicking toggle should cycle through operator modes."""
         row = ColumnFilterRow(column_name="vwap")
         qtbot.addWidget(row)
 
+        # Cycles: between -> not_between -> between_blanks -> not_between_blanks -> between
         row._toggle_operator()
         assert row.get_operator() == "not_between"
+
+        row._toggle_operator()
+        assert row.get_operator() == "between_blanks"
+
+        row._toggle_operator()
+        assert row.get_operator() == "not_between_blanks"
 
         row._toggle_operator()
         assert row.get_operator() == "between"

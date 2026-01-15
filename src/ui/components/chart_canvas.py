@@ -366,10 +366,7 @@ class ChartCanvas(QWidget):
 
             # Extract data
             y_data = df[y_column].values
-            if x_column:
-                x_data = df[x_column].values
-            else:
-                x_data = np.arange(len(y_data))
+            x_data = df[x_column].values if x_column else np.arange(len(y_data))
 
             # Update scatter plot with color(s)
             if contrast_colors:
