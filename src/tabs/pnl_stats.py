@@ -910,8 +910,8 @@ class PnLStatsTab(QWidget):
         fractional_kelly_pct = (
             metrics_inputs.fractional_kelly if metrics_inputs else 25.0
         )
-        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 1000.0
-        start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
+        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 10000.0
+        start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
 
         # Filter to first triggers only for baseline metrics calculation
         # baseline_df retains all triggers for storage; metrics use first triggers only
@@ -1149,8 +1149,8 @@ class PnLStatsTab(QWidget):
         fractional_kelly_pct = (
             metrics_inputs.fractional_kelly if metrics_inputs else 25.0
         )
-        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 1000.0
-        start_capital = metrics_inputs.starting_capital if metrics_inputs else 10000.0
+        flat_stake = metrics_inputs.flat_stake if metrics_inputs else 10000.0
+        start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
 
         # Full calculation with equity curves
         metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
@@ -1181,6 +1181,9 @@ class PnLStatsTab(QWidget):
                 kelly_max_dd=metrics.kelly_max_dd,
                 kelly_max_dd_pct=metrics.kelly_max_dd_pct,
                 kelly_dd_duration=metrics.kelly_dd_duration,
+                eg_full_kelly=metrics.eg_full_kelly,
+                eg_frac_kelly=metrics.eg_frac_kelly,
+                eg_flat_stake=metrics.eg_flat_stake,
             )
             self._app_state.filtered_metrics = updated_metrics
             # Re-emit metrics updated signal so UI refreshes
