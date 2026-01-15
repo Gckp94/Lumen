@@ -263,7 +263,9 @@ class TestTradingMetrics:
         # New fields default to None
         assert metrics.edge is None
         assert metrics.fractional_kelly is None
-        assert metrics.expected_growth is None
+        assert metrics.eg_full_kelly is None
+        assert metrics.eg_frac_kelly is None
+        assert metrics.eg_flat_stake is None
         assert metrics.median_winner is None
         assert metrics.median_loser is None
         assert metrics.winner_min is None
@@ -283,7 +285,9 @@ class TestTradingMetrics:
             kelly=30.0,
             edge=30.0,
             fractional_kelly=7.5,
-            expected_growth=0.5,
+            eg_full_kelly=0.5,
+            eg_frac_kelly=0.15,
+            eg_flat_stake=0.10,
             median_winner=10.0,
             median_loser=-4.0,
             winner_min=5.0,
@@ -294,7 +298,9 @@ class TestTradingMetrics:
 
         assert metrics.edge == 30.0
         assert metrics.fractional_kelly == 7.5
-        assert metrics.expected_growth == 0.5
+        assert metrics.eg_full_kelly == 0.5
+        assert metrics.eg_frac_kelly == 0.15
+        assert metrics.eg_flat_stake == 0.10
         assert metrics.median_winner == 10.0
         assert metrics.median_loser == -4.0
         assert metrics.winner_min == 5.0
@@ -308,7 +314,9 @@ class TestTradingMetrics:
 
         assert metrics.edge is None
         assert metrics.fractional_kelly is None
-        assert metrics.expected_growth is None
+        assert metrics.eg_full_kelly is None
+        assert metrics.eg_frac_kelly is None
+        assert metrics.eg_flat_stake is None
         assert metrics.median_winner is None
         assert metrics.median_loser is None
         assert metrics.winner_min is None
@@ -588,3 +596,22 @@ class TestMetricsUserInputs:
         assert recreated.flat_stake == original.flat_stake
         assert recreated.starting_capital == original.starting_capital
         assert recreated.fractional_kelly == original.fractional_kelly
+
+
+def test_trading_metrics_has_eg_fields() -> None:
+    """TradingMetrics has three expected growth fields."""
+    metrics = TradingMetrics(
+        num_trades=100,
+        win_rate=60.0,
+        avg_winner=2.0,
+        avg_loser=-1.0,
+        rr_ratio=2.0,
+        ev=0.8,
+        kelly=40.0,
+        eg_full_kelly=0.15,
+        eg_frac_kelly=0.04,
+        eg_flat_stake=0.10,
+    )
+    assert metrics.eg_full_kelly == 0.15
+    assert metrics.eg_frac_kelly == 0.04
+    assert metrics.eg_flat_stake == 0.10

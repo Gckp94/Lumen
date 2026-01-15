@@ -90,7 +90,9 @@ class TradingMetrics:
         loser_gains: List of individual loser gain percentages.
         edge: Total edge (EV * num_trades).
         fractional_kelly: User-adjusted Kelly (Kelly * fraction).
-        expected_growth: Expected geometric growth rate.
+        eg_full_kelly: Expected growth at full Kelly fraction.
+        eg_frac_kelly: Expected growth at fractional Kelly.
+        eg_flat_stake: Expected growth at flat stake fraction.
         median_winner: Median gain of winning trades.
         median_loser: Median loss of losing trades.
         winner_min: Minimum winner gain.
@@ -130,7 +132,9 @@ class TradingMetrics:
     # Extended Core Statistics (Story 3.2 - metrics 8-12)
     edge: float | None = None  # Edge = EV * num_trades
     fractional_kelly: float | None = None  # Kelly * fractional_pct
-    expected_growth: float | None = None  # Expected growth rate
+    eg_full_kelly: float | None = None  # Expected growth at full Kelly fraction
+    eg_frac_kelly: float | None = None  # Expected growth at fractional Kelly
+    eg_flat_stake: float | None = None  # Expected growth at flat stake fraction
     median_winner: float | None = None
     median_loser: float | None = None
 
@@ -176,7 +180,9 @@ class TradingMetrics:
             loser_gains=[],
             edge=None,
             fractional_kelly=None,
-            expected_growth=None,
+            eg_full_kelly=None,
+            eg_frac_kelly=None,
+            eg_flat_stake=None,
             median_winner=None,
             median_loser=None,
             winner_min=None,
