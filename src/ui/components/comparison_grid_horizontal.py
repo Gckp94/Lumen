@@ -65,14 +65,26 @@ class ComparisonGridHorizontal(QFrame):
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        scroll_area.setHorizontalScrollBarPolicy(
-            scroll_area.horizontalScrollBarPolicy()
-        )
 
         scroll_content = QWidget()
         self._cards_layout = QHBoxLayout(scroll_content)
         self._cards_layout.setContentsMargins(0, 0, 0, 0)
         self._cards_layout.setSpacing(Spacing.SM)
+
+        # Proportional stretch factors per section:
+        # - Core Statistics: largest (14 metrics) - gets most space
+        # - Streak & Loss: smallest (3 metrics) - 60% relative
+        # - Flat Stake: medium (4 metrics) - 80% relative
+        # - Compounded Kelly: medium (4 metrics) - 80% relative
+        section_stretch = {
+            "core_statistics": 5,   # Largest - takes remaining space
+            "streak_loss": 3,       # 60% relative
+            "flat_stake": 4,        # 80% relative
+            "kelly": 4,             # 80% relative
+        }
+
+        # Minimum content width: name(130) + values(120×3) + padding ≈ 520px
+        MIN_CARD_WIDTH = 520
 
         # Create section cards
         for section_id, title, metrics in SECTIONS:
@@ -85,7 +97,12 @@ class ComparisonGridHorizontal(QFrame):
 
             # Create the section card
             card = MetricsSectionCard(title, metric_tuples)
-            self._cards_layout.addWidget(card)
+            card.setMinimumWidth(MIN_CARD_WIDTH)
+
+            # Apply proportional stretch factor
+            stretch = section_stretch.get(section_id, 1)
+            self._cards_layout.addWidget(card, stretch=stretch)
+
             self._section_cards[section_id] = card
 
         scroll_area.setWidget(scroll_content)
