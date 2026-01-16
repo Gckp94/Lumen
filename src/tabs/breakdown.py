@@ -138,7 +138,7 @@ class BreakdownTab(QWidget):
 
         # Charts grid: 2 rows x 3 columns
         grid = QGridLayout()
-        grid.setHorizontalSpacing(Spacing.MD)
+        grid.setHorizontalSpacing(Spacing.SM)
         grid.setVerticalSpacing(Spacing.SM)
 
         # Define yearly charts
@@ -193,7 +193,7 @@ class BreakdownTab(QWidget):
 
         # Charts grid: 2 rows x 4 columns
         grid = QGridLayout()
-        grid.setHorizontalSpacing(Spacing.MD)
+        grid.setHorizontalSpacing(Spacing.SM)
         grid.setVerticalSpacing(Spacing.SM)
 
         # Define monthly charts (8 charts)
