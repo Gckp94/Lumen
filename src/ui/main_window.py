@@ -8,6 +8,7 @@ import logging
 from PyQt6.QtWidgets import QMainWindow
 
 from src.core.app_state import AppState
+from src.tabs.breakdown import BreakdownTab
 from src.tabs.data_binning import DataBinningTab
 from src.tabs.data_input import DataInputTab
 from src.tabs.feature_explorer import FeatureExplorerTab
@@ -43,6 +44,7 @@ class MainWindow(QMainWindow):
         tabs = [
             ("Data Input", DataInputTab(self._app_state)),
             ("Feature Explorer", FeatureExplorerTab(self._app_state)),
+            ("Breakdown", BreakdownTab(self._app_state)),
             ("Data Binning", DataBinningTab(self._app_state)),
             ("PnL & Trading Stats", PnLStatsTab(self._app_state)),
             ("Monte Carlo", MonteCarloTab()),
