@@ -33,7 +33,7 @@ class VerticalBarChart(QWidget):
         self._hovered_index: int | None = None
         self.setMouseTracking(True)
         self.setMinimumHeight(200)
-        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
     def set_data(
         self,

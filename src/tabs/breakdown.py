@@ -157,6 +157,10 @@ class BreakdownTab(QWidget):
             col = i % 3  # 0, 1, 2, 0, 1, 2
             grid.addWidget(chart, row, col)
 
+        # Set equal column stretch so charts fill width
+        for col in range(3):
+            grid.setColumnStretch(col, 1)
+
         layout.addLayout(grid)
         return section
 
@@ -208,6 +212,10 @@ class BreakdownTab(QWidget):
             row = i // 4  # 0, 0, 0, 0, 1, 1, 1, 1
             col = i % 4  # 0, 1, 2, 3, 0, 1, 2, 3
             grid.addWidget(chart, row, col)
+
+        # Set equal column stretch so charts fill width
+        for col in range(4):
+            grid.setColumnStretch(col, 1)
 
         layout.addLayout(grid)
         return section
