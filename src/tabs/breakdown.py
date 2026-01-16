@@ -31,14 +31,14 @@ class BreakdownTab(QWidget):
     """
 
     def __init__(self, app_state: AppState) -> None:
-        """Initialize the breakdown tab.
+        """Initialize breakdown tab.
 
         Args:
             app_state: Shared application state.
         """
         super().__init__()
         self._app_state = app_state
-        self._calculator = BreakdownCalculator()
+        self._calculator = self._create_calculator()
 
         # Chart widgets - yearly (6 charts)
         self._yearly_charts: dict[str, VerticalBarChart] = {}
@@ -52,6 +52,18 @@ class BreakdownTab(QWidget):
         self._setup_ui()
         self._connect_signals()
         self._initialize_from_state()
+
+    def _create_calculator(self) -> BreakdownCalculator:
+        """Create a BreakdownCalculator with current user inputs.
+
+        Returns:
+            BreakdownCalculator configured with user's flat_stake and starting_capital.
+        """
+        inputs = self._app_state.metrics_user_inputs
+        return BreakdownCalculator(
+            stake=inputs.flat_stake,
+            start_capital=inputs.starting_capital,
+        )
 
     def _setup_ui(self) -> None:
         """Set up the UI layout with scroll area and sections."""
