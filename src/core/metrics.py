@@ -379,8 +379,10 @@ class MetricsCalculator:
             else:
                 kelly_equity_df["_adjusted_gains_for_equity"] = gains
             equity_calculator = EquityCalculator()
+            # Use stop_adjusted_kelly for position sizing if available, otherwise raw kelly
+            kelly_for_equity = stop_adjusted_kelly if stop_adjusted_kelly is not None else kelly
             kelly_result = equity_calculator.calculate_kelly_metrics(
-                kelly_equity_df, "_adjusted_gains_for_equity", start_capital, fractional_kelly_pct, kelly, date_col=date_col
+                kelly_equity_df, "_adjusted_gains_for_equity", start_capital, fractional_kelly_pct, kelly_for_equity, date_col=date_col
             )
             pnl_val = kelly_result["pnl"]
             if isinstance(pnl_val, (int, float)):

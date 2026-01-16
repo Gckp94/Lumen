@@ -110,6 +110,31 @@ class TestMetricsCalculator:
         )
         assert metrics.fractional_kelly == pytest.approx(250.0, abs=2.5)
 
+    def test_kelly_equity_uses_stop_adjusted_position_size(self) -> None:
+        """Kelly equity curve uses stop-adjusted position sizing."""
+        calc = MetricsCalculator()
+        # Create a scenario with known Kelly
+        # 60% win rate, R:R = 2.0 -> Kelly = 40%
+        # With 8% stop: stop_adjusted = 500%
+        # With 100% fraction: effective = 500%
+        # First trade: position = 10000 * 5.0 = 50000
+        df_kelly = pd.DataFrame({
+            "gain_pct": [0.02, 0.02, 0.02, -0.01, -0.01],
+            "mae_pct": [0.05, 0.04, 0.06, 0.08, 0.07],
+        })
+        adjustment_params = AdjustmentParams(stop_loss=8.0, efficiency=0.0)
+        metrics, _, kelly_equity = calc.calculate(
+            df_kelly, "gain_pct", derived=True,
+            adjustment_params=adjustment_params, mae_col="mae_pct",
+            start_capital=10000.0, fractional_kelly_pct=100.0
+        )
+        # Position size should be based on stop_adjusted_kelly (~500%)
+        # First trade: position = 10000 * 5.0 = 50000
+        assert kelly_equity is not None
+        first_position = kelly_equity["position_size"].iloc[0]
+        # Position should be ~50000 (500% of capital), not 4000 (40% of capital)
+        assert first_position > 40000  # Must be significantly larger than raw Kelly
+
     def test_empty_dataframe(self) -> None:
         """Empty DataFrame returns empty metrics."""
         calc = MetricsCalculator()
