@@ -75,3 +75,13 @@ def test_breakdown_tab_year_selector_updates_monthly(app, app_state):
     # Monthly charts should have data for 2024
     monthly_data = tab._monthly_charts["total_gain_pct"]._data
     assert len(monthly_data) == 2  # Feb and Aug in 2024
+
+
+def test_breakdown_tab_empty_state(app):
+    """Test BreakdownTab shows empty state when no data."""
+    state = AppState()
+    tab = BreakdownTab(state)
+
+    # Should not crash, charts should be empty
+    assert tab._year_selector._years == []
+    assert tab._yearly_charts["total_gain_pct"]._data == []
