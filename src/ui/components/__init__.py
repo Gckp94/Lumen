@@ -29,6 +29,7 @@ from src.ui.components.toast import Toast
 from src.ui.components.toggle_switch import ToggleSwitch
 from src.ui.components.user_inputs_panel import UserInputsPanel
 from src.ui.components.vertical_bar_chart import VerticalBarChart
+from src.ui.components.year_selector_tabs import YearSelectorTabs
 
 __all__ = [
     "AxisControlPanel",
@@ -60,4 +61,5 @@ __all__ = [
     "ToggleSwitch",
     "UserInputsPanel",
     "VerticalBarChart",
+    "YearSelectorTabs",
 ]
