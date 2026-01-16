@@ -458,3 +458,16 @@ class BreakdownTab(QWidget):
         """Clear all monthly chart data."""
         for chart in self._monthly_charts.values():
             chart.set_data([])
+
+    def cleanup(self) -> None:
+        """Clean up resources before destruction."""
+        try:
+            self._app_state.filtered_data_updated.disconnect(self._on_filtered_data_updated)
+        except (TypeError, RuntimeError):
+            pass
+        try:
+            self._app_state.metrics_user_inputs_changed.disconnect(
+                self._on_metrics_user_inputs_changed
+            )
+        except (TypeError, RuntimeError):
+            pass
