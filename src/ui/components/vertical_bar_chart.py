@@ -2,7 +2,7 @@
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter, QPaintEvent
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QSizePolicy, QWidget
 
 from src.ui.constants import Colors, Fonts
 
@@ -33,6 +33,7 @@ class VerticalBarChart(QWidget):
         self._hovered_index: int | None = None
         self.setMouseTracking(True)
         self.setMinimumHeight(200)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
 
     def set_data(
         self,
@@ -102,7 +103,7 @@ class VerticalBarChart(QWidget):
 
         # Calculate bar area
         total_bar_width = len(self._data) * (self._bar_width + self._bar_spacing)
-        start_x = (width - total_bar_width) // 2 + self._bar_spacing // 2
+        start_x = 10 + self._bar_spacing // 2  # Left-align with small padding
 
         label_font = QFont(Fonts.UI, 9)
         value_font = QFont(Fonts.DATA, 9)
@@ -261,7 +262,7 @@ class VerticalBarChart(QWidget):
         """
         x = event.position().x()
         total_bar_width = len(self._data) * (self._bar_width + self._bar_spacing)
-        start_x = (self.width() - total_bar_width) // 2 + self._bar_spacing // 2
+        start_x = 10 + self._bar_spacing // 2  # Left-align with small padding
 
         new_index = None
         for i in range(len(self._data)):

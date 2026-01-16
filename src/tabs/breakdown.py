@@ -62,7 +62,7 @@ class BreakdownTab(QWidget):
         # Scroll area for all content
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll_area.setStyleSheet(
             f"""
             QScrollArea {{
@@ -84,6 +84,22 @@ class BreakdownTab(QWidget):
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0;
+            }}
+            QScrollBar:horizontal {{
+                background-color: {Colors.BG_SURFACE};
+                height: 8px;
+                margin: 0;
+            }}
+            QScrollBar::handle:horizontal {{
+                background-color: {Colors.BG_BORDER};
+                border-radius: 4px;
+                min-width: 20px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background-color: {Colors.TEXT_SECONDARY};
+            }}
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                width: 0;
             }}
         """
         )
