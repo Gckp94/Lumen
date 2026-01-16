@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from src.core.breakdown import BreakdownCalculator
+from src.core.models import AdjustmentParams
 
 
 @pytest.fixture
@@ -236,3 +237,72 @@ def test_monthly_max_dd_uses_full_equity_context():
     assert result["Feb"]["max_dd_dollars"] == pytest.approx(200.0)
     # DD % = (200 / 10500) * 100 = 1.905%
     assert result["Feb"]["max_dd_pct"] == pytest.approx(1.905, rel=0.01)
+
+
+def test_yearly_breakdown_with_adjustment_params():
+    """Test yearly breakdown uses adjusted gains when adjustment_params provided.
+
+    When efficiency adjustment is applied, gains are reduced, resulting in
+    different equity curves and lower total gains.
+    """
+    df = pd.DataFrame({
+        "date": pd.to_datetime([
+            "2023-01-15", "2023-03-20", "2023-06-10",
+        ]),
+        # Decimal format: 0.10 = 10%, -0.05 = -5%, 0.08 = 8%
+        "gain_pct": [0.10, -0.05, 0.08],
+        "mae": [5.0, 8.0, 3.0],  # MAE in percentage format (5%, 8%, 3%)
+        "win_loss": ["W", "L", "W"],
+    })
+
+    # Without adjustments: total = 10% + (-5%) + 8% = 13%
+    calc_raw = BreakdownCalculator(stake=1000.0, start_capital=10000.0)
+    result_raw = calc_raw.calculate_yearly(df, "date", "gain_pct", "win_loss")
+    assert result_raw["2023"]["total_gain_pct"] == pytest.approx(13.0)
+
+    # With 5% efficiency adjustment: gains reduced by 5% each
+    # Trade 1: 10% - 5% = 5%
+    # Trade 2: -5% - 5% = -10%
+    # Trade 3: 8% - 5% = 3%
+    # Total adjusted = 5% + (-10%) + 3% = -2%
+    adjustment_params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+    calc_adj = BreakdownCalculator(
+        stake=1000.0,
+        start_capital=10000.0,
+        adjustment_params=adjustment_params,
+        mae_col="mae",
+    )
+    result_adj = calc_adj.calculate_yearly(df, "date", "gain_pct", "win_loss")
+    assert result_adj["2023"]["total_gain_pct"] == pytest.approx(-2.0)
+
+    # Flat stake with adjustment: 1000 * (-2/100) = -20
+    assert result_adj["2023"]["total_flat_stake"] == pytest.approx(-20.0)
+
+
+def test_monthly_breakdown_with_adjustment_params():
+    """Test monthly breakdown uses adjusted gains when adjustment_params provided."""
+    df = pd.DataFrame({
+        "date": pd.to_datetime([
+            "2024-01-15",  # 10% gain, 5% MAE -> adjusted: 5%
+            "2024-02-10",  # -5% loss, 8% MAE -> adjusted: -10%
+            "2024-02-20",  # 8% gain, 3% MAE -> adjusted: 3%
+        ]),
+        "gain_pct": [0.10, -0.05, 0.08],
+        "mae": [5.0, 8.0, 3.0],
+        "win_loss": ["W", "L", "W"],
+    })
+
+    adjustment_params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+    calc = BreakdownCalculator(
+        stake=1000.0,
+        start_capital=10000.0,
+        adjustment_params=adjustment_params,
+        mae_col="mae",
+    )
+    result = calc.calculate_monthly(df, 2024, "date", "gain_pct", "win_loss")
+
+    # January: 10% - 5% = 5%
+    assert result["Jan"]["total_gain_pct"] == pytest.approx(5.0)
+
+    # February: (-5% - 5%) + (8% - 5%) = -10% + 3% = -7%
+    assert result["Feb"]["total_gain_pct"] == pytest.approx(-7.0)

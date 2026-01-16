@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from src.core.equity import EquityCalculator
+from src.core.models import AdjustmentParams
 
 logger = logging.getLogger(__name__)
 
@@ -17,15 +18,25 @@ class BreakdownCalculator:
     max drawdown, trade count, win rate, and average winner/loser.
     """
 
-    def __init__(self, stake: float = 1000.0, start_capital: float = 10000.0) -> None:
+    def __init__(
+        self,
+        stake: float = 1000.0,
+        start_capital: float = 10000.0,
+        adjustment_params: "AdjustmentParams | None" = None,
+        mae_col: str | None = None,
+    ) -> None:
         """Initialize calculator with position sizing parameters.
 
         Args:
             stake: Fixed stake amount for flat stake calculations.
             start_capital: Starting capital for equity curves.
+            adjustment_params: Optional adjustment parameters for stop loss/efficiency.
+            mae_col: Column name for MAE (required if adjustment_params provided).
         """
         self._stake = stake
         self._start_capital = start_capital
+        self._adjustment_params = adjustment_params
+        self._mae_col = mae_col
         self._equity_calc = EquityCalculator()
 
     def calculate_yearly(
@@ -39,6 +50,9 @@ class BreakdownCalculator:
 
         Uses full equity curve context - drawdowns are calculated relative to
         all-time peaks, not just within-year peaks.
+
+        If adjustment_params was provided at initialization, applies stop loss
+        and efficiency adjustments to gains before calculating metrics.
 
         Args:
             df: DataFrame containing trade data.
@@ -57,8 +71,26 @@ class BreakdownCalculator:
         df = df.sort_values(date_col).reset_index(drop=True)
         df["_year"] = pd.to_datetime(df[date_col]).dt.year
 
+        # Apply adjustments if configured, otherwise use raw gains
+        # Store in temporary column for use in calculations
+        if self._adjustment_params is not None and self._mae_col is not None:
+            # calculate_adjusted_gains returns decimal format
+            df["_calc_gains"] = self._adjustment_params.calculate_adjusted_gains(
+                df, gain_col, self._mae_col
+            )
+            logger.debug(
+                "Breakdown using adjusted gains (stop=%.1f%%, eff=%.1f%%): "
+                "range [%.4f, %.4f] (decimal)",
+                self._adjustment_params.stop_loss,
+                self._adjustment_params.efficiency,
+                df["_calc_gains"].min(),
+                df["_calc_gains"].max(),
+            )
+        else:
+            df["_calc_gains"] = df[gain_col].astype(float)
+
         # Convert gains to percentage format for equity calculation
-        gains_pct = df[gain_col].to_numpy(dtype=float) * 100.0
+        gains_pct = df["_calc_gains"].to_numpy(dtype=float) * 100.0
         df["_gains_pct"] = gains_pct
 
         # Calculate FULL equity curve across ALL data
@@ -77,8 +109,9 @@ class BreakdownCalculator:
             year_equity = full_equity[full_equity["_year"] == year].copy()
 
             # Calculate period metrics with the year-specific equity curve
+            # Use _calc_gains (decimal format) - the method converts to percentage
             result[str(year)] = self._calculate_period_metrics_with_equity(
-                group, gain_col, win_loss_col, year_equity
+                group, "_calc_gains", win_loss_col, year_equity
             )
 
         return result
@@ -95,6 +128,9 @@ class BreakdownCalculator:
 
         Uses full equity curve context - drawdowns are calculated relative to
         all-time peaks, not just within-year or within-month peaks.
+
+        If adjustment_params was provided at initialization, applies stop loss
+        and efficiency adjustments to gains before calculating metrics.
 
         Args:
             df: DataFrame containing trade data.
@@ -114,11 +150,21 @@ class BreakdownCalculator:
         df = df.sort_values(date_col).reset_index(drop=True)
         dates = pd.to_datetime(df[date_col])
 
-        # Convert gains to percentage format for equity calculation
-        gains_pct = df[gain_col].to_numpy(dtype=float) * 100.0
-        df["_gains_pct"] = gains_pct
         df["_year"] = dates.dt.year
         df["_month"] = dates.dt.month
+
+        # Apply adjustments if configured, otherwise use raw gains
+        if self._adjustment_params is not None and self._mae_col is not None:
+            # calculate_adjusted_gains returns decimal format
+            df["_calc_gains"] = self._adjustment_params.calculate_adjusted_gains(
+                df, gain_col, self._mae_col
+            )
+        else:
+            df["_calc_gains"] = df[gain_col].astype(float)
+
+        # Convert gains to percentage format for equity calculation
+        gains_pct = df["_calc_gains"].to_numpy(dtype=float) * 100.0
+        df["_gains_pct"] = gains_pct
 
         # Calculate FULL equity curve across ALL data (not just the target year)
         # This ensures monthly DD metrics reflect all-time peaks
@@ -151,7 +197,7 @@ class BreakdownCalculator:
             ].copy()
 
             result[month_name] = self._calculate_period_metrics_with_equity(
-                group, gain_col, win_loss_col, month_equity, include_avg_winner_loser=True
+                group, "_calc_gains", win_loss_col, month_equity, include_avg_winner_loser=True
             )
 
         return result

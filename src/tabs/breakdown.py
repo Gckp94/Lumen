@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.app_state import AppState
 from src.core.breakdown import BreakdownCalculator
-from src.core.models import MetricsUserInputs
+from src.core.models import AdjustmentParams, MetricsUserInputs
 from src.ui.components.vertical_bar_chart import VerticalBarChart
 from src.ui.components.year_selector_tabs import YearSelectorTabs
 from src.ui.constants import Colors, Fonts, Spacing
@@ -55,15 +55,24 @@ class BreakdownTab(QWidget):
         self._initialize_from_state()
 
     def _create_calculator(self) -> BreakdownCalculator:
-        """Create a BreakdownCalculator with current user inputs.
+        """Create a BreakdownCalculator with current user inputs and adjustments.
 
         Returns:
-            BreakdownCalculator configured with user's flat_stake and starting_capital.
+            BreakdownCalculator configured with user's flat_stake, starting_capital,
+            and adjustment parameters (stop loss, efficiency).
         """
         inputs = self._app_state.metrics_user_inputs
+        adjustment_params = self._app_state.adjustment_params
+        mae_col = (
+            self._app_state.column_mapping.mae_pct
+            if self._app_state.column_mapping
+            else None
+        )
         return BreakdownCalculator(
             stake=inputs.flat_stake,
             start_capital=inputs.starting_capital,
+            adjustment_params=adjustment_params,
+            mae_col=mae_col,
         )
 
     def _setup_ui(self) -> None:
@@ -245,6 +254,7 @@ class BreakdownTab(QWidget):
         """Connect to app_state and internal signals."""
         self._app_state.filtered_data_updated.connect(self._on_filtered_data_updated)
         self._app_state.metrics_user_inputs_changed.connect(self._on_metrics_user_inputs_changed)
+        self._app_state.adjustment_params_changed.connect(self._on_adjustment_params_changed)
 
         if self._year_selector:
             self._year_selector.year_changed.connect(self._on_year_changed)
@@ -308,10 +318,18 @@ class BreakdownTab(QWidget):
         Args:
             inputs: New user inputs.
         """
-        self._calculator = BreakdownCalculator(
-            stake=inputs.flat_stake,
-            start_capital=inputs.starting_capital,
-        )
+        self._calculator = self._create_calculator()
+        self._refresh_charts()
+
+    def _on_adjustment_params_changed(self, params: AdjustmentParams) -> None:
+        """Handle adjustment parameters changed.
+
+        Recreates the calculator with new adjustment values and refreshes charts.
+
+        Args:
+            params: New adjustment parameters.
+        """
+        self._calculator = self._create_calculator()
         self._refresh_charts()
 
     def _refresh_charts(self) -> None:
@@ -468,6 +486,12 @@ class BreakdownTab(QWidget):
         try:
             self._app_state.metrics_user_inputs_changed.disconnect(
                 self._on_metrics_user_inputs_changed
+            )
+        except (TypeError, RuntimeError):
+            pass
+        try:
+            self._app_state.adjustment_params_changed.disconnect(
+                self._on_adjustment_params_changed
             )
         except (TypeError, RuntimeError):
             pass
