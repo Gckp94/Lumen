@@ -558,8 +558,10 @@ class FeatureExplorerTab(QWidget):
             enabled: Whether first trigger filtering is enabled.
         """
         self._app_state.first_trigger_enabled = enabled
-        self._app_state.first_trigger_toggled.emit(enabled)
+        # Apply filters FIRST, then emit signal. This ensures filtered_df is
+        # updated before any listeners (like PnL tab) react to the toggle change.
         self._apply_current_filters()
+        self._app_state.first_trigger_toggled.emit(enabled)
         logger.info(f"First trigger toggle: {'ON' if enabled else 'OFF'}")
 
     def _on_date_range_changed(

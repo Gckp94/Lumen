@@ -605,7 +605,10 @@ class PnLStatsTab(QWidget):
             self._schedule_recalculation
         )
 
-        # First trigger toggle - immediate recalculation
+        # First trigger toggle - recalculate baseline metrics.
+        # Note: Feature Explorer now emits this signal AFTER updating filtered_df,
+        # so there's no race condition. We need this to update baseline metrics
+        # which depend on first_trigger_enabled state.
         self._app_state.first_trigger_toggled.connect(self._on_first_trigger_toggled)
 
         # Comparison Ribbon update (Story 4.2)
