@@ -119,7 +119,7 @@ class BreakdownCalculator:
 
         Args:
             df: DataFrame for the period.
-            gain_col: Column name for gain percentage.
+            gain_col: Column name for gain percentage (decimal format, e.g., 0.05 = 5%).
             win_loss_col: Column name for win/loss indicator.
             include_avg_winner_loser: Whether to include avg winner/loser.
 
@@ -128,11 +128,15 @@ class BreakdownCalculator:
         """
         gains = df[gain_col].to_numpy(dtype=float)
 
-        # Total gain %
-        total_gain_pct = float(np.sum(gains))
+        # Convert from decimal format (0.05 = 5%) to percentage format (5.0 = 5%)
+        # This matches the format expected by MetricsCalculator
+        gains_pct = gains * 100.0
 
-        # Total flat stake gain $
-        total_flat_stake = float(np.sum(self._stake * (gains / 100.0)))
+        # Total gain % (sum of all trade gains in percentage format)
+        total_gain_pct = float(np.sum(gains_pct))
+
+        # Total flat stake gain $ (stake * gain_pct / 100)
+        total_flat_stake = float(np.sum(self._stake * (gains_pct / 100.0)))
 
         # Count
         count = len(df)
@@ -145,13 +149,16 @@ class BreakdownCalculator:
         win_rate = (wins / count * 100) if count > 0 else 0.0
 
         # Max DD (calculate equity curve for this period)
-        equity_df = self._equity_calc.calculate_flat_stake(
-            df.reset_index(drop=True),
-            gain_col,
+        # Create a copy with gains in percentage format for equity calculator
+        equity_df = df.copy()
+        equity_df["_gains_pct"] = gains_pct
+        equity_curve = self._equity_calc.calculate_flat_stake(
+            equity_df.reset_index(drop=True),
+            "_gains_pct",
             self._stake,
             self._start_capital,
         )
-        max_dd_dollars, max_dd_pct, _ = self._equity_calc.calculate_drawdown_metrics(equity_df)
+        max_dd_dollars, max_dd_pct, _ = self._equity_calc.calculate_drawdown_metrics(equity_curve)
 
         metrics = {
             "total_gain_pct": total_gain_pct,
@@ -163,8 +170,8 @@ class BreakdownCalculator:
         }
 
         if include_avg_winner_loser:
-            winners = gains[gains > 0]
-            losers = gains[gains < 0]
+            winners = gains_pct[gains_pct > 0]
+            losers = gains_pct[gains_pct < 0]
             metrics["avg_winner_pct"] = float(np.mean(winners)) if len(winners) > 0 else 0.0
             metrics["avg_loser_pct"] = float(np.mean(losers)) if len(losers) > 0 else 0.0
 
