@@ -44,10 +44,11 @@ class FirstTriggerEngine:
             return df.copy()
 
         # Sort by ticker, date, time (nulls first within each group)
+        # Reset index to ensure deterministic drop_duplicates behavior
         sorted_df = df.sort_values(
             by=[ticker_col, date_col, time_col],
             na_position="first",
-        )
+        ).reset_index(drop=True)
 
         # Keep first row per ticker-date combination
         result = sorted_df.drop_duplicates(
@@ -89,10 +90,12 @@ class FirstTriggerEngine:
             return df.copy()
 
         # Sort by ticker, date, time (nulls first within each group)
+        # Reset index to ensure deterministic drop_duplicates behavior
+        # regardless of original index ordering from prior filtering
         sorted_df = df.sort_values(
             by=[ticker_col, date_col, time_col],
             na_position="first",
-        )
+        ).reset_index(drop=True)
 
         # Keep first row per ticker-date combination
         result = sorted_df.drop_duplicates(
