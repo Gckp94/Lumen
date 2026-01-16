@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.app_state import AppState
 from src.core.breakdown import BreakdownCalculator
+from src.core.models import MetricsUserInputs
 from src.ui.components.vertical_bar_chart import VerticalBarChart
 from src.ui.components.year_selector_tabs import YearSelectorTabs
 from src.ui.constants import Colors, Fonts, Spacing
@@ -243,6 +244,7 @@ class BreakdownTab(QWidget):
     def _connect_signals(self) -> None:
         """Connect to app_state and internal signals."""
         self._app_state.filtered_data_updated.connect(self._on_filtered_data_updated)
+        self._app_state.metrics_user_inputs_changed.connect(self._on_metrics_user_inputs_changed)
 
         if self._year_selector:
             self._year_selector.year_changed.connect(self._on_year_changed)
@@ -297,6 +299,28 @@ class BreakdownTab(QWidget):
             mapping.gain_pct,
             mapping.win_loss,
         )
+
+    def _on_metrics_user_inputs_changed(self, inputs: MetricsUserInputs) -> None:
+        """Handle metrics user inputs changed.
+
+        Recreates the calculator with new values and refreshes charts.
+
+        Args:
+            inputs: New user inputs.
+        """
+        self._calculator = BreakdownCalculator(
+            stake=inputs.flat_stake,
+            start_capital=inputs.starting_capital,
+        )
+        self._refresh_charts()
+
+    def _refresh_charts(self) -> None:
+        """Refresh all charts with current data.
+
+        Re-triggers the data update handler with current filtered data.
+        """
+        if self._app_state.filtered_df is not None:
+            self._on_filtered_data_updated(self._app_state.filtered_df)
 
     def _update_yearly_charts(
         self,
