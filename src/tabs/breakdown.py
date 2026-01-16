@@ -158,7 +158,14 @@ class BreakdownTab(QWidget):
             col = i % 3  # 0, 1, 2, 0, 1, 2
             grid.addWidget(chart, row, col)
 
-        layout.addLayout(grid)
+        # Wrap grid in horizontal layout with stretch to prevent spreading
+        grid_container = QHBoxLayout()
+        grid_container.setContentsMargins(0, 0, 0, 0)
+        grid_container.setSpacing(0)
+        grid_container.addLayout(grid)
+        grid_container.addStretch()
+
+        layout.addLayout(grid_container)
         return section
 
     def _create_months_section(self) -> QWidget:
@@ -211,7 +218,14 @@ class BreakdownTab(QWidget):
             col = i % 4  # 0, 1, 2, 3, 0, 1, 2, 3
             grid.addWidget(chart, row, col)
 
-        layout.addLayout(grid)
+        # Wrap grid in horizontal layout with stretch to prevent spreading
+        grid_container = QHBoxLayout()
+        grid_container.setContentsMargins(0, 0, 0, 0)
+        grid_container.setSpacing(0)
+        grid_container.addLayout(grid)
+        grid_container.addStretch()
+
+        layout.addLayout(grid_container)
         return section
 
     def _connect_signals(self) -> None:
