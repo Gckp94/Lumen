@@ -288,6 +288,37 @@ class TestMetricsCalculator:
 
         assert isinstance(metrics, TradingMetrics)
 
+    def test_stop_adjusted_kelly_user_example(self) -> None:
+        """Verify user's example: Win=73.2%, R:R=0.747, Stop=30%, Fraction=50%."""
+        calc = MetricsCalculator()
+        # Create data that approximates 73.2% win rate, R:R=0.747
+        # 73 wins, 27 losses out of 100
+        # Avg winner / Avg loser = 0.747, so if avg_loser = -1%, avg_winner = 0.747%
+        winners = [0.00747] * 73  # 0.747% gain as decimal
+        losers = [-0.01] * 27     # 1% loss as decimal
+        gains = winners + losers
+        mae = [0.25] * 100  # MAE < stop so no adjustments triggered
+
+        df = pd.DataFrame({
+            "gain_pct": gains,
+            "mae_pct": mae,
+        })
+        adjustment_params = AdjustmentParams(stop_loss=30.0, efficiency=0.0)
+        metrics, _, _ = calc.calculate(
+            df, "gain_pct", derived=True,
+            adjustment_params=adjustment_params, mae_col="mae_pct",
+            fractional_kelly_pct=50.0
+        )
+
+        # User's expected values:
+        # Kelly Stake % ≈ 37.3%
+        # Stop Adjusted Full Kelly = 37.3 / 30 * 100 ≈ 124.3%
+        # Stop Adjusted Half Kelly = 124.3 * 0.5 ≈ 62.2%
+
+        assert metrics.kelly == pytest.approx(37.3, abs=1.0)
+        assert metrics.stop_adjusted_kelly == pytest.approx(124.3, abs=5.0)
+        assert metrics.fractional_kelly == pytest.approx(62.2, abs=3.0)
+
 
 @pytest.mark.slow
 class TestMetricsCalculatorPerformance:
