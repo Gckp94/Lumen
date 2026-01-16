@@ -225,9 +225,12 @@ class MetricsCalculator:
         if rr_ratio is not None and win_rate is not None:
             edge = (((rr_ratio + 1) * (win_rate / 100)) - 1) * 100
 
-        # Fractional Kelly = Kelly * (fractional_kelly_pct / 100)
+        # Fractional Kelly = stop_adjusted_kelly * fraction (if available)
+        # Falls back to raw kelly if no stop adjustment
         fractional_kelly: float | None = None
-        if kelly is not None:
+        if stop_adjusted_kelly is not None:
+            fractional_kelly = stop_adjusted_kelly * (fractional_kelly_pct / 100)
+        elif kelly is not None:
             fractional_kelly = kelly * (fractional_kelly_pct / 100)
 
         # Expected Growth calculations

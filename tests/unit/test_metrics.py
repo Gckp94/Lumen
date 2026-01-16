@@ -92,6 +92,24 @@ class TestMetricsCalculator:
         assert metrics.kelly == pytest.approx(40.0, abs=0.5)
         assert metrics.stop_adjusted_kelly == pytest.approx(500.0, abs=5.0)
 
+    def test_fractional_kelly_uses_stop_adjusted(self) -> None:
+        """Fractional Kelly is based on stop-adjusted Kelly when available."""
+        calc = MetricsCalculator()
+        # 60% win rate, R:R = 2.0 -> Kelly = 40%
+        # With 8% stop: stop_adjusted = 500%
+        # With 50% fraction: fractional = 500 * 0.5 = 250%
+        df = pd.DataFrame({
+            "gain_pct": [0.02, 0.02, 0.02, -0.01, -0.01],
+            "mae_pct": [0.05, 0.04, 0.06, 0.08, 0.07],
+        })
+        adjustment_params = AdjustmentParams(stop_loss=8.0, efficiency=0.0)
+        metrics, _, _ = calc.calculate(
+            df, "gain_pct", derived=True,
+            adjustment_params=adjustment_params, mae_col="mae_pct",
+            fractional_kelly_pct=50.0
+        )
+        assert metrics.fractional_kelly == pytest.approx(250.0, abs=2.5)
+
     def test_empty_dataframe(self) -> None:
         """Empty DataFrame returns empty metrics."""
         calc = MetricsCalculator()
