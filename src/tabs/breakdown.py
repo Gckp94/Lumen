@@ -471,3 +471,8 @@ class BreakdownTab(QWidget):
             )
         except (TypeError, RuntimeError):
             pass
+        if self._year_selector:
+            try:
+                self._year_selector.year_changed.disconnect(self._on_year_changed)
+            except (TypeError, RuntimeError):
+                pass
