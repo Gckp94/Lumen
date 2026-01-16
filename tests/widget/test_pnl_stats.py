@@ -512,6 +512,77 @@ class TestPnLStatsTabRecalculation:
 
         tab.cleanup()
 
+    def test_filtered_equity_metrics_recalculated_on_kelly_change(self, qtbot):
+        """Filtered equity metrics recalculate when fractional kelly changes.
+
+        Regression test: filtered flat stake and kelly metrics were showing
+        dashes after kelly input change because _calculate_filtered_equity_curves
+        was not triggered from _recalculate_metrics.
+        """
+        import pandas as pd
+
+        from src.core.models import ColumnMapping
+
+        app_state = AppState()
+        tab = PnLStatsTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Set up baseline data with trigger_number
+        app_state.baseline_df = pd.DataFrame({
+            "gain_pct": [5.0, -2.0, 3.0, 4.0, -1.0],
+            "mae_pct": [1.0, 2.0, 1.5, 1.0, 0.5],
+            "trigger_number": [1, 1, 1, 1, 1],
+            "date": ["2024-01-01"] * 5,
+            "time": ["09:30:00"] * 5,
+        })
+        app_state.column_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            win_loss_derived=True,
+        )
+
+        # Set up filtered data (subset of baseline)
+        filtered_df = pd.DataFrame({
+            "gain_pct": [5.0, -2.0, 3.0],
+            "mae_pct": [1.0, 2.0, 1.5],
+            "trigger_number": [1, 1, 1],
+            "date": ["2024-01-01"] * 3,
+            "time": ["09:30:00"] * 3,
+        })
+        app_state.filtered_df = filtered_df
+
+        # Trigger filtered data update to calculate initial filtered metrics
+        app_state.filtered_data_updated.emit(filtered_df)
+        qtbot.wait(600)  # Wait for debounce + equity curve calculation
+
+        # Verify initial filtered metrics are populated
+        assert app_state.filtered_metrics is not None, \
+            "filtered_metrics should be set after initial calculation"
+        initial_flat_pnl = app_state.filtered_metrics.flat_stake_pnl
+        assert initial_flat_pnl is not None, \
+            "flat_stake_pnl should be set after initial calculation"
+
+        # Change fractional kelly
+        user_inputs = tab.findChild(UserInputsPanel)
+        user_inputs._fractional_kelly_spin.setValue(50.0)
+
+        # Wait for recalculation (debounce + equity curve calculation)
+        qtbot.wait(600)
+
+        # Filtered metrics should still have values (not None/dash)
+        assert app_state.filtered_metrics is not None
+        assert app_state.filtered_metrics.flat_stake_pnl is not None, \
+            "flat_stake_pnl should not be None after kelly change"
+        assert app_state.filtered_metrics.kelly_pnl is not None, \
+            "kelly_pnl should not be None after kelly change"
+        assert app_state.filtered_metrics.eg_flat_stake is not None, \
+            "eg_flat_stake should not be None after kelly change"
+
+        tab.cleanup()
+
 
 class TestPnLStatsTabDistributionCards:
     """Tests for distribution cards integration in PnLStatsTab (Story 3.6)."""
