@@ -16,11 +16,11 @@ class TestMetricsGridCreation:
         qtbot.addWidget(grid)
         assert grid is not None
 
-    def test_metrics_grid_has_25_cards(self, qtbot) -> None:
-        """Grid displays all 25 metrics (17 core + 4 flat stake + 4 Kelly)."""
+    def test_metrics_grid_has_26_cards(self, qtbot) -> None:
+        """Grid displays all 26 metrics (18 core + 4 flat stake + 4 Kelly)."""
         grid = MetricsGrid()
         qtbot.addWidget(grid)
-        assert len(grid._cards) == 25
+        assert len(grid._cards) == 26
 
     def test_metrics_grid_has_all_metric_fields(self, qtbot) -> None:
         """Grid has cards for all metric fields."""
@@ -36,6 +36,7 @@ class TestMetricsGridCreation:
             "ev",
             "edge",
             "kelly",
+            "stop_adjusted_kelly",
             "fractional_kelly",
             "eg_full_kelly",
             "eg_frac_kelly",
@@ -231,15 +232,15 @@ class TestMetricsGridLayout:
     """Tests for MetricsGrid layout."""
 
     def test_grid_has_9_rows_3_columns(self, qtbot) -> None:
-        """Grid has 9 rows and 3 columns (25 metrics)."""
+        """Grid has 9 rows and 3 columns (26 metrics)."""
         grid = MetricsGrid()
         qtbot.addWidget(grid)
 
         layout = grid.layout()
         assert layout is not None
 
-        # 25 items in 3 columns = 9 rows
-        assert layout.count() == 25
+        # 26 items in 3 columns = 9 rows
+        assert layout.count() == 26
 
 
 
@@ -418,6 +419,28 @@ class TestMetricsGridFlatStakeMetrics:
         assert "1,234.56" in grid._cards["flat_stake_pnl"]._value_widget.text()
         assert "567.89" in grid._cards["flat_stake_max_dd"]._value_widget.text()
         assert "12.34" in grid._cards["flat_stake_max_dd_pct"]._value_widget.text()
+
+
+class TestMetricsGridStopAdjustedKelly:
+    """Tests for stop-adjusted Kelly metric display."""
+
+    def test_stop_adjusted_kelly_displays(self, qtbot) -> None:
+        """Stop-adjusted Kelly metric card displays correctly."""
+        grid = MetricsGrid()
+        qtbot.addWidget(grid)
+        metrics = TradingMetrics(
+            num_trades=10,
+            win_rate=60.0,
+            avg_winner=2.0,
+            avg_loser=-1.0,
+            rr_ratio=2.0,
+            ev=0.8,
+            kelly=40.0,
+            stop_adjusted_kelly=500.0,
+        )
+        grid.update_metrics(metrics)
+        assert "stop_adjusted_kelly" in grid._cards
+        assert "500.00" in grid._cards["stop_adjusted_kelly"]._value_widget.text()
 
 
 class TestMetricsGridKellyMetrics:
