@@ -135,6 +135,18 @@ class TestMetricsCalculator:
         # Position should be ~50000 (500% of capital), not 4000 (40% of capital)
         assert first_position > 40000  # Must be significantly larger than raw Kelly
 
+    def test_stop_adjusted_kelly_none_without_adjustment_params(self) -> None:
+        """Stop-adjusted Kelly is None when no adjustment params provided."""
+        calc = MetricsCalculator()
+        df = pd.DataFrame({
+            "gain_pct": [0.02, 0.02, 0.02, -0.01, -0.01],
+        })
+        metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
+        assert metrics.kelly == pytest.approx(40.0, abs=0.5)
+        assert metrics.stop_adjusted_kelly is None
+        # Fractional Kelly should fall back to raw Kelly
+        assert metrics.fractional_kelly == pytest.approx(10.0, abs=0.5)  # 40 * 0.25
+
     def test_empty_dataframe(self) -> None:
         """Empty DataFrame returns empty metrics."""
         calc = MetricsCalculator()
