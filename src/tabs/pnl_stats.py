@@ -913,12 +913,15 @@ class PnLStatsTab(QWidget):
         flat_stake = metrics_inputs.flat_stake if metrics_inputs else 10000.0
         start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
 
-        # Filter to first triggers only for baseline metrics calculation
-        # baseline_df retains all triggers for storage; metrics use first triggers only
-        first_triggers_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
+        # Filter baseline data based on first_trigger_enabled setting
+        if self._app_state.first_trigger_enabled:
+            first_triggers_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
+        else:
+            first_triggers_df = baseline_df.copy()
         logger.info(
-            "pnl_stats._recalculate_metrics: Using %d first triggers (from %d total rows)",
+            "pnl_stats._recalculate_metrics: Using %d rows (first_trigger_enabled=%s, from %d total)",
             len(first_triggers_df),
+            self._app_state.first_trigger_enabled,
             len(baseline_df),
         )
 
