@@ -788,8 +788,16 @@ class PnLStatsTab(QWidget):
         Args:
             metrics: Calculated baseline metrics.
         """
-        self._comparison_grid.set_values(metrics, None)
-        self._update_distribution_cards(metrics)
+        # Recalculate to ensure baseline respects first_trigger_enabled state
+        # The initial metrics from data_input always use first triggers only,
+        # but we need to respect the current toggle state
+        baseline_df = self._app_state.baseline_df
+        if baseline_df is not None and "trigger_number" in baseline_df.columns:
+            self._recalculate_metrics()
+        else:
+            # Fallback: use metrics as provided (no trigger_number column yet)
+            self._comparison_grid.set_values(metrics, None)
+            self._update_distribution_cards(metrics)
         self._update_metrics_visibility()
 
     def _on_metrics_updated(
