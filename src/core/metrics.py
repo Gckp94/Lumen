@@ -204,6 +204,13 @@ class MetricsCalculator:
             kelly = (win_rate / 100) - ((1 - win_rate / 100) / rr_ratio)
             kelly = kelly * 100  # Convert to percentage
 
+        # Stop-Adjusted Kelly
+        # Position size = Kelly Stake % / Stop Loss %
+        # Tighter stops allow larger positions for same risk
+        stop_adjusted_kelly: float | None = None
+        if kelly is not None and adjustment_params is not None and adjustment_params.stop_loss > 0:
+            stop_adjusted_kelly = (kelly / adjustment_params.stop_loss) * 100
+
         # Standard deviations (vectorized, multiply by 100 for percentage format)
         winner_std: float | None = None
         loser_std: float | None = None
@@ -412,6 +419,7 @@ class MetricsCalculator:
                 rr_ratio=rr_ratio,
                 ev=ev,
                 kelly=kelly,
+                stop_adjusted_kelly=stop_adjusted_kelly,
                 winner_count=winner_count,
                 loser_count=loser_count,
                 winner_std=winner_std,
