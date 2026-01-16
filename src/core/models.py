@@ -82,6 +82,7 @@ class TradingMetrics:
         rr_ratio: Risk:Reward ratio (abs(avg_winner / avg_loser)).
         ev: Expected Value per trade (percentage).
         kelly: Kelly criterion optimal bet fraction (percentage).
+        stop_adjusted_kelly: Kelly adjusted for stop loss % (kelly / stop_loss * 100).
         winner_count: Number of winning trades.
         loser_count: Number of losing trades.
         winner_std: Standard deviation of winner gains.
@@ -120,6 +121,7 @@ class TradingMetrics:
     rr_ratio: float | None  # Risk:Reward ratio
     ev: float | None  # Expected Value percentage
     kelly: float | None  # Kelly criterion percentage
+    stop_adjusted_kelly: float | None = None  # Kelly adjusted for stop loss %
 
     # Distribution Data (Story 1.6)
     winner_count: int | None = None
@@ -172,6 +174,7 @@ class TradingMetrics:
             rr_ratio=None,
             ev=None,
             kelly=None,
+            stop_adjusted_kelly=None,
             winner_count=0,
             loser_count=0,
             winner_std=None,

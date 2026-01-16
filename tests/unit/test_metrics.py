@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from src.core.metrics import MetricsCalculator
-from src.core.models import TradingMetrics
+from src.core.models import AdjustmentParams, TradingMetrics
 
 
 class TestMetricsCalculator:
@@ -74,6 +74,23 @@ class TestMetricsCalculator:
         })
         metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
         assert metrics.kelly == pytest.approx(40.0)
+
+    def test_stop_adjusted_kelly_calculation(self) -> None:
+        """Stop-adjusted Kelly calculated correctly with stop loss."""
+        calc = MetricsCalculator()
+        # 60% win rate, R:R = 2.0 -> Kelly = 40%
+        # With 8% stop: stop_adjusted = (40 / 8) * 100 = 500%
+        df = pd.DataFrame({
+            "gain_pct": [0.02, 0.02, 0.02, -0.01, -0.01],  # decimal format
+            "mae_pct": [0.05, 0.04, 0.06, 0.08, 0.07],  # MAE values
+        })
+        adjustment_params = AdjustmentParams(stop_loss=8.0, efficiency=0.0)
+        metrics, _, _ = calc.calculate(
+            df, "gain_pct", derived=True,
+            adjustment_params=adjustment_params, mae_col="mae_pct"
+        )
+        assert metrics.kelly == pytest.approx(40.0, abs=0.5)
+        assert metrics.stop_adjusted_kelly == pytest.approx(500.0, abs=5.0)
 
     def test_empty_dataframe(self) -> None:
         """Empty DataFrame returns empty metrics."""
