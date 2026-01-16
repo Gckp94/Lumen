@@ -569,8 +569,8 @@ class TestPnLStatsTabRecalculation:
         user_inputs = tab.findChild(UserInputsPanel)
         user_inputs._fractional_kelly_spin.setValue(50.0)
 
-        # Wait for recalculation (debounce + equity curve calculation)
-        qtbot.wait(600)
+        # Wait for recalculation (3 debounce layers: input 150ms + recalc 300ms + equity 300ms)
+        qtbot.wait(800)
 
         # Filtered metrics should still have values (not None/dash)
         assert app_state.filtered_metrics is not None

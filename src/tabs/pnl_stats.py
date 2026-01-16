@@ -1002,6 +1002,11 @@ class PnLStatsTab(QWidget):
         # Emit metrics_updated signal to notify other listeners
         self._app_state.metrics_updated.emit(metrics, filtered_metrics)
 
+        # Schedule filtered equity curve calculation if there is filtered data
+        # This ensures flat stake and kelly metrics are recalculated
+        if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
+            self._schedule_equity_curve_calculation()
+
         logger.debug(
             "Recalculated metrics: kelly=%.1f%%, stake=%.2f, capital=%.2f",
             fractional_kelly_pct,
