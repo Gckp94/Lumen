@@ -605,6 +605,9 @@ class PnLStatsTab(QWidget):
             self._schedule_recalculation
         )
 
+        # First trigger toggle - immediate recalculation
+        self._app_state.first_trigger_toggled.connect(self._on_first_trigger_toggled)
+
         # Comparison Ribbon update (Story 4.2)
         self._app_state.metrics_updated.connect(self._on_metrics_updated)
 
@@ -891,6 +894,16 @@ class PnLStatsTab(QWidget):
         """
         if self._app_state.has_data:
             self._recalc_timer.start()
+
+    def _on_first_trigger_toggled(self, enabled: bool) -> None:
+        """Handle first trigger toggle state change.
+
+        Args:
+            enabled: Whether first trigger filtering is enabled.
+        """
+        # Recalculate all metrics with new toggle state
+        self._recalculate_metrics()
+        logger.info("PnL metrics recalculated for first_trigger_enabled=%s", enabled)
 
     def _recalculate_metrics(self) -> None:
         """Recalculate metrics with current parameters."""
