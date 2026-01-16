@@ -171,3 +171,68 @@ def test_custom_stake_and_capital():
 
     # 10% gain on $2000 stake = $200
     assert result["2023"]["total_flat_stake"] == pytest.approx(200.0)
+
+
+def test_yearly_max_dd_uses_full_equity_context():
+    """Test that yearly max DD uses accumulated equity from prior years.
+
+    This tests the "full history context" behavior where yearly drawdowns
+    are calculated relative to all-time peaks, not fresh starts.
+    """
+    # Create data where equity grows significantly in year 1,
+    # then has a drawdown in year 2
+    df = pd.DataFrame({
+        "date": pd.to_datetime([
+            "2023-01-15",  # Big win - equity goes from 10000 to 10500
+            "2024-01-15",  # Loss - equity goes from 10500 to 10300
+        ]),
+        # Decimal format: 0.50 = 50%, -0.20 = -20%
+        "gain_pct": [0.50, -0.20],  # 50% win then 20% loss
+        "win_loss": ["W", "L"],
+    })
+
+    stake = 1000.0
+    start_capital = 10000.0
+    calc = BreakdownCalculator(stake=stake, start_capital=start_capital)
+    result = calc.calculate_yearly(df, "date", "gain_pct", "win_loss")
+
+    # Year 1: Equity goes 10000 -> 10500, no drawdown
+    assert result["2023"]["max_dd_dollars"] == pytest.approx(0.0)
+
+    # Year 2: Equity goes 10500 -> 10300
+    # The 200 dollar loss should be calculated relative to the all-time peak of 10500
+    # (NOT relative to a fresh 10000 starting point)
+    # DD = 10500 - 10300 = 200
+    assert result["2024"]["max_dd_dollars"] == pytest.approx(200.0)
+    # DD % = (200 / 10500) * 100 = 1.905%
+    assert result["2024"]["max_dd_pct"] == pytest.approx(1.905, rel=0.01)
+
+
+def test_monthly_max_dd_uses_full_equity_context():
+    """Test that monthly max DD uses accumulated equity from prior months/years.
+
+    Similar to yearly test but for monthly breakdown.
+    """
+    df = pd.DataFrame({
+        "date": pd.to_datetime([
+            "2024-01-15",  # Big win in January
+            "2024-02-15",  # Loss in February
+        ]),
+        # Decimal format
+        "gain_pct": [0.50, -0.20],  # 50% win then 20% loss
+        "win_loss": ["W", "L"],
+    })
+
+    stake = 1000.0
+    start_capital = 10000.0
+    calc = BreakdownCalculator(stake=stake, start_capital=start_capital)
+    result = calc.calculate_monthly(df, 2024, "date", "gain_pct", "win_loss")
+
+    # January: Equity goes 10000 -> 10500, no drawdown
+    assert result["Jan"]["max_dd_dollars"] == pytest.approx(0.0)
+
+    # February: Equity goes 10500 -> 10300
+    # DD = 200 (relative to all-time peak of 10500)
+    assert result["Feb"]["max_dd_dollars"] == pytest.approx(200.0)
+    # DD % = (200 / 10500) * 100 = 1.905%
+    assert result["Feb"]["max_dd_pct"] == pytest.approx(1.905, rel=0.01)

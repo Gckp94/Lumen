@@ -37,6 +37,9 @@ class BreakdownCalculator:
     ) -> dict[str, dict]:
         """Calculate yearly breakdown metrics.
 
+        Uses full equity curve context - drawdowns are calculated relative to
+        all-time peaks, not just within-year peaks.
+
         Args:
             df: DataFrame containing trade data.
             date_col: Column name for trade date.
@@ -49,14 +52,33 @@ class BreakdownCalculator:
         if df.empty:
             return {}
 
-        # Ensure date column is datetime
+        # Sort by date to ensure correct equity curve calculation
         df = df.copy()
+        df = df.sort_values(date_col).reset_index(drop=True)
         df["_year"] = pd.to_datetime(df[date_col]).dt.year
+
+        # Convert gains to percentage format for equity calculation
+        gains_pct = df[gain_col].to_numpy(dtype=float) * 100.0
+        df["_gains_pct"] = gains_pct
+
+        # Calculate FULL equity curve across ALL data
+        full_equity = self._equity_calc.calculate_flat_stake(
+            df,
+            "_gains_pct",
+            self._stake,
+            self._start_capital,
+        )
+        # Add year info to equity curve
+        full_equity["_year"] = df["_year"].values
 
         result = {}
         for year, group in df.groupby("_year"):
-            result[str(year)] = self._calculate_period_metrics(
-                group, gain_col, win_loss_col
+            # Get equity curve portion for this year
+            year_equity = full_equity[full_equity["_year"] == year].copy()
+
+            # Calculate period metrics with the year-specific equity curve
+            result[str(year)] = self._calculate_period_metrics_with_equity(
+                group, gain_col, win_loss_col, year_equity
             )
 
         return result
@@ -71,6 +93,9 @@ class BreakdownCalculator:
     ) -> dict[str, dict]:
         """Calculate monthly breakdown metrics for a specific year.
 
+        Uses full equity curve context - drawdowns are calculated relative to
+        all-time peaks, not just within-year or within-month peaks.
+
         Args:
             df: DataFrame containing trade data.
             year: Year to filter for.
@@ -84,15 +109,33 @@ class BreakdownCalculator:
         if df.empty:
             return {}
 
-        # Filter to specific year
+        # Sort by date to ensure correct equity curve calculation
         df = df.copy()
+        df = df.sort_values(date_col).reset_index(drop=True)
         dates = pd.to_datetime(df[date_col])
-        df = df[dates.dt.year == year].copy()
 
-        if df.empty:
+        # Convert gains to percentage format for equity calculation
+        gains_pct = df[gain_col].to_numpy(dtype=float) * 100.0
+        df["_gains_pct"] = gains_pct
+        df["_year"] = dates.dt.year
+        df["_month"] = dates.dt.month
+
+        # Calculate FULL equity curve across ALL data (not just the target year)
+        # This ensures monthly DD metrics reflect all-time peaks
+        full_equity = self._equity_calc.calculate_flat_stake(
+            df,
+            "_gains_pct",
+            self._stake,
+            self._start_capital,
+        )
+        # Add year and month info to equity curve
+        full_equity["_year"] = df["_year"].values
+        full_equity["_month"] = df["_month"].values
+
+        # Filter to specific year for results
+        year_df = df[df["_year"] == year]
+        if year_df.empty:
             return {}
-
-        df["_month"] = pd.to_datetime(df[date_col]).dt.month
 
         month_names = [
             "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -100,10 +143,15 @@ class BreakdownCalculator:
         ]
 
         result = {}
-        for month, group in df.groupby("_month"):
+        for month, group in year_df.groupby("_month"):
             month_name = month_names[int(month) - 1]
-            result[month_name] = self._calculate_period_metrics(
-                group, gain_col, win_loss_col, include_avg_winner_loser=True
+            # Get equity curve portion for this month
+            month_equity = full_equity[
+                (full_equity["_year"] == year) & (full_equity["_month"] == month)
+            ].copy()
+
+            result[month_name] = self._calculate_period_metrics_with_equity(
+                group, gain_col, win_loss_col, month_equity, include_avg_winner_loser=True
             )
 
         return result
@@ -159,6 +207,70 @@ class BreakdownCalculator:
             self._start_capital,
         )
         max_dd_dollars, max_dd_pct, _ = self._equity_calc.calculate_drawdown_metrics(equity_curve)
+
+        metrics = {
+            "total_gain_pct": total_gain_pct,
+            "total_flat_stake": total_flat_stake,
+            "max_dd_pct": max_dd_pct if max_dd_pct is not None else 0.0,
+            "max_dd_dollars": max_dd_dollars if max_dd_dollars is not None else 0.0,
+            "count": count,
+            "win_rate": win_rate,
+        }
+
+        if include_avg_winner_loser:
+            winners = gains_pct[gains_pct > 0]
+            losers = gains_pct[gains_pct < 0]
+            metrics["avg_winner_pct"] = float(np.mean(winners)) if len(winners) > 0 else 0.0
+            metrics["avg_loser_pct"] = float(np.mean(losers)) if len(losers) > 0 else 0.0
+
+        return metrics
+
+    def _calculate_period_metrics_with_equity(
+        self,
+        df: pd.DataFrame,
+        gain_col: str,
+        win_loss_col: str | None,
+        equity_df: pd.DataFrame,
+        include_avg_winner_loser: bool = False,
+    ) -> dict:
+        """Calculate metrics for a period using pre-calculated equity curve.
+
+        This method uses a slice of the full equity curve, preserving all-time
+        peaks for accurate drawdown calculation.
+
+        Args:
+            df: DataFrame for the period.
+            gain_col: Column name for gain percentage (decimal format, e.g., 0.05 = 5%).
+            win_loss_col: Column name for win/loss indicator.
+            equity_df: Pre-calculated equity curve slice for this period.
+            include_avg_winner_loser: Whether to include avg winner/loser.
+
+        Returns:
+            Dict with calculated metrics.
+        """
+        gains = df[gain_col].to_numpy(dtype=float)
+
+        # Convert from decimal format (0.05 = 5%) to percentage format (5.0 = 5%)
+        gains_pct = gains * 100.0
+
+        # Total gain % (sum of all trade gains in percentage format)
+        total_gain_pct = float(np.sum(gains_pct))
+
+        # Total flat stake gain $ (stake * gain_pct / 100)
+        total_flat_stake = float(np.sum(self._stake * (gains_pct / 100.0)))
+
+        # Count
+        count = len(df)
+
+        # Win rate
+        if win_loss_col and win_loss_col in df.columns:
+            wins = df[win_loss_col].isin(["W", "w", "Win", "WIN", 1, True]).sum()
+        else:
+            wins = (gains > 0).sum()
+        win_rate = (wins / count * 100) if count > 0 else 0.0
+
+        # Max DD from pre-calculated equity curve (preserves all-time peaks)
+        max_dd_dollars, max_dd_pct, _ = self._equity_calc.calculate_drawdown_metrics(equity_df)
 
         metrics = {
             "total_gain_pct": total_gain_pct,
