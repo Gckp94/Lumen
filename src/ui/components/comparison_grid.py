@@ -37,6 +37,7 @@ SECTIONS: list[tuple[str, str, list[str]]] = [
             "ev",
             "edge",
             "kelly",
+            "stop_adjusted_kelly",
             "fractional_kelly",
             "eg_full_kelly",
             "eg_frac_kelly",
@@ -44,7 +45,7 @@ SECTIONS: list[tuple[str, str, list[str]]] = [
             "median_winner",
             "median_loser",
         ],
-    ),  # 14 metrics
+    ),  # 15 metrics
     (
         "streak_loss",
         "Streak & Loss",
@@ -89,6 +90,7 @@ METRIC_CONFIG: dict[str, tuple[str, str | None, str, str]] = {
     "ev": ("EV", ".2f", "pp", "higher"),
     "edge": ("Edge", ".2f", "pp", "higher"),
     "kelly": ("Kelly %", ".2f", "pp", "higher"),
+    "stop_adjusted_kelly": ("Stop Adj Kelly %", ".2f", "pp", "higher"),
     "fractional_kelly": ("Frac Kelly %", ".2f", "pp", "higher"),
     "eg_full_kelly": ("EG Full Kelly", ".2f", "pp", "higher"),
     "eg_frac_kelly": ("EG Frac Kelly", ".2f", "pp", "higher"),

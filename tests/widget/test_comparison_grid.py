@@ -86,11 +86,11 @@ class TestComparisonGridSections:
         qtbot.addWidget(grid)
 
         # Verify total metrics
-        assert len(grid._rows) == 25
+        assert len(grid._rows) == 26  # Updated for stop_adjusted_kelly
 
         # Verify section breakdown
         expected_counts = {
-            "core_statistics": 14,
+            "core_statistics": 15,  # Updated for stop_adjusted_kelly
             "streak_loss": 3,
             "flat_stake": 4,
             "kelly": 4,

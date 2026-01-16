@@ -211,9 +211,9 @@ class TestGetDeltaColor:
 class TestMetricConfigCompleteness:
     """Tests to verify METRIC_CONFIG covers all expected metrics."""
 
-    def test_config_has_25_metrics(self) -> None:
-        """METRIC_CONFIG should have exactly 25 metrics."""
-        assert len(METRIC_CONFIG) == 25
+    def test_config_has_26_metrics(self) -> None:
+        """METRIC_CONFIG should have exactly 26 metrics (including stop_adjusted_kelly)."""
+        assert len(METRIC_CONFIG) == 26
 
     def test_all_metrics_have_valid_improvement(self) -> None:
         """All metrics should have valid improvement direction."""
