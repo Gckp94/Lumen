@@ -27,6 +27,7 @@ class TestMainWindowDocking:
             "Feature Explorer",
             "Data Binning",
             "PnL & Trading Stats",
+            "Breakdown",
             "Monte Carlo",
         ]
 

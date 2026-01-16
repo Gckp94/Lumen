@@ -12,11 +12,11 @@ from src.ui.main_window import MainWindow
 class TestMainWindow:
     """Tests for the MainWindow class."""
 
-    def test_main_window_has_five_docks(self, qtbot: QtBot) -> None:
-        """MainWindow contains exactly 5 docks."""
+    def test_main_window_has_six_docks(self, qtbot: QtBot) -> None:
+        """MainWindow contains exactly 6 docks."""
         window = MainWindow()
         qtbot.addWidget(window)
-        assert window.dock_manager.dock_count() == 5
+        assert window.dock_manager.dock_count() == 6
 
     def test_dock_titles_match_workflow(self, qtbot: QtBot) -> None:
         """Dock titles match expected workflow order."""
@@ -27,6 +27,7 @@ class TestMainWindow:
             "Feature Explorer",
             "Data Binning",
             "PnL & Trading Stats",
+            "Breakdown",
             "Monte Carlo",
         ]
         for title in expected:
@@ -52,6 +53,7 @@ class TestMainWindow:
         assert window.dock_manager.get_dock("Feature Explorer") is not None
         assert window.dock_manager.get_dock("Data Binning") is not None
         assert window.dock_manager.get_dock("PnL & Trading Stats") is not None
+        assert window.dock_manager.get_dock("Breakdown") is not None
         assert window.dock_manager.get_dock("Monte Carlo") is not None
 
     def test_window_minimum_size(self, qtbot: QtBot) -> None:
