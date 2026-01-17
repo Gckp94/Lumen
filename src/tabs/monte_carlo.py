@@ -370,17 +370,33 @@ class MonteCarloTab(QWidget):
             config.initial_capital = metrics_inputs.starting_capital
 
         # Get the CALCULATED fractional kelly from trading metrics
+        # Use filtered_metrics if available (respects user's filters), otherwise baseline_metrics
         # Note: metrics_inputs.fractional_kelly is the Kelly FRACTION multiplier (e.g., 25%)
         # but we need the CALCULATED position size (e.g., 2.98% = stop_adjusted_kelly * 0.25)
+        fractional_kelly_source = None
         if (
+            self._app_state.filtered_metrics
+            and self._app_state.filtered_metrics.fractional_kelly is not None
+        ):
+            config.fractional_kelly_pct = self._app_state.filtered_metrics.fractional_kelly
+            fractional_kelly_source = "filtered_metrics"
+        elif (
             self._app_state.baseline_metrics
             and self._app_state.baseline_metrics.fractional_kelly is not None
         ):
             config.fractional_kelly_pct = self._app_state.baseline_metrics.fractional_kelly
+            fractional_kelly_source = "baseline_metrics"
         else:
             # Fallback: use a default fractional kelly
             config.fractional_kelly_pct = 10.0  # Conservative default
+            fractional_kelly_source = "default"
             logger.warning("No calculated fractional_kelly available, using default 10%")
+        
+        logger.info(
+            "MC fractional_kelly_pct=%.4f from %s",
+            config.fractional_kelly_pct,
+            fractional_kelly_source,
+        )
 
         # Create engine
         self._engine = MonteCarloEngine(config)
@@ -407,9 +423,13 @@ class MonteCarloTab(QWidget):
         # Start thread
         self._thread.start()
         logger.info(
-            "Started Monte Carlo simulation: %d simulations, %d trades",
+            "Started Monte Carlo simulation: %d simulations, %d trades, "
+            "position_sizing=%s, fractional_kelly_pct=%.4f, flat_stake=%.2f",
             config.num_simulations,
             len(gains),
+            config.position_sizing_mode.value,
+            config.fractional_kelly_pct,
+            config.flat_stake,
         )
 
     def _on_cancel_simulation(self) -> None:
