@@ -359,8 +359,15 @@ class MonteCarloTab(QWidget):
             Toast.display(self, str(e), "error")
             return
 
-        # Get configuration from panel
+        # Get configuration from panel (includes position sizing mode)
         config = self._config_panel.get_config()
+
+        # Get user inputs for flat stake and fractional kelly from app state
+        metrics_inputs = self._app_state.metrics_user_inputs
+        if metrics_inputs:
+            config.flat_stake = metrics_inputs.flat_stake
+            config.fractional_kelly_pct = metrics_inputs.fractional_kelly
+            config.initial_capital = metrics_inputs.starting_capital
 
         # Create engine
         self._engine = MonteCarloEngine(config)
