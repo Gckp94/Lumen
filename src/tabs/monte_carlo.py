@@ -349,9 +349,10 @@ class MonteCarloTab(QWidget):
             return
 
         try:
-            # Extract gains from baseline data (uses adjusted_gain_pct with capped losses)
+            # Extract gains from filtered data (respects user's Filter Panel filters)
             gains = extract_gains_from_app_state(
                 self._app_state.baseline_df,
+                self._app_state.filtered_df,
                 self._app_state.column_mapping,
                 self._app_state.first_trigger_enabled,
             )
@@ -362,12 +363,24 @@ class MonteCarloTab(QWidget):
         # Get configuration from panel (includes position sizing mode)
         config = self._config_panel.get_config()
 
-        # Get user inputs for flat stake and fractional kelly from app state
+        # Get user inputs for flat stake and initial capital from app state
         metrics_inputs = self._app_state.metrics_user_inputs
         if metrics_inputs:
             config.flat_stake = metrics_inputs.flat_stake
-            config.fractional_kelly_pct = metrics_inputs.fractional_kelly
             config.initial_capital = metrics_inputs.starting_capital
+
+        # Get the CALCULATED fractional kelly from trading metrics
+        # Note: metrics_inputs.fractional_kelly is the Kelly FRACTION multiplier (e.g., 25%)
+        # but we need the CALCULATED position size (e.g., 2.98% = stop_adjusted_kelly * 0.25)
+        if (
+            self._app_state.baseline_metrics
+            and self._app_state.baseline_metrics.fractional_kelly is not None
+        ):
+            config.fractional_kelly_pct = self._app_state.baseline_metrics.fractional_kelly
+        else:
+            # Fallback: use a default fractional kelly
+            config.fractional_kelly_pct = 10.0  # Conservative default
+            logger.warning("No calculated fractional_kelly available, using default 10%")
 
         # Create engine
         self._engine = MonteCarloEngine(config)

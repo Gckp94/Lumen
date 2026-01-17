@@ -66,16 +66,69 @@ class TestMonteCarloConfig:
             MonteCarloConfig(initial_capital=0)
 
     def test_invalid_ruin_threshold(self) -> None:
-        """Validation rejects invalid ruin threshold."""
-        with pytest.raises(ValueError, match="ruin_threshold_pct must be between"):
-            MonteCarloConfig(ruin_threshold_pct=0)
+        """Validation rejects ruin threshold >= 100."""
         with pytest.raises(ValueError, match="ruin_threshold_pct must be between"):
             MonteCarloConfig(ruin_threshold_pct=100)
+
+    def test_valid_ruin_threshold_zero(self) -> None:
+        """Validation accepts ruin threshold of 0 (track any loss)."""
+        config = MonteCarloConfig(ruin_threshold_pct=0)
+        assert config.ruin_threshold_pct == 0
 
     def test_invalid_simulation_type(self) -> None:
         """Validation rejects invalid simulation type."""
         with pytest.raises(ValueError, match="simulation_type must be"):
             MonteCarloConfig(simulation_type="invalid")
+
+    def test_invalid_flat_stake_zero(self) -> None:
+        """Validation rejects zero flat stake."""
+        with pytest.raises(ValueError, match="flat_stake must be positive"):
+            MonteCarloConfig(flat_stake=0)
+
+    def test_invalid_flat_stake_negative(self) -> None:
+        """Validation rejects negative flat stake."""
+        with pytest.raises(ValueError, match="flat_stake must be positive"):
+            MonteCarloConfig(flat_stake=-1000)
+
+    def test_valid_flat_stake(self) -> None:
+        """Positive flat stake is accepted."""
+        config = MonteCarloConfig(flat_stake=5000.0)
+        assert config.flat_stake == 5000.0
+
+    def test_invalid_fractional_kelly_zero(self) -> None:
+        """Validation rejects zero fractional kelly percentage."""
+        with pytest.raises(ValueError, match="fractional_kelly_pct must be between"):
+            MonteCarloConfig(fractional_kelly_pct=0)
+
+    def test_invalid_fractional_kelly_negative(self) -> None:
+        """Validation rejects negative fractional kelly percentage."""
+        with pytest.raises(ValueError, match="fractional_kelly_pct must be between"):
+            MonteCarloConfig(fractional_kelly_pct=-10)
+
+    def test_invalid_fractional_kelly_above_100(self) -> None:
+        """Validation rejects fractional kelly above 100%."""
+        with pytest.raises(ValueError, match="fractional_kelly_pct must be between"):
+            MonteCarloConfig(fractional_kelly_pct=101)
+
+    def test_valid_fractional_kelly_boundary(self) -> None:
+        """Boundary value 100 for fractional kelly is accepted."""
+        config = MonteCarloConfig(fractional_kelly_pct=100)
+        assert config.fractional_kelly_pct == 100
+
+    def test_valid_fractional_kelly(self) -> None:
+        """Valid fractional kelly percentage is accepted."""
+        config = MonteCarloConfig(fractional_kelly_pct=50.0)
+        assert config.fractional_kelly_pct == 50.0
+
+    def test_position_sizing_mode_default(self) -> None:
+        """Default position sizing mode is compounded kelly."""
+        config = MonteCarloConfig()
+        assert config.position_sizing_mode == PositionSizingMode.COMPOUNDED_KELLY
+
+    def test_position_sizing_mode_flat_stake(self) -> None:
+        """Flat stake position sizing mode can be set."""
+        config = MonteCarloConfig(position_sizing_mode=PositionSizingMode.FLAT_STAKE)
+        assert config.position_sizing_mode == PositionSizingMode.FLAT_STAKE
 
 
 class TestMonteCarloEngine:
@@ -387,7 +440,7 @@ class TestExtractGainsFromAppState:
     ) -> None:
         """Basic extraction without first trigger filter."""
         gains = extract_gains_from_app_state(
-            sample_df, mock_column_mapping, first_trigger_enabled=False
+            sample_df, None, mock_column_mapping, first_trigger_enabled=False
         )
         assert len(gains) == 20  # All 20 trades
         # Values are already in decimal format (no conversion)
@@ -398,7 +451,7 @@ class TestExtractGainsFromAppState:
     ) -> None:
         """Extraction with first trigger filter enabled."""
         gains = extract_gains_from_app_state(
-            sample_df, mock_column_mapping, first_trigger_enabled=True
+            sample_df, None, mock_column_mapping, first_trigger_enabled=True
         )
         assert len(gains) == 10  # Only trigger_number == 1
 
@@ -406,20 +459,20 @@ class TestExtractGainsFromAppState:
         """Empty DataFrame raises ValueError."""
         with pytest.raises(ValueError, match="empty"):
             extract_gains_from_app_state(
-                pd.DataFrame(), mock_column_mapping, first_trigger_enabled=False
+                pd.DataFrame(), None, mock_column_mapping, first_trigger_enabled=False
             )
 
     def test_extract_gains_none_df(self, mock_column_mapping) -> None:
         """None DataFrame raises ValueError."""
         with pytest.raises(ValueError, match="empty"):
             extract_gains_from_app_state(
-                None, mock_column_mapping, first_trigger_enabled=False
+                None, None, mock_column_mapping, first_trigger_enabled=False
             )
 
     def test_extract_gains_none_mapping(self, sample_df: pd.DataFrame) -> None:
         """None column mapping raises ValueError."""
         with pytest.raises(ValueError, match="Column mapping"):
-            extract_gains_from_app_state(sample_df, None, first_trigger_enabled=False)
+            extract_gains_from_app_state(sample_df, None, None, first_trigger_enabled=False)
 
     def test_extract_gains_missing_column(self) -> None:
         """Missing gain column raises ValueError when adjusted_gain_pct not present."""
@@ -434,14 +487,14 @@ class TestExtractGainsFromAppState:
             gain_pct = "nonexistent_column"
 
         with pytest.raises(ValueError, match="not found"):
-            extract_gains_from_app_state(df, BadMapping(), first_trigger_enabled=False)
+            extract_gains_from_app_state(df, None, BadMapping(), first_trigger_enabled=False)
 
     def test_extract_gains_insufficient_trades(self, mock_column_mapping) -> None:
         """< 10 trades after filtering raises ValueError."""
         small_df = pd.DataFrame({"adjusted_gain_pct": [0.01, 0.02, -0.01]})
         with pytest.raises(ValueError, match="at least 10 trades"):
             extract_gains_from_app_state(
-                small_df, mock_column_mapping, first_trigger_enabled=False
+                small_df, None, mock_column_mapping, first_trigger_enabled=False
             )
 
     def test_extract_gains_fallback_to_gain_pct(self, mock_column_mapping) -> None:
@@ -463,7 +516,7 @@ class TestExtractGainsFromAppState:
             }
         )
         gains = extract_gains_from_app_state(
-            df, mock_column_mapping, first_trigger_enabled=False
+            df, None, mock_column_mapping, first_trigger_enabled=False
         )
         # Values should be unchanged (no conversion)
         assert gains[0] == pytest.approx(0.02)
@@ -485,8 +538,101 @@ class TestExtractGainsFromAppState:
             }
         )
         gains = extract_gains_from_app_state(
-            df, mock_column_mapping, first_trigger_enabled=False
+            df, None, mock_column_mapping, first_trigger_enabled=False
         )
         # Should use adjusted_gain_pct, not gain_pct
         assert gains[0] == pytest.approx(0.02)
         assert gains[1] == pytest.approx(-0.05)  # Capped loss, not -0.50
+
+
+class TestFractionalKellyPositionSizing:
+    """Tests for fractional kelly position sizing in Monte Carlo simulations.
+
+    These tests verify that the simulation uses the CALCULATED fractional kelly
+    (e.g., 2.98%) rather than the Kelly FRACTION multiplier (e.g., 25.0).
+    """
+
+    def test_fractional_kelly_uses_calculated_value(self) -> None:
+        """Simulation uses actual fractional kelly percentage for position sizing.
+
+        The bug was: config.fractional_kelly_pct was being set to 25.0 (the
+        fraction multiplier) instead of the calculated value like 2.98%.
+
+        This test verifies the engine correctly applies the fractional_kelly_pct
+        as the position size, not as a multiplier.
+        """
+        # Calculated fractional kelly = 2.98% (realistic value)
+        calculated_fractional_kelly = 2.98
+
+        config = MonteCarloConfig(
+            num_simulations=100,
+            position_sizing_mode=PositionSizingMode.COMPOUNDED_KELLY,
+            fractional_kelly_pct=calculated_fractional_kelly,
+            initial_capital=100000.0,
+        )
+        engine = MonteCarloEngine(config)
+
+        # Test with gains that would produce vastly different results
+        # with 25% vs 2.98% position sizing
+        gains = np.array([0.10, -0.05, 0.08])  # +10%, -5%, +8%
+        equity = engine._simulate_equity_curve(gains, 100000.0)
+
+        # With 2.98% fractional kelly:
+        # After trade 1: 100000 * (1 + 0.0298 * 0.10) = 100000 * 1.00298 = 100298
+        # After trade 2: 100298 * (1 + 0.0298 * -0.05) = 100298 * 0.99851 = 100148.65
+        # After trade 3: 100148.65 * (1 + 0.0298 * 0.08) = 100148.65 * 1.002384 = 100387.44
+        expected_trade_1 = 100000.0 * (1 + 0.0298 * 0.10)
+        expected_trade_2 = expected_trade_1 * (1 + 0.0298 * -0.05)
+        expected_trade_3 = expected_trade_2 * (1 + 0.0298 * 0.08)
+
+        np.testing.assert_allclose(equity[0], expected_trade_1, rtol=1e-6)
+        np.testing.assert_allclose(equity[1], expected_trade_2, rtol=1e-6)
+        np.testing.assert_allclose(equity[2], expected_trade_3, rtol=1e-6)
+
+    def test_high_fractional_kelly_causes_higher_volatility(self) -> None:
+        """Using 25% fractional kelly causes much higher equity volatility.
+
+        This test demonstrates the bug's impact: using 25% (the multiplier)
+        instead of ~3% (the calculated value) causes dramatically different results.
+        """
+        # Correct calculated value
+        low_kelly_config = MonteCarloConfig(
+            num_simulations=100,
+            position_sizing_mode=PositionSizingMode.COMPOUNDED_KELLY,
+            fractional_kelly_pct=2.98,
+        )
+        low_kelly_engine = MonteCarloEngine(low_kelly_config)
+
+        # Incorrect: using the multiplier instead of calculated value
+        high_kelly_config = MonteCarloConfig(
+            num_simulations=100,
+            position_sizing_mode=PositionSizingMode.COMPOUNDED_KELLY,
+            fractional_kelly_pct=25.0,
+        )
+        high_kelly_engine = MonteCarloEngine(high_kelly_config)
+
+        # A losing streak that should cause minimal damage with correct sizing
+        # but significant damage with incorrect 25% sizing
+        losing_streak = np.array([-0.10] * 10)  # 10 consecutive 10% losses
+        gains = np.concatenate([losing_streak, np.array([0.05] * 10)])
+
+        low_kelly_equity = low_kelly_engine._simulate_equity_curve(gains, 100000.0)
+        high_kelly_equity = high_kelly_engine._simulate_equity_curve(gains, 100000.0)
+
+        # With 2.98% Kelly and 10 x -10% trades:
+        # Each trade loses: capital * 0.0298 * 0.10 = 0.298% of capital
+        # After 10 trades: 100000 * (1 - 0.00298)^10 ≈ 97,070 (only ~3% loss)
+        #
+        # With 25% Kelly (the bug):
+        # Each trade loses: capital * 0.25 * 0.10 = 2.5% of capital
+        # After 10 trades: 100000 * (1 - 0.025)^10 ≈ 77,627 (over 22% loss!)
+
+        # The low kelly should retain most of the capital after the losing streak
+        assert low_kelly_equity[9] > 96000  # Should be around 97,070
+
+        # The high kelly (bug case) loses much more
+        assert high_kelly_equity[9] < 80000  # Should be around 77,627
+
+        # The difference should be dramatic
+        difference = low_kelly_equity[9] - high_kelly_equity[9]
+        assert difference > 15000  # At least $15k difference
