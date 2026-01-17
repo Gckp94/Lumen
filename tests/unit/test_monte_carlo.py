@@ -387,7 +387,7 @@ class TestExtractGainsFromAppState:
     ) -> None:
         """Basic extraction without first trigger filter."""
         gains = extract_gains_from_app_state(
-            sample_df, sample_df, mock_column_mapping, first_trigger_enabled=False
+            sample_df, mock_column_mapping, first_trigger_enabled=False
         )
         assert len(gains) == 20  # All 20 trades
         # Values are already in decimal format (no conversion)
@@ -398,7 +398,7 @@ class TestExtractGainsFromAppState:
     ) -> None:
         """Extraction with first trigger filter enabled."""
         gains = extract_gains_from_app_state(
-            sample_df, sample_df, mock_column_mapping, first_trigger_enabled=True
+            sample_df, mock_column_mapping, first_trigger_enabled=True
         )
         assert len(gains) == 10  # Only trigger_number == 1
 
@@ -406,20 +406,20 @@ class TestExtractGainsFromAppState:
         """Empty DataFrame raises ValueError."""
         with pytest.raises(ValueError, match="empty"):
             extract_gains_from_app_state(
-                pd.DataFrame(), None, mock_column_mapping, first_trigger_enabled=False
+                pd.DataFrame(), mock_column_mapping, first_trigger_enabled=False
             )
 
     def test_extract_gains_none_df(self, mock_column_mapping) -> None:
         """None DataFrame raises ValueError."""
         with pytest.raises(ValueError, match="empty"):
             extract_gains_from_app_state(
-                None, None, mock_column_mapping, first_trigger_enabled=False
+                None, mock_column_mapping, first_trigger_enabled=False
             )
 
     def test_extract_gains_none_mapping(self, sample_df: pd.DataFrame) -> None:
         """None column mapping raises ValueError."""
         with pytest.raises(ValueError, match="Column mapping"):
-            extract_gains_from_app_state(sample_df, sample_df, None, first_trigger_enabled=False)
+            extract_gains_from_app_state(sample_df, None, first_trigger_enabled=False)
 
     def test_extract_gains_missing_column(self) -> None:
         """Missing gain column raises ValueError when adjusted_gain_pct not present."""
@@ -434,14 +434,14 @@ class TestExtractGainsFromAppState:
             gain_pct = "nonexistent_column"
 
         with pytest.raises(ValueError, match="not found"):
-            extract_gains_from_app_state(df, df, BadMapping(), first_trigger_enabled=False)
+            extract_gains_from_app_state(df, BadMapping(), first_trigger_enabled=False)
 
     def test_extract_gains_insufficient_trades(self, mock_column_mapping) -> None:
         """< 10 trades after filtering raises ValueError."""
         small_df = pd.DataFrame({"adjusted_gain_pct": [0.01, 0.02, -0.01]})
         with pytest.raises(ValueError, match="at least 10 trades"):
             extract_gains_from_app_state(
-                small_df, small_df, mock_column_mapping, first_trigger_enabled=False
+                small_df, mock_column_mapping, first_trigger_enabled=False
             )
 
     def test_extract_gains_fallback_to_gain_pct(self, mock_column_mapping) -> None:
@@ -463,7 +463,7 @@ class TestExtractGainsFromAppState:
             }
         )
         gains = extract_gains_from_app_state(
-            df, df, mock_column_mapping, first_trigger_enabled=False
+            df, mock_column_mapping, first_trigger_enabled=False
         )
         # Values should be unchanged (no conversion)
         assert gains[0] == pytest.approx(0.02)
@@ -485,7 +485,7 @@ class TestExtractGainsFromAppState:
             }
         )
         gains = extract_gains_from_app_state(
-            df, df, mock_column_mapping, first_trigger_enabled=False
+            df, mock_column_mapping, first_trigger_enabled=False
         )
         # Should use adjusted_gain_pct, not gain_pct
         assert gains[0] == pytest.approx(0.02)

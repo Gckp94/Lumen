@@ -510,7 +510,6 @@ class MonteCarloEngine:
 
 def extract_gains_from_app_state(
     baseline_df: "pd.DataFrame | None",
-    filtered_df: "pd.DataFrame | None",
     column_mapping: "ColumnMapping | None",
     first_trigger_enabled: bool = False,
 ) -> NDArray[np.float64]:
@@ -521,7 +520,6 @@ def extract_gains_from_app_state(
 
     Args:
         baseline_df: The baseline DataFrame containing adjusted_gain_pct column.
-        filtered_df: The filtered DataFrame from AppState (used for row filtering).
         column_mapping: Column mapping with gain_pct field.
         first_trigger_enabled: Whether to filter to first triggers only.
 
