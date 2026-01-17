@@ -190,14 +190,23 @@ class MonteCarloEngine:
         """Calculate cumulative equity curve from sampled gains.
 
         Args:
-            sampled_gains: Array of trade returns.
+            sampled_gains: Array of trade returns (decimal format, e.g., 0.05 for 5%).
             initial_capital: Starting capital.
 
         Returns:
             Equity curve array where each element is the equity after that trade.
         """
-        multipliers = 1 + sampled_gains
-        return initial_capital * np.cumprod(multipliers)
+        if self.config.position_sizing_mode == PositionSizingMode.FLAT_STAKE:
+            # Flat stake: fixed dollar amount per trade (additive)
+            # PnL per trade = flat_stake * gain_decimal
+            pnl_per_trade = self.config.flat_stake * sampled_gains
+            return initial_capital + np.cumsum(pnl_per_trade)
+        else:
+            # Compounded Kelly: position size = fractional_kelly_pct% of current equity
+            # Each trade: equity *= (1 + fractional_kelly * gain)
+            fractional_kelly = self.config.fractional_kelly_pct / 100.0
+            multipliers = 1 + (fractional_kelly * sampled_gains)
+            return initial_capital * np.cumprod(multipliers)
 
     def _calculate_max_drawdown(self, equity_curve: NDArray[np.float64]) -> float:
         """Calculate maximum drawdown from equity curve.
