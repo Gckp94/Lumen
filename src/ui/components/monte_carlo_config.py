@@ -549,11 +549,13 @@ class MonteCarloConfigPanel(QFrame):
         self._flat_stake_btn = QPushButton("Flat Stake")
         self._flat_stake_btn.setCheckable(True)
         self._flat_stake_btn.setChecked(False)
+        self._flat_stake_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._flat_stake_btn.setStyleSheet(self._toggle_btn_style())
 
         self._kelly_btn = QPushButton("Compounded Kelly")
         self._kelly_btn.setCheckable(True)
         self._kelly_btn.setChecked(True)  # Default
+        self._kelly_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._kelly_btn.setStyleSheet(self._toggle_btn_style())
 
         sizing_btn_layout.addWidget(self._flat_stake_btn)
@@ -646,6 +648,11 @@ class MonteCarloConfigPanel(QFrame):
                 color: {Colors.TEXT_PRIMARY};
                 border-color: {Colors.SIGNAL_CYAN};
                 font-weight: bold;
+            }}
+            QPushButton:disabled {{
+                background-color: {Colors.BG_SURFACE};
+                color: {Colors.TEXT_DISABLED};
+                border-color: {Colors.BG_BORDER};
             }}
         """
 
