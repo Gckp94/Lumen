@@ -58,6 +58,10 @@ class MonteCarloConfig:
             raise ValueError("var_confidence_pct must be between 0 and 100")
         if self.simulation_type not in ("resample", "reshuffle"):
             raise ValueError("simulation_type must be 'resample' or 'reshuffle'")
+        if self.flat_stake <= 0:
+            raise ValueError("flat_stake must be positive")
+        if not 0 < self.fractional_kelly_pct <= 100:
+            raise ValueError("fractional_kelly_pct must be between 0 and 100")
 
 
 @dataclass
