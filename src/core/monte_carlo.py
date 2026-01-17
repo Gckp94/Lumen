@@ -509,17 +509,19 @@ class MonteCarloEngine:
 
 
 def extract_gains_from_app_state(
+    baseline_df: "pd.DataFrame | None",
     filtered_df: "pd.DataFrame | None",
     column_mapping: "ColumnMapping | None",
     first_trigger_enabled: bool = False,
 ) -> NDArray[np.float64]:
-    """Extract gains array from filtered DataFrame for Monte Carlo simulation.
+    """Extract adjusted gains array from baseline DataFrame for Monte Carlo simulation.
 
-    This utility function extracts trade returns from the app state's filtered
-    DataFrame, respecting the first trigger toggle setting.
+    Uses adjusted_gain_pct column which has stop-loss capped gains.
+    Falls back to gain_pct if adjusted_gain_pct is not available.
 
     Args:
-        filtered_df: The filtered DataFrame from AppState.
+        baseline_df: The baseline DataFrame containing adjusted_gain_pct column.
+        filtered_df: The filtered DataFrame from AppState (used for row filtering).
         column_mapping: Column mapping with gain_pct field.
         first_trigger_enabled: Whether to filter to first triggers only.
 
@@ -535,23 +537,36 @@ def extract_gains_from_app_state(
     # Local import to avoid circular dependency
     from src.core.column_mapper import ColumnMapping  # noqa: F811
 
-    if filtered_df is None or filtered_df.empty:
-        raise ValueError("No data available: filtered DataFrame is empty")
+    if baseline_df is None or baseline_df.empty:
+        raise ValueError("No data available: baseline DataFrame is empty")
 
     if column_mapping is None:
         raise ValueError("Column mapping not configured")
 
-    gain_col = column_mapping.gain_pct
-    if gain_col not in filtered_df.columns:
+    # Use adjusted_gain_pct if available, otherwise fall back to gain_pct
+    if "adjusted_gain_pct" in baseline_df.columns:
+        gain_col = "adjusted_gain_pct"
+        logger.debug("Using adjusted_gain_pct for Monte Carlo")
+    else:
+        gain_col = column_mapping.gain_pct
+        logger.warning(
+            "adjusted_gain_pct not found, falling back to %s. "
+            "Results may include uncapped losses.",
+            gain_col,
+        )
+
+    if gain_col not in baseline_df.columns:
         raise ValueError(f"Gain column '{gain_col}' not found in DataFrame")
 
+    # Start with baseline_df
+    df = baseline_df
+
     # Apply first trigger filter if enabled
-    df = filtered_df
     if first_trigger_enabled and "trigger_number" in df.columns:
         df = df[df["trigger_number"] == 1]
         logger.debug(
             "First trigger filter applied for Monte Carlo: %d -> %d rows",
-            len(filtered_df),
+            len(baseline_df),
             len(df),
         )
 
@@ -563,14 +578,15 @@ def extract_gains_from_app_state(
             f"Insufficient data for Monte Carlo: need at least 10 trades, got {len(df)}"
         )
 
-    # Extract gains as numpy array, converting percentage to decimal if needed
+    # Extract gains as numpy array - NO conversion needed
+    # adjusted_gain_pct is already in decimal format with capped losses
     gains = df[gain_col].to_numpy(dtype=np.float64)
 
-    # Check if gains are in percentage format (typically > 1 or < -1)
-    # and convert to decimal format if needed
-    if np.any(np.abs(gains) > 1):
-        # Assume percentage format, convert to decimal
-        gains = gains / 100.0
-        logger.debug("Converted gains from percentage to decimal format")
+    logger.debug(
+        "Extracted %d gains for Monte Carlo: min=%.4f, max=%.4f",
+        len(gains),
+        np.min(gains),
+        np.max(gains),
+    )
 
     return gains

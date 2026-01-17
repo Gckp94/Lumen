@@ -352,12 +352,19 @@ class TestExtractGainsFromAppState:
 
     @pytest.fixture
     def sample_df(self) -> pd.DataFrame:
-        """Sample DataFrame with gain and trigger columns."""
+        """Sample DataFrame with adjusted_gain_pct and trigger columns.
+
+        Values are in decimal format (e.g., 0.02 = 2% gain).
+        """
         return pd.DataFrame(
             {
+                "adjusted_gain_pct": [
+                    0.02, -0.01, 0.03, -0.02, 0.01, -0.005, 0.025, -0.015, 0.005, -0.005,
+                    0.015, -0.012, 0.022, -0.008, 0.009, -0.003, 0.018, -0.01, 0.006, -0.004,
+                ],
                 "gain_pct": [
-                    2.0, -1.0, 3.0, -2.0, 1.0, -0.5, 2.5, -1.5, 0.5, -0.5,
-                    1.5, -1.2, 2.2, -0.8, 0.9, -0.3, 1.8, -1.0, 0.6, -0.4,
+                    0.02, -0.01, 0.03, -0.02, 0.01, -0.005, 0.025, -0.015, 0.005, -0.005,
+                    0.015, -0.012, 0.022, -0.008, 0.009, -0.003, 0.018, -0.01, 0.006, -0.004,
                 ],
                 "trigger_number": [
                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  # First 10: trigger 1
@@ -380,18 +387,18 @@ class TestExtractGainsFromAppState:
     ) -> None:
         """Basic extraction without first trigger filter."""
         gains = extract_gains_from_app_state(
-            sample_df, mock_column_mapping, first_trigger_enabled=False
+            sample_df, sample_df, mock_column_mapping, first_trigger_enabled=False
         )
         assert len(gains) == 20  # All 20 trades
-        # Values should be converted to decimal (divided by 100)
-        assert gains[0] == pytest.approx(0.02)  # 2.0 -> 0.02
+        # Values are already in decimal format (no conversion)
+        assert gains[0] == pytest.approx(0.02)
 
     def test_extract_gains_with_first_trigger(
         self, sample_df: pd.DataFrame, mock_column_mapping
     ) -> None:
         """Extraction with first trigger filter enabled."""
         gains = extract_gains_from_app_state(
-            sample_df, mock_column_mapping, first_trigger_enabled=True
+            sample_df, sample_df, mock_column_mapping, first_trigger_enabled=True
         )
         assert len(gains) == 10  # Only trigger_number == 1
 
@@ -399,40 +406,46 @@ class TestExtractGainsFromAppState:
         """Empty DataFrame raises ValueError."""
         with pytest.raises(ValueError, match="empty"):
             extract_gains_from_app_state(
-                pd.DataFrame(), mock_column_mapping, first_trigger_enabled=False
+                pd.DataFrame(), None, mock_column_mapping, first_trigger_enabled=False
             )
 
     def test_extract_gains_none_df(self, mock_column_mapping) -> None:
         """None DataFrame raises ValueError."""
         with pytest.raises(ValueError, match="empty"):
             extract_gains_from_app_state(
-                None, mock_column_mapping, first_trigger_enabled=False
+                None, None, mock_column_mapping, first_trigger_enabled=False
             )
 
     def test_extract_gains_none_mapping(self, sample_df: pd.DataFrame) -> None:
         """None column mapping raises ValueError."""
         with pytest.raises(ValueError, match="Column mapping"):
-            extract_gains_from_app_state(sample_df, None, first_trigger_enabled=False)
+            extract_gains_from_app_state(sample_df, sample_df, None, first_trigger_enabled=False)
 
-    def test_extract_gains_missing_column(self, sample_df: pd.DataFrame) -> None:
-        """Missing gain column raises ValueError."""
+    def test_extract_gains_missing_column(self) -> None:
+        """Missing gain column raises ValueError when adjusted_gain_pct not present."""
+        # DataFrame without adjusted_gain_pct, so it falls back to gain_pct mapping
+        df = pd.DataFrame(
+            {
+                "some_other_column": [0.01] * 10,
+            }
+        )
 
         class BadMapping:
             gain_pct = "nonexistent_column"
 
         with pytest.raises(ValueError, match="not found"):
-            extract_gains_from_app_state(sample_df, BadMapping(), first_trigger_enabled=False)
+            extract_gains_from_app_state(df, df, BadMapping(), first_trigger_enabled=False)
 
     def test_extract_gains_insufficient_trades(self, mock_column_mapping) -> None:
         """< 10 trades after filtering raises ValueError."""
-        small_df = pd.DataFrame({"gain_pct": [1.0, 2.0, -1.0]})
+        small_df = pd.DataFrame({"adjusted_gain_pct": [0.01, 0.02, -0.01]})
         with pytest.raises(ValueError, match="at least 10 trades"):
             extract_gains_from_app_state(
-                small_df, mock_column_mapping, first_trigger_enabled=False
+                small_df, small_df, mock_column_mapping, first_trigger_enabled=False
             )
 
-    def test_extract_gains_decimal_format(self, mock_column_mapping) -> None:
-        """Gains already in decimal format are not converted."""
+    def test_extract_gains_fallback_to_gain_pct(self, mock_column_mapping) -> None:
+        """Falls back to gain_pct when adjusted_gain_pct is not present."""
         df = pd.DataFrame(
             {
                 "gain_pct": [
@@ -450,7 +463,30 @@ class TestExtractGainsFromAppState:
             }
         )
         gains = extract_gains_from_app_state(
-            df, mock_column_mapping, first_trigger_enabled=False
+            df, df, mock_column_mapping, first_trigger_enabled=False
         )
-        # Values should be unchanged (already decimal)
+        # Values should be unchanged (no conversion)
         assert gains[0] == pytest.approx(0.02)
+
+    def test_extract_gains_uses_adjusted_gain_pct(self, mock_column_mapping) -> None:
+        """Uses adjusted_gain_pct when present, ignoring gain_pct."""
+        df = pd.DataFrame(
+            {
+                # adjusted_gain_pct has capped losses (e.g., -0.05 for 5% stop)
+                "adjusted_gain_pct": [
+                    0.02, -0.05, 0.03, -0.05, 0.01,
+                    -0.05, 0.025, -0.05, 0.005, -0.05,
+                ],
+                # gain_pct has uncapped losses (should be ignored)
+                "gain_pct": [
+                    0.02, -0.50, 0.03, -0.40, 0.01,
+                    -0.30, 0.025, -0.20, 0.005, -0.10,
+                ],
+            }
+        )
+        gains = extract_gains_from_app_state(
+            df, df, mock_column_mapping, first_trigger_enabled=False
+        )
+        # Should use adjusted_gain_pct, not gain_pct
+        assert gains[0] == pytest.approx(0.02)
+        assert gains[1] == pytest.approx(-0.05)  # Capped loss, not -0.50
