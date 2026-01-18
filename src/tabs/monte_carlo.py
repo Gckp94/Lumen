@@ -464,7 +464,6 @@ class MonteCarloTab(QWidget):
         # Store results in app state
         self._app_state.monte_carlo_results = results
         self._app_state.monte_carlo_running = False
-        self._app_state.monte_carlo_completed.emit(results)
 
         # Update UI
         self._config_panel.set_running(False)
