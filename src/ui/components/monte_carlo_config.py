@@ -519,7 +519,7 @@ class MonteCarloConfigPanel(QFrame):
         # Ruin threshold
         ruin_container = self._create_input_group("Ruin Threshold")
         self._ruin_spin = QDoubleSpinBox()
-        self._ruin_spin.setRange(1, 99)
+        self._ruin_spin.setRange(0, 99)
         self._ruin_spin.setValue(50)
         self._ruin_spin.setSingleStep(5)
         self._ruin_spin.setDecimals(0)
@@ -558,8 +558,15 @@ class MonteCarloConfigPanel(QFrame):
         self._kelly_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._kelly_btn.setStyleSheet(self._toggle_btn_style())
 
+        self._custom_btn = QPushButton("Custom %")
+        self._custom_btn.setCheckable(True)
+        self._custom_btn.setChecked(False)
+        self._custom_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._custom_btn.setStyleSheet(self._toggle_btn_style())
+
         sizing_btn_layout.addWidget(self._flat_stake_btn)
         sizing_btn_layout.addWidget(self._kelly_btn)
+        sizing_btn_layout.addWidget(self._custom_btn)
         sizing_container.layout().addLayout(sizing_btn_layout)
         layout.addWidget(sizing_container)
 
