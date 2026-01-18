@@ -567,6 +567,19 @@ class MonteCarloConfigPanel(QFrame):
         sizing_btn_layout.addWidget(self._flat_stake_btn)
         sizing_btn_layout.addWidget(self._kelly_btn)
         sizing_btn_layout.addWidget(self._custom_btn)
+
+        # Custom position percentage spinner (initially hidden)
+        self._custom_pct_spin = QDoubleSpinBox()
+        self._custom_pct_spin.setRange(0.1, 100)
+        self._custom_pct_spin.setValue(10.0)
+        self._custom_pct_spin.setSingleStep(1.0)
+        self._custom_pct_spin.setDecimals(1)
+        self._custom_pct_spin.setSuffix("%")
+        self._custom_pct_spin.setStyleSheet(self._spinbox_style())
+        self._custom_pct_spin.setFixedWidth(80)
+        self._custom_pct_spin.setVisible(False)  # Hidden until Custom mode selected
+
+        sizing_btn_layout.addWidget(self._custom_pct_spin)
         sizing_container.layout().addLayout(sizing_btn_layout)
         layout.addWidget(sizing_container)
 
