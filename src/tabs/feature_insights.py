@@ -388,14 +388,37 @@ class FeatureInsightsTab(QWidget):
 
         self._column_checkboxes = {}
 
-        # Default exclusions
+        # Load saved exclusions, falling back to defaults
+        saved_exclusions = self._load_excluded_columns()
         default_exclude = {"gain_pct", "mae_pct", "mfe_pct", "close", "exit_price"}
+        exclusions = saved_exclusions if saved_exclusions else default_exclude
 
         for col in df.columns:
             if pd.api.types.is_numeric_dtype(df[col]):
                 cb = QCheckBox(col)
-                cb.setChecked(col in default_exclude)
+                cb.setChecked(col in exclusions)
+                cb.stateChanged.connect(self._on_exclusion_changed)  # Save on change
                 self._column_checkboxes[col] = cb
                 self._column_layout.addWidget(cb)
 
         self._column_layout.addStretch()
+
+    def _save_excluded_columns(self) -> None:
+        """Save current exclusion settings."""
+        from PyQt6.QtCore import QSettings
+
+        settings = QSettings("Lumen", "FeatureInsights")
+        excluded = [col for col, cb in self._column_checkboxes.items() if cb.isChecked()]
+        settings.setValue("excluded_columns", excluded)
+
+    def _load_excluded_columns(self) -> set[str]:
+        """Load saved exclusion settings."""
+        from PyQt6.QtCore import QSettings
+
+        settings = QSettings("Lumen", "FeatureInsights")
+        return set(settings.value("excluded_columns", []))
+
+    @pyqtSlot(int)
+    def _on_exclusion_changed(self, state: int) -> None:
+        """Handle checkbox state change - save settings."""
+        self._save_excluded_columns()
