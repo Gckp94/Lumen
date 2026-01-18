@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QFrame,
     QGroupBox,
     QHBoxLayout,
@@ -15,12 +14,12 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
-    QScrollArea,
     QSplitter,
     QVBoxLayout,
     QWidget,
 )
 
+from src.ui.components.exclude_column_panel import ExcludeColumnPanel
 from src.ui.components.feature_impact_chart import FeatureImpactChart
 from src.ui.components.range_analysis_table import RangeAnalysisTable
 
@@ -92,7 +91,6 @@ class FeatureInsightsTab(QWidget):
         self.app_state = app_state
         self._results = None
         self._selected_feature = None
-        self._column_checkboxes = {}
         self._worker = None
 
         self._setup_ui()
@@ -123,52 +121,43 @@ class FeatureInsightsTab(QWidget):
 
         layout.addLayout(header)
 
-        # Configuration section
-        config_frame = QFrame()
-        config_frame.setStyleSheet("""
+        # Main splitter: left exclude panel, right results
+        self._main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._main_splitter.setObjectName("mainSplitter")
+        self._main_splitter.setChildrenCollapsible(False)
+
+        # Left: Exclude column panel in a styled frame
+        left_frame = QFrame()
+        left_frame.setMinimumWidth(180)
+        left_frame.setMaximumWidth(350)
+        left_frame.setStyleSheet("""
             QFrame {
                 background-color: #2a2a2a;
                 border-radius: 8px;
-                padding: 12px;
             }
         """)
-        config_layout = QVBoxLayout(config_frame)
+        left_layout = QVBoxLayout(left_frame)
+        left_layout.setContentsMargins(12, 12, 12, 12)
 
-        config_label = QLabel("Exclude Columns (lookahead bias prevention):")
-        config_label.setStyleSheet("font-weight: bold;")
-        config_label.setToolTip(
-            "Select columns that should not be analyzed to prevent lookahead bias. "
-            "Common exclusions include gain_pct, mae_pct, mfe_pct, and exit prices."
-        )
-        config_layout.addWidget(config_label)
+        self._exclude_panel = ExcludeColumnPanel(columns=[], excluded=set())
+        self._exclude_panel.exclusion_changed.connect(self._on_exclusion_changed)
+        left_layout.addWidget(self._exclude_panel)
 
-        # Scrollable checkbox area for columns
-        self._column_scroll = QScrollArea()
-        self._column_scroll.setWidgetResizable(True)
-        self._column_scroll.setMaximumHeight(150)
-        self._column_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._main_splitter.addWidget(left_frame)
 
-        self._column_container = QWidget()
-        self._column_layout = QHBoxLayout(self._column_container)
-        self._column_layout.setContentsMargins(0, 0, 0, 0)
+        # Right: Results container (placeholder or results widget)
+        self._right_container = QWidget()
+        right_layout = QVBoxLayout(self._right_container)
+        right_layout.setContentsMargins(0, 0, 0, 0)
 
-        self._column_scroll.setWidget(self._column_container)
-        config_layout.addWidget(self._column_scroll)
-
-        layout.addWidget(config_frame)
-
-        # Placeholder content
-        self._content_area = QScrollArea()
-        self._content_area.setWidgetResizable(True)
-        self._content_area.setFrameShape(QFrame.Shape.NoFrame)
-
+        # Placeholder
         self._placeholder = QLabel(
             "Load data and click 'Run Analysis' to identify impactful features."
         )
         self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._placeholder.setStyleSheet("color: #888; font-size: 14px;")
 
-        # Results container with splitter
+        # Results widget (hidden initially)
         self._results_widget = QWidget()
         results_layout = QVBoxLayout(self._results_widget)
         results_layout.setContentsMargins(0, 0, 0, 0)
@@ -179,7 +168,7 @@ class FeatureInsightsTab(QWidget):
         results_layout.addWidget(self._impact_chart)
 
         # Splitter for feature list and details
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        details_splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # Left: Feature list
         feature_list_frame = QFrame()
@@ -192,7 +181,7 @@ class FeatureInsightsTab(QWidget):
         self._feature_list = QListWidget()
         self._feature_list.currentItemChanged.connect(self._on_feature_selected)
         fl_layout.addWidget(self._feature_list)
-        splitter.addWidget(feature_list_frame)
+        details_splitter.addWidget(feature_list_frame)
 
         # Right: Details panel
         details_frame = QFrame()
@@ -231,14 +220,21 @@ class FeatureInsightsTab(QWidget):
         self._apply_filter_btn.clicked.connect(self._on_apply_filter)
         details_layout.addWidget(self._apply_filter_btn)
 
-        splitter.addWidget(details_frame)
+        details_splitter.addWidget(details_frame)
+        details_splitter.setSizes([250, 500])
+        results_layout.addWidget(details_splitter)
 
-        splitter.setSizes([250, 500])
-        results_layout.addWidget(splitter)
+        # Add placeholder and results to right container
+        right_layout.addWidget(self._placeholder)
+        right_layout.addWidget(self._results_widget)
+        self._results_widget.hide()
 
-        self._content_area.setWidget(self._placeholder)  # Start with placeholder
+        self._main_splitter.addWidget(self._right_container)
 
-        layout.addWidget(self._content_area, 1)
+        # Set initial splitter sizes
+        self._main_splitter.setSizes([220, 800])
+
+        layout.addWidget(self._main_splitter, 1)
 
     def _connect_signals(self) -> None:
         """Connect to app state signals."""
@@ -266,10 +262,8 @@ class FeatureInsightsTab(QWidget):
             logger.warning("No data loaded - filtered_df is None")
             return
 
-        # Get excluded columns
-        exclude = {
-            col for col, cb in self._column_checkboxes.items() if cb.isChecked()
-        }
+        # Get excluded columns from panel
+        exclude = self._exclude_panel.get_excluded()
         logger.info("Excluding %d columns: %s", len(exclude), exclude)
 
         # Get column names from mapping
@@ -335,7 +329,9 @@ class FeatureInsightsTab(QWidget):
         if results.features:
             self._feature_list.setCurrentRow(0)
 
-        self._content_area.setWidget(self._results_widget)
+        # Switch from placeholder to results widget
+        self._placeholder.hide()
+        self._results_widget.show()
 
     @pyqtSlot(QListWidgetItem, QListWidgetItem)
     def _on_feature_selected(
@@ -421,38 +417,28 @@ class FeatureInsightsTab(QWidget):
         self.app_state.filters_changed.emit(self.app_state.filters)
 
     def _populate_column_checkboxes(self, df) -> None:
-        """Populate column exclusion checkboxes."""
+        """Populate column exclusion panel."""
         import pandas as pd
 
-        # Clear existing
-        while self._column_layout.count():
-            child = self._column_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-
-        self._column_checkboxes = {}
+        # Get numeric columns only
+        numeric_columns = [
+            col for col in df.columns if pd.api.types.is_numeric_dtype(df[col])
+        ]
 
         # Load saved exclusions, falling back to defaults
         saved_exclusions = self._load_excluded_columns()
         default_exclude = {"gain_pct", "mae_pct", "mfe_pct", "close", "exit_price"}
         exclusions = saved_exclusions if saved_exclusions else default_exclude
 
-        for col in df.columns:
-            if pd.api.types.is_numeric_dtype(df[col]):
-                cb = QCheckBox(col)
-                cb.setChecked(col in exclusions)
-                cb.stateChanged.connect(self._on_exclusion_changed)  # Save on change
-                self._column_checkboxes[col] = cb
-                self._column_layout.addWidget(cb)
-
-        self._column_layout.addStretch()
+        # Update the panel
+        self._exclude_panel.set_columns(numeric_columns, exclusions)
 
     def _save_excluded_columns(self) -> None:
         """Save current exclusion settings."""
         from PyQt6.QtCore import QSettings
 
         settings = QSettings("Lumen", "FeatureInsights")
-        excluded = [col for col, cb in self._column_checkboxes.items() if cb.isChecked()]
+        excluded = list(self._exclude_panel.get_excluded())
         settings.setValue("excluded_columns", excluded)
 
     def _load_excluded_columns(self) -> set[str]:
@@ -462,7 +448,7 @@ class FeatureInsightsTab(QWidget):
         settings = QSettings("Lumen", "FeatureInsights")
         return set(settings.value("excluded_columns", []))
 
-    @pyqtSlot(int)
-    def _on_exclusion_changed(self, state: int) -> None:
-        """Handle checkbox state change - save settings."""
+    @pyqtSlot()
+    def _on_exclusion_changed(self) -> None:
+        """Handle exclusion change - save settings."""
         self._save_excluded_columns()
