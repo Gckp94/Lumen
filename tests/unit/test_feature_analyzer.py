@@ -30,7 +30,6 @@ class TestDataModels:
         assert config.top_n_features == 10
         assert config.max_bins == 5
         assert config.min_bin_size == 30
-        assert config.min_bin_pct == 5.0
         assert config.bootstrap_iterations == 1000
         assert config.confidence_level == 0.95
         assert config.exclude_columns == set()

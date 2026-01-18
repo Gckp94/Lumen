@@ -86,7 +86,6 @@ class FeatureAnalyzerConfig:
     # Phase 2: Range identification
     max_bins: int = 5  # Maximum bins per feature
     min_bin_size: int = 30  # Minimum trades per bin
-    min_bin_pct: float = 5.0  # Minimum % of trades per bin
 
     # Phase 3: Validation
     bootstrap_iterations: int = 1000  # Number of bootstrap samples
