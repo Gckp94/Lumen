@@ -281,3 +281,43 @@ def calculate_conditional_variance(
         return float(np.var(quantile_means))
     except Exception:
         return 0.0
+
+
+def calculate_impact_score(
+    mutual_info: float,
+    rank_corr: float,
+    cond_variance: float,
+    baseline_variance: float,
+    weights: tuple[float, float, float] = (0.4, 0.3, 0.3),
+) -> float:
+    """Combine metrics into single 0-100 impact score.
+
+    Args:
+        mutual_info: Mutual information score (typically 0-1).
+        rank_corr: Rank correlation (-1 to 1).
+        cond_variance: Conditional mean variance.
+        baseline_variance: Overall gains variance for normalization.
+        weights: Relative weights for (MI, correlation, variance).
+
+    Returns:
+        Combined score from 0-100.
+    """
+    # Normalize mutual information (cap at 1.0)
+    mi_norm = min(mutual_info / 1.0, 1.0)
+
+    # Normalize correlation (use absolute value, already 0-1)
+    corr_norm = abs(rank_corr)
+
+    # Normalize conditional variance relative to baseline
+    if baseline_variance > 0:
+        var_norm = min(cond_variance / baseline_variance, 1.0)
+    else:
+        var_norm = 0.0
+
+    # Weighted combination
+    combined = (
+        weights[0] * mi_norm + weights[1] * corr_norm + weights[2] * var_norm
+    )
+
+    # Scale to 0-100
+    return min(100.0, max(0.0, combined * 100))

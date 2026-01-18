@@ -166,3 +166,44 @@ class TestConditionalVariance:
 
         variance = calculate_conditional_variance(feature, gains)
         assert variance < 0.0001  # Should be small
+
+
+class TestImpactScore:
+    """Test combined impact score calculation."""
+
+    def test_high_all_metrics_high_score(self):
+        """High MI, correlation, and variance should give high score."""
+        from src.core.feature_analyzer import calculate_impact_score
+
+        score = calculate_impact_score(
+            mutual_info=0.8,
+            rank_corr=0.7,
+            cond_variance=0.005,
+            baseline_variance=0.001,
+        )
+        assert score > 70
+
+    def test_low_all_metrics_low_score(self):
+        """Low metrics should give low score."""
+        from src.core.feature_analyzer import calculate_impact_score
+
+        score = calculate_impact_score(
+            mutual_info=0.05,
+            rank_corr=0.05,
+            cond_variance=0.0001,
+            baseline_variance=0.001,
+        )
+        assert score < 30
+
+    def test_score_in_valid_range(self):
+        """Score should always be 0-100."""
+        from src.core.feature_analyzer import calculate_impact_score
+
+        for _ in range(100):
+            mi = np.random.random()
+            corr = np.random.random() * 2 - 1
+            var = np.random.random() * 0.01
+            base_var = np.random.random() * 0.01 + 0.001
+
+            score = calculate_impact_score(mi, corr, var, base_var)
+            assert 0 <= score <= 100
