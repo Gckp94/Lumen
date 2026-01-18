@@ -19,6 +19,7 @@ from src.ui.components.monte_carlo_charts import (
     MonteCarloChartsSection,
 )
 from src.ui.components.export_dialog import ExportDialog
+from src.ui.components.feature_impact_chart import FeatureImpactChart
 from src.ui.components.filter_chip import FilterChip
 from src.ui.components.filter_panel import FilterPanel
 from src.ui.components.filter_row import FilterRow
@@ -43,6 +44,7 @@ from src.ui.components.monte_carlo_section import (
 )
 from src.ui.components.metrics_grid import MetricsGrid
 from src.ui.components.metrics_section_card import MetricsSectionCard
+from src.ui.components.range_analysis_table import RangeAnalysisTable
 from src.ui.components.no_scroll_widgets import (
     NoScrollComboBox,
     NoScrollDoubleSpinBox,
@@ -73,6 +75,7 @@ __all__ = [
     "EquityChart",
     "EquityConfidenceBandChart",
     "ExportDialog",
+    "FeatureImpactChart",
     "FilterChip",
     "FilterPanel",
     "FilterRow",
@@ -96,6 +99,7 @@ __all__ = [
     "NoScrollDoubleSpinBox",
     "NoScrollSpinBox",
     "ProgressRing",
+    "RangeAnalysisTable",
     "RunButton",
     "SimulationTypeToggle",
     "TabbedChartContainer",

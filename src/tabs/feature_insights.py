@@ -17,6 +17,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.ui.components.feature_impact_chart import FeatureImpactChart
+from src.ui.components.range_analysis_table import RangeAnalysisTable
+
 if TYPE_CHECKING:
     from src.core.app_state import AppState
 
@@ -140,7 +143,20 @@ class FeatureInsightsTab(QWidget):
         )
         self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._placeholder.setStyleSheet("color: #888; font-size: 14px;")
-        self._content_area.setWidget(self._placeholder)
+
+        # Results container
+        self._results_widget = QWidget()
+        results_layout = QVBoxLayout(self._results_widget)
+        results_layout.setContentsMargins(0, 0, 0, 0)
+
+        self._impact_chart = FeatureImpactChart()
+        self._impact_chart.setMinimumHeight(300)
+        results_layout.addWidget(self._impact_chart)
+
+        self._range_table = RangeAnalysisTable()
+        results_layout.addWidget(self._range_table)
+
+        self._content_area.setWidget(self._placeholder)  # Start with placeholder
 
         layout.addWidget(self._content_area, 1)
 
@@ -208,8 +224,15 @@ class FeatureInsightsTab(QWidget):
 
     def _display_results(self, results) -> None:
         """Display analysis results."""
-        # TODO: Will be implemented in Task 13
         logger.info("Analysis complete with %d features", len(results.features))
+
+        self._impact_chart.update_data(results)
+
+        # Show first feature in table by default
+        if results.features:
+            self._range_table.update_data(results.features[0])
+
+        self._content_area.setWidget(self._results_widget)
 
     def _populate_column_checkboxes(self, df) -> None:
         """Populate column exclusion checkboxes."""
