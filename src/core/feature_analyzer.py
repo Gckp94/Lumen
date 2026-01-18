@@ -321,3 +321,161 @@ def calculate_impact_score(
 
     # Scale to 0-100
     return min(100.0, max(0.0, combined * 100))
+
+
+def find_optimal_bins(
+    feature: NDArray[np.float64],
+    gains: NDArray[np.float64],
+    max_bins: int = 5,
+    min_bin_size: int = 30,
+) -> list[tuple[float, float]]:
+    """Find optimal bin boundaries using chi-squared based merging.
+
+    Algorithm:
+    1. Start with quantile-based bins
+    2. Merge adjacent bins with most similar gain distributions
+    3. Continue until max_bins reached
+    4. Enforce minimum bin size
+
+    Args:
+        feature: Array of feature values.
+        gains: Array of gain values.
+        max_bins: Maximum number of bins.
+        min_bin_size: Minimum trades per bin.
+
+    Returns:
+        List of (min, max) tuples defining bin boundaries.
+    """
+    n = len(feature)
+    if n < min_bin_size:
+        return [(float(feature.min()), float(feature.max()))]
+
+    # Start with more granular bins
+    initial_bins = min(20, n // min_bin_size)
+    if initial_bins < 2:
+        return [(float(feature.min()), float(feature.max()))]
+
+    # Create initial bins using percentiles
+    percentiles = np.linspace(0, 100, initial_bins + 1)
+    edges = np.percentile(feature, percentiles)
+    edges = np.unique(edges)  # Remove duplicates
+
+    if len(edges) < 2:
+        return [(float(feature.min()), float(feature.max()))]
+
+    # Assign bin labels
+    bin_labels = np.digitize(feature, edges[1:-1])
+
+    def get_bin_chi2(labels: NDArray, idx1: int, idx2: int) -> float:
+        """Calculate chi-squared between adjacent bins."""
+        mask1 = labels == idx1
+        mask2 = labels == idx2
+
+        if mask1.sum() == 0 or mask2.sum() == 0:
+            return 0.0
+
+        wins1 = (gains[mask1] > 0).sum()
+        losses1 = mask1.sum() - wins1
+        wins2 = (gains[mask2] > 0).sum()
+        losses2 = mask2.sum() - wins2
+
+        total = wins1 + losses1 + wins2 + losses2
+        if total == 0:
+            return 0.0
+
+        total_wins = wins1 + wins2
+        total_losses = losses1 + losses2
+        n1 = wins1 + losses1
+        n2 = wins2 + losses2
+
+        if total_wins == 0 or total_losses == 0:
+            return 0.0
+
+        exp_wins1 = n1 * total_wins / total
+        exp_losses1 = n1 * total_losses / total
+        exp_wins2 = n2 * total_wins / total
+        exp_losses2 = n2 * total_losses / total
+
+        chi2 = 0.0
+        for obs, exp in [
+            (wins1, exp_wins1),
+            (losses1, exp_losses1),
+            (wins2, exp_wins2),
+            (losses2, exp_losses2),
+        ]:
+            if exp > 0:
+                chi2 += (obs - exp) ** 2 / exp
+
+        return chi2
+
+    # Iteratively merge most similar adjacent bins
+    while len(np.unique(bin_labels)) > max_bins:
+        unique_labels = sorted(np.unique(bin_labels))
+        if len(unique_labels) <= 1:
+            break
+
+        min_chi2 = float("inf")
+        merge_pair = (unique_labels[0], unique_labels[1])
+
+        for i in range(len(unique_labels) - 1):
+            chi2 = get_bin_chi2(bin_labels, unique_labels[i], unique_labels[i + 1])
+            if chi2 < min_chi2:
+                min_chi2 = chi2
+                merge_pair = (unique_labels[i], unique_labels[i + 1])
+
+        # Merge bins
+        bin_labels[bin_labels == merge_pair[1]] = merge_pair[0]
+
+    # Enforce minimum bin size by further merging
+    while True:
+        unique_labels = sorted(np.unique(bin_labels))
+        merged = False
+
+        for label in unique_labels:
+            count = (bin_labels == label).sum()
+            if count < min_bin_size and len(unique_labels) > 1:
+                # Find adjacent bin to merge with
+                idx = unique_labels.index(label)
+                if idx == 0:
+                    merge_target = unique_labels[1]
+                elif idx == len(unique_labels) - 1:
+                    merge_target = unique_labels[-2]
+                else:
+                    # Merge with smaller neighbor
+                    left_count = (bin_labels == unique_labels[idx - 1]).sum()
+                    right_count = (bin_labels == unique_labels[idx + 1]).sum()
+                    merge_target = (
+                        unique_labels[idx - 1]
+                        if left_count <= right_count
+                        else unique_labels[idx + 1]
+                    )
+
+                bin_labels[bin_labels == label] = merge_target
+                merged = True
+                break
+
+        if not merged:
+            break
+
+    # Convert to (min, max) ranges
+    unique_labels = sorted(np.unique(bin_labels))
+    bins = []
+
+    for i, label in enumerate(unique_labels):
+        mask = bin_labels == label
+        bin_min = float(feature[mask].min())
+        bin_max = float(feature[mask].max())
+
+        # Extend edges to cover full range
+        if i == 0:
+            bin_min = float(feature.min())
+        if i == len(unique_labels) - 1:
+            bin_max = float(feature.max())
+
+        bins.append((bin_min, bin_max))
+
+    # Make bins contiguous
+    for i in range(len(bins) - 1):
+        bins[i] = (bins[i][0], bins[i + 1][0])
+
+    return bins

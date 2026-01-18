@@ -207,3 +207,63 @@ class TestImpactScore:
 
             score = calculate_impact_score(mi, corr, var, base_var)
             assert 0 <= score <= 100
+
+
+class TestOptimalBinning:
+    """Test optimal binning algorithm."""
+
+    def test_respects_max_bins(self):
+        """Should not create more bins than max_bins."""
+        from src.core.feature_analyzer import find_optimal_bins
+
+        np.random.seed(42)
+        feature = np.random.randn(500)
+        gains = np.random.randn(500)
+
+        bins = find_optimal_bins(feature, gains, max_bins=3, min_bin_size=30)
+        assert len(bins) <= 3
+
+    def test_respects_min_bin_size(self):
+        """Each bin should have at least min_bin_size trades."""
+        from src.core.feature_analyzer import find_optimal_bins
+
+        np.random.seed(42)
+        feature = np.random.randn(200)
+        gains = np.random.randn(200)
+
+        bins = find_optimal_bins(feature, gains, max_bins=5, min_bin_size=30)
+
+        for bin_min, bin_max in bins:
+            count = ((feature >= bin_min) & (feature < bin_max)).sum()
+            # Last bin includes upper edge
+            if bin_max == bins[-1][1]:
+                count = ((feature >= bin_min) & (feature <= bin_max)).sum()
+            assert count >= 30 or len(bins) == 1  # Single bin if can't split
+
+    def test_bins_cover_all_data(self):
+        """Bins should cover entire feature range."""
+        from src.core.feature_analyzer import find_optimal_bins
+
+        np.random.seed(42)
+        feature = np.random.randn(300)
+        gains = np.random.randn(300)
+
+        bins = find_optimal_bins(feature, gains, max_bins=4, min_bin_size=30)
+
+        # First bin starts at or before min
+        assert bins[0][0] <= feature.min()
+        # Last bin ends at or after max
+        assert bins[-1][1] >= feature.max()
+
+    def test_bins_are_contiguous(self):
+        """Bins should be contiguous (no gaps)."""
+        from src.core.feature_analyzer import find_optimal_bins
+
+        np.random.seed(42)
+        feature = np.random.randn(300)
+        gains = np.random.randn(300)
+
+        bins = find_optimal_bins(feature, gains, max_bins=4, min_bin_size=30)
+
+        for i in range(len(bins) - 1):
+            assert bins[i][1] == bins[i + 1][0]  # End of one = start of next
