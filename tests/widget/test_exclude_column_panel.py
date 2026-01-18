@@ -2,7 +2,7 @@
 
 import pytest
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication
+
 
 from src.ui.components.exclude_column_panel import ExcludeColumnPanel
 
