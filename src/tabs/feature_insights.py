@@ -51,6 +51,12 @@ class AnalysisWorker(QThread):
 
     def run(self):
         try:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.info("AnalysisWorker starting analysis")
+            logger.info("DataFrame shape: %s, gain_col: %s", self.df.shape, self.gain_col)
+
             from src.core.feature_analyzer import FeatureAnalyzer, FeatureAnalyzerConfig
 
             config = FeatureAnalyzerConfig(
@@ -61,8 +67,14 @@ class AnalysisWorker(QThread):
             analyzer = FeatureAnalyzer(config)
             results = analyzer.run(self.df, self.gain_col, self.date_col)
 
+            logger.info("Analysis complete, found %d features", len(results.features))
             self.finished.emit(results)
         except Exception as e:
+            import traceback
+
+            logging.getLogger(__name__).error(
+                "Analysis failed: %s\n%s", e, traceback.format_exc()
+            )
             self.error.emit(str(e))
 
 
@@ -248,18 +260,25 @@ class FeatureInsightsTab(QWidget):
     @pyqtSlot()
     def _on_run_clicked(self) -> None:
         """Handle run analysis button click."""
+        logger.info("Run Analysis clicked")
+
         if self.app_state.filtered_df is None:
+            logger.warning("No data loaded - filtered_df is None")
             return
 
         # Get excluded columns
         exclude = {
             col for col, cb in self._column_checkboxes.items() if cb.isChecked()
         }
+        logger.info("Excluding %d columns: %s", len(exclude), exclude)
 
         # Get column names from mapping
         mapping = self.app_state.column_mapping
         if mapping is None:
+            logger.warning("No column mapping available")
             return
+
+        logger.info("Using gain column: %s, date column: %s", mapping.gain_pct, mapping.date)
 
         self._run_button.setEnabled(False)
         self._run_button.setText("Analyzing...")
@@ -286,9 +305,17 @@ class FeatureInsightsTab(QWidget):
     @pyqtSlot(str)
     def _on_analysis_error(self, error: str) -> None:
         """Handle analysis error."""
+        from PyQt6.QtWidgets import QMessageBox
+
         logger.error("Feature analysis failed: %s", error)
         self._run_button.setEnabled(True)
         self._run_button.setText("Run Analysis")
+
+        QMessageBox.warning(
+            self,
+            "Analysis Error",
+            f"Feature analysis failed:\n\n{error}",
+        )
 
     def _display_results(self, results) -> None:
         """Display analysis results."""
