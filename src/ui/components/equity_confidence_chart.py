@@ -184,7 +184,7 @@ class EquityConfidenceBandChart(QWidget):
                 )
 
                 global_pos = self._plot_widget.mapToGlobal(
-                    self._plot_widget.mapFromScene(pos).toPoint()
+                    self._plot_widget.mapFromScene(pos)
                 )
                 QToolTip.showText(global_pos, tooltip_text)
             else:
