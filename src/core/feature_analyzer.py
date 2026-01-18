@@ -12,6 +12,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+import numpy as np
+from numpy.typing import NDArray
+
 
 class RangeClassification(Enum):
     """Classification of a feature range relative to baseline."""
@@ -113,3 +116,91 @@ class FeatureAnalyzerResults:
     # Overall confidence
     data_quality_score: float  # 0-100 based on sample size
     warnings: list[str]
+
+
+def calculate_mutual_information(
+    feature: NDArray[np.float64],
+    gains: NDArray[np.float64],
+    n_bins: int = 20,
+) -> float:
+    """Calculate mutual information between feature and gains.
+
+    MI(X;Y) = H(Y) - H(Y|X)
+
+    Higher MI means knowing the feature value reduces uncertainty about gains.
+
+    Args:
+        feature: Array of feature values.
+        gains: Array of gain values (same length as feature).
+        n_bins: Number of bins for discretization.
+
+    Returns:
+        Mutual information in bits (0 = independent, higher = more dependent).
+    """
+    if len(feature) != len(gains) or len(feature) == 0:
+        return 0.0
+
+    # Handle constant arrays
+    if np.std(feature) == 0 or np.std(gains) == 0:
+        return 0.0
+
+    # Adjust bins based on sample size to avoid overfitting
+    # Rule of thumb: at least 5 samples per cell on average
+    n_samples = len(feature)
+    max_bins_for_sample = max(2, int(np.sqrt(n_samples / 5)))
+    actual_bins = min(n_bins, max_bins_for_sample)
+
+    # Discretize into bins using percentiles (handles outliers better)
+    try:
+        feature_percentiles = np.percentile(
+            feature, np.linspace(0, 100, actual_bins + 1)
+        )
+        gains_percentiles = np.percentile(gains, np.linspace(0, 100, actual_bins + 1))
+
+        # Make edges unique
+        feature_edges = np.unique(feature_percentiles)
+        gains_edges = np.unique(gains_percentiles)
+
+        if len(feature_edges) < 2 or len(gains_edges) < 2:
+            return 0.0
+
+        feature_bins = np.digitize(feature, feature_edges[1:-1])
+        gains_bins = np.digitize(gains, gains_edges[1:-1])
+    except Exception:
+        return 0.0
+
+    # Calculate joint histogram
+    n_feature_bins = len(feature_edges) - 1
+    n_gains_bins = len(gains_edges) - 1
+
+    joint_hist = np.zeros((n_feature_bins, n_gains_bins))
+    for f_bin, g_bin in zip(feature_bins, gains_bins):
+        f_idx = min(f_bin, n_feature_bins - 1)
+        g_idx = min(g_bin, n_gains_bins - 1)
+        joint_hist[f_idx, g_idx] += 1
+
+    # Convert to probabilities
+    total = joint_hist.sum()
+    if total == 0:
+        return 0.0
+
+    joint_prob = joint_hist / total
+    feature_prob = joint_prob.sum(axis=1)
+    gains_prob = joint_prob.sum(axis=0)
+
+    # Calculate MI: sum of p(x,y) * log2(p(x,y) / (p(x) * p(y)))
+    mi = 0.0
+    for i in range(n_feature_bins):
+        for j in range(n_gains_bins):
+            if joint_prob[i, j] > 0 and feature_prob[i] > 0 and gains_prob[j] > 0:
+                mi += joint_prob[i, j] * np.log2(
+                    joint_prob[i, j] / (feature_prob[i] * gains_prob[j])
+                )
+
+    # Apply Miller-Madow bias correction for small samples
+    # Bias ~ (|X|-1)(|Y|-1) / (2*N*ln(2))
+    non_zero_cells = np.sum(joint_hist > 0)
+    bias_correction = (non_zero_cells - 1) / (2 * n_samples * np.log(2))
+    mi_corrected = mi - bias_correction
+
+    return max(0.0, mi_corrected)  # MI is non-negative

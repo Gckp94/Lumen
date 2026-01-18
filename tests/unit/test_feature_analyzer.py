@@ -1,6 +1,7 @@
 # tests/unit/test_feature_analyzer.py
 """Tests for feature analyzer module."""
 
+import numpy as np
 import pytest
 from src.core.feature_analyzer import (
     RangeClassification,
@@ -67,3 +68,40 @@ class TestDataModels:
         )
         assert result.feature_name == "gap_percent"
         assert result.impact_score == 72.5
+
+
+class TestMutualInformation:
+    """Test mutual information calculation."""
+
+    def test_perfect_correlation_high_mi(self):
+        """Perfectly correlated data should have high MI."""
+        from src.core.feature_analyzer import calculate_mutual_information
+
+        # Feature perfectly predicts gain sign
+        feature = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] * 10)
+        gains = feature * 0.01  # Linear relationship
+
+        mi = calculate_mutual_information(feature, gains)
+        assert mi > 0.5  # High MI expected
+
+    def test_random_data_low_mi(self):
+        """Random uncorrelated data should have low MI."""
+        from src.core.feature_analyzer import calculate_mutual_information
+
+        np.random.seed(42)
+        feature = np.random.randn(200)
+        gains = np.random.randn(200)  # Independent
+
+        mi = calculate_mutual_information(feature, gains)
+        assert mi < 0.2  # Low MI expected
+
+    def test_nonlinear_relationship_detected(self):
+        """MI should detect non-linear relationships."""
+        from src.core.feature_analyzer import calculate_mutual_information
+
+        # U-shaped relationship: gains high at extremes
+        feature = np.linspace(-5, 5, 200)
+        gains = feature**2 * 0.01  # Quadratic - low correlation but high MI
+
+        mi = calculate_mutual_information(feature, gains)
+        assert mi > 0.3  # Should detect the relationship
