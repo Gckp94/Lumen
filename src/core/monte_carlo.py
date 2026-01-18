@@ -206,6 +206,12 @@ class MonteCarloEngine:
             # PnL per trade = flat_stake * gain_decimal
             pnl_per_trade = self.config.flat_stake * sampled_gains
             return initial_capital + np.cumsum(pnl_per_trade)
+        elif self.config.position_sizing_mode == PositionSizingMode.COMPOUNDED_CUSTOM:
+            # Compounded Custom: position size = custom_position_pct% of current equity
+            # Each trade: equity *= (1 + custom_pct * gain)
+            custom_fraction = self.config.custom_position_pct / 100.0
+            multipliers = 1 + (custom_fraction * sampled_gains)
+            return initial_capital * np.cumprod(multipliers)
         else:
             # Compounded Kelly: position size = fractional_kelly_pct% of current equity
             # Each trade: equity *= (1 + fractional_kelly * gain)

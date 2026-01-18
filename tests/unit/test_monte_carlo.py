@@ -245,6 +245,24 @@ class TestMonteCarloEngine:
         expected = np.array([101000.0, 100500.0, 101300.0])
         np.testing.assert_allclose(equity, expected)
 
+    def test_equity_curve_calculation_compounded_custom(self) -> None:
+        """Test equity curve with compounded custom position sizing."""
+        config = MonteCarloConfig(
+            position_sizing_mode=PositionSizingMode.COMPOUNDED_CUSTOM,
+            custom_position_pct=20.0,  # 20% of equity per trade
+        )
+        engine = MonteCarloEngine(config)
+        gains = np.array([0.10, -0.05, 0.15])  # +10%, -5%, +15%
+        initial = 100000.0
+
+        curve = engine._simulate_equity_curve(gains, initial)
+
+        # Trade 1: 100000 * (1 + 0.20 * 0.10) = 100000 * 1.02 = 102000
+        # Trade 2: 102000 * (1 + 0.20 * -0.05) = 102000 * 0.99 = 100980
+        # Trade 3: 100980 * (1 + 0.20 * 0.15) = 100980 * 1.03 = 104009.4
+        expected = np.array([102000.0, 100980.0, 104009.4])
+        np.testing.assert_array_almost_equal(curve, expected, decimal=1)
+
     def test_max_drawdown_calculation(self, engine: MonteCarloEngine) -> None:
         """Max drawdown calculation matches hand-calculated value."""
         # Equity: 100 -> 120 -> 90 -> 100
