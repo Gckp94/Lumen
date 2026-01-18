@@ -351,7 +351,7 @@ class MonteCarloTab(QWidget):
         try:
             # Extract gains from filtered data (respects user's Filter Panel filters)
             gains = extract_gains_from_app_state(
-                self._app_state.filtered_df or self._app_state.baseline_df,
+                self._app_state.filtered_df if self._app_state.filtered_df is not None else self._app_state.baseline_df,
                 self._app_state.column_mapping,
                 self._app_state.first_trigger_enabled,
             )
