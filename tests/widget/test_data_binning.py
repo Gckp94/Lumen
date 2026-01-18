@@ -983,3 +983,47 @@ class TestResizableSidebar:
         sidebar = splitter.widget(0)
 
         assert sidebar.minimumWidth() >= 200, "Sidebar should have minimum width of 200px"
+
+
+class TestFirstTriggersFiltering:
+    """Tests for first triggers only filtering in data binning."""
+
+    def test_recalculate_charts_uses_first_triggers_only(
+        self, qtbot: QtBot
+    ) -> None:
+        """Test that _recalculate_charts filters to trigger_number == 1."""
+        # Create test data with multiple triggers
+        app_state = AppState()
+        df = pd.DataFrame({
+            "ticker": ["AAPL", "AAPL", "GOOG", "GOOG", "GOOG"],
+            "date": ["2024-01-01"] * 5,
+            "time": ["09:30", "09:31", "09:30", "09:31", "09:32"],
+            "trigger_number": [1, 2, 1, 2, 3],
+            "gain_pct": [1.0, 2.0, -1.0, 3.0, 4.0],
+            "price": [100.0, 101.0, 200.0, 201.0, 202.0],
+        })
+        app_state.baseline_df = df
+
+        # Create tab and chart panel
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Set up bin configuration
+        chart_panel = tab._chart_panel
+        chart_panel._selected_column = "price"
+        chart_panel._bin_definitions = [
+            BinDefinition(operator="<", value1=150.0),
+            BinDefinition(operator=">=", value1=150.0),
+        ]
+        chart_panel._current_metric_column = "gain_pct"
+
+        # Trigger chart recalculation
+        chart_panel._recalculate_charts()
+
+        # Verify only first triggers were used (should be 2 rows: AAPL trigger 1, GOOG trigger 1)
+        # The count chart should show count=1 for each bin (one first trigger each)
+        count_data = chart_panel._count_chart._data
+        total_count = sum(value for _, value in count_data)
+
+        # Should be 2 (only first triggers), not 5 (all triggers)
+        assert total_count == 2, f"Expected 2 first triggers, got {total_count}"
