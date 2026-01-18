@@ -169,3 +169,83 @@ class TestFilterCriteriaNotBetweenBlanks:
         )
         mask = criteria.apply(df)
         assert mask.tolist() == [True, False, True, True]
+
+
+class TestFilterCriteriaPartialRanges:
+    """Tests for partial range filters (min only or max only)."""
+
+    def test_between_with_min_only_filters_gte(self) -> None:
+        """BETWEEN with min only filters >= min_val."""
+        df = pd.DataFrame({"gain_pct": [-5, 0, 5, 10]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between", min_val=0, max_val=None
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [False, True, True, True]
+
+    def test_between_with_max_only_filters_lte(self) -> None:
+        """BETWEEN with max only filters <= max_val."""
+        df = pd.DataFrame({"gain_pct": [-5, 0, 5, 10]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between", min_val=None, max_val=5
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [True, True, True, False]
+
+    def test_not_between_with_min_only_filters_lt(self) -> None:
+        """NOT BETWEEN with min only filters < min_val."""
+        df = pd.DataFrame({"gain_pct": [-5, 0, 5, 10]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="not_between", min_val=0, max_val=None
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [True, False, False, False]
+
+    def test_not_between_with_max_only_filters_gt(self) -> None:
+        """NOT BETWEEN with max only filters > max_val."""
+        df = pd.DataFrame({"gain_pct": [-5, 0, 5, 10]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="not_between", min_val=None, max_val=5
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [False, False, False, True]
+
+    def test_between_blanks_with_min_only_includes_nulls(self) -> None:
+        """BETWEEN + BLANKS with min only includes >= min OR null."""
+        df = pd.DataFrame({"gain_pct": [-5.0, 5.0, None]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between_blanks", min_val=0, max_val=None
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [False, True, True]
+
+    def test_between_blanks_with_max_only_includes_nulls(self) -> None:
+        """BETWEEN + BLANKS with max only includes <= max OR null."""
+        df = pd.DataFrame({"gain_pct": [-5.0, 5.0, 15.0, None]})
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between_blanks", min_val=None, max_val=10
+        )
+        mask = criteria.apply(df)
+        assert mask.tolist() == [True, True, False, True]
+
+    def test_validate_returns_none_for_min_only(self) -> None:
+        """validate() returns None for min-only filter (valid)."""
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between", min_val=5, max_val=None
+        )
+        assert criteria.validate() is None
+
+    def test_validate_returns_none_for_max_only(self) -> None:
+        """validate() returns None for max-only filter (valid)."""
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between", min_val=None, max_val=10
+        )
+        assert criteria.validate() is None
+
+    def test_validate_returns_error_for_neither(self) -> None:
+        """validate() returns error when both min and max are None."""
+        criteria = FilterCriteria(
+            column="gain_pct", operator="between", min_val=None, max_val=None
+        )
+        error = criteria.validate()
+        assert error is not None

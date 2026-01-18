@@ -253,34 +253,16 @@ class AdjustmentParams:
         gains = df[gain_col].astype(float)
         mae = df[mae_col].astype(float)
 
-        # Diagnostic logging for adjustment calculation
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(
-            "DIAGNOSTIC (adjust): Raw gains from '%s' - min=%.6f, max=%.6f, mean=%.6f, "
-            "sample first 5: %s",
-            gain_col,
-            gains.min(),
-            gains.max(),
-            gains.mean(),
-            gains.head(5).tolist(),
-        )
-        logger.info(
-            "DIAGNOSTIC (adjust): MAE from '%s' - min=%.6f, max=%.6f, mean=%.6f, "
-            "sample first 5: %s",
-            mae_col,
-            mae.min(),
-            mae.max(),
-            mae.mean(),
-            mae.head(5).tolist(),
-        )
-
         # Convert gains from decimal to percentage format for adjustment
         gains_pct = gains * 100
 
         # Step 1: Stop loss adjustment (vectorized)
         # If MAE > stop_loss, gain becomes -stop_loss (in percentage)
         stop_adjusted = gains_pct.where(mae <= self.stop_loss, -self.stop_loss)
+
+        # Step 1b: Also clip gains that exceed stop loss threshold
+        # This ensures no loss exceeds stop_loss, even if MAE data is inconsistent
+        stop_adjusted = stop_adjusted.clip(lower=-self.stop_loss)
 
         # Step 2: Efficiency adjustment (in percentage)
         adjusted_pct = stop_adjusted - self.efficiency
@@ -356,14 +338,14 @@ class FilterCriteria:
         column: Name of the column to filter on.
         operator: Filter operator - 'between' (inclusive), 'not_between',
                   'between_blanks' (includes nulls), or 'not_between_blanks'.
-        min_val: Minimum value for the range.
-        max_val: Maximum value for the range.
+        min_val: Minimum value for the range, or None for no lower bound.
+        max_val: Maximum value for the range, or None for no upper bound.
     """
 
     column: str
     operator: Literal["between", "not_between", "between_blanks", "not_between_blanks"]
-    min_val: float
-    max_val: float
+    min_val: float | None
+    max_val: float | None
 
     def validate(self) -> str | None:
         """Validate filter criteria.
@@ -371,8 +353,11 @@ class FilterCriteria:
         Returns:
             Error message if invalid, None if valid.
         """
-        if self.min_val > self.max_val:
-            return "Min value must be less than or equal to max value"
+        if self.min_val is None and self.max_val is None:
+            return "At least one of min or max value is required"
+        if self.min_val is not None and self.max_val is not None:
+            if self.min_val > self.max_val:
+                return "Min value must be less than or equal to max value"
         return None
 
     def apply(self, df: pd.DataFrame) -> pd.Series:
@@ -387,14 +372,25 @@ class FilterCriteria:
         col = df[self.column]
         is_null = col.isna()
 
+        # Build mask based on which bounds are set
+        if self.min_val is not None and self.max_val is not None:
+            # Both bounds set - original behavior
+            in_range = (col >= self.min_val) & (col <= self.max_val)
+        elif self.min_val is not None:
+            # Min only: >= min_val
+            in_range = col >= self.min_val
+        else:
+            # Max only: <= max_val
+            in_range = col <= self.max_val
+
         if self.operator == "between":
-            return (col >= self.min_val) & (col <= self.max_val)
+            return in_range
         elif self.operator == "not_between":
-            return (col < self.min_val) | (col > self.max_val)
+            return ~in_range & ~is_null
         elif self.operator == "between_blanks":
-            return ((col >= self.min_val) & (col <= self.max_val)) | is_null
+            return in_range | is_null
         else:  # not_between_blanks
-            return ((col < self.min_val) | (col > self.max_val)) | is_null
+            return (~in_range & ~is_null) | is_null
 
 
 @dataclass
