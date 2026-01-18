@@ -1,11 +1,77 @@
 """Widget tests for the MainWindow."""
 
 import pytest
-from PyQt6.QtWidgets import QLabel
 from pytestqt.qtbot import QtBot
 
 from src.tabs.monte_carlo import MonteCarloTab
 from src.ui.main_window import MainWindow
+
+
+@pytest.fixture
+def main_window(qtbot: QtBot) -> MainWindow:
+    """Create a MainWindow instance for testing."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    return window
+
+
+@pytest.mark.widget
+class TestViewMenu:
+    """Tests for View menu functionality."""
+
+    def test_view_menu_exists(self, main_window):
+        """MainWindow should have a View menu."""
+        menu_bar = main_window.menuBar()
+        view_menu = None
+        for action in menu_bar.actions():
+            if action.text() == "&View":
+                view_menu = action.menu()
+                break
+
+        assert view_menu is not None
+
+    def test_view_menu_has_show_all_action(self, main_window):
+        """View menu should have 'Show All Tabs' action."""
+        menu_bar = main_window.menuBar()
+        view_menu = None
+        for action in menu_bar.actions():
+            if action.text() == "&View":
+                view_menu = action.menu()
+                break
+
+        action_texts = [a.text() for a in view_menu.actions()]
+        assert "Show All Tabs" in action_texts
+
+    def test_view_menu_has_tab_entries(self, main_window):
+        """View menu should have entries for each tab."""
+        menu_bar = main_window.menuBar()
+        view_menu = None
+        for action in menu_bar.actions():
+            if action.text() == "&View":
+                view_menu = action.menu()
+                break
+
+        action_texts = [a.text() for a in view_menu.actions()]
+        assert "Data Input" in action_texts
+        assert "Feature Explorer" in action_texts
+
+    def test_show_all_tabs_restores_hidden(self, main_window, qtbot):
+        """'Show All Tabs' should restore hidden tabs."""
+        # Hide a tab
+        main_window.dock_manager.toggle_dock_visibility("Data Input")
+        assert not main_window.dock_manager.is_dock_visible("Data Input")
+
+        # Find and trigger Show All Tabs
+        menu_bar = main_window.menuBar()
+        for action in menu_bar.actions():
+            if action.text() == "&View":
+                view_menu = action.menu()
+                for sub_action in view_menu.actions():
+                    if sub_action.text() == "Show All Tabs":
+                        sub_action.trigger()
+                        break
+
+        assert main_window.dock_manager.is_dock_visible("Data Input")
 
 
 @pytest.mark.widget
@@ -72,18 +138,22 @@ class TestMainWindow:
 
 @pytest.mark.widget
 class TestMonteCarloTab:
-    """Tests for the MonteCarloTab placeholder."""
+    """Tests for the MonteCarloTab integration with MainWindow."""
 
-    def test_monte_carlo_shows_placeholder(self, qtbot: QtBot) -> None:
-        """Monte Carlo tab shows Phase 3 message."""
-        tab = MonteCarloTab()
+    def test_monte_carlo_tab_requires_app_state(self, qtbot: QtBot) -> None:
+        """Monte Carlo tab requires app_state parameter."""
+        from src.core.app_state import AppState
+        app_state = AppState()
+        tab = MonteCarloTab(app_state)
         qtbot.addWidget(tab)
-        labels = tab.findChildren(QLabel)
-        assert any("Phase 3" in label.text() for label in labels)
+        assert tab is not None
 
-    def test_monte_carlo_message_text(self, qtbot: QtBot) -> None:
-        """Monte Carlo tab shows correct placeholder message."""
-        tab = MonteCarloTab()
+    def test_monte_carlo_tab_has_config_panel(self, qtbot: QtBot) -> None:
+        """Monte Carlo tab has configuration panel."""
+        from src.core.app_state import AppState
+        from src.ui.components.monte_carlo_config import MonteCarloConfigPanel
+        app_state = AppState()
+        tab = MonteCarloTab(app_state)
         qtbot.addWidget(tab)
-        labels = tab.findChildren(QLabel)
-        assert any("Monte Carlo simulations coming in Phase 3" in label.text() for label in labels)
+        config_panel = tab.findChild(MonteCarloConfigPanel)
+        assert config_panel is not None

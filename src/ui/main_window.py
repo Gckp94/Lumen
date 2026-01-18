@@ -5,6 +5,7 @@ Contains the MainWindow class with dockable tab container for the application wo
 
 import logging
 
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QMainWindow
 
 from src.core.app_state import AppState
@@ -37,6 +38,11 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.dock_manager)
 
         self._setup_docks()
+        self._setup_menu_bar()
+
+        # Set Data Input as the default active tab
+        self.dock_manager.set_active_dock("Data Input")
+
         logger.debug("MainWindow initialized with dockable tabs")
 
     def _setup_docks(self) -> None:
@@ -61,3 +67,51 @@ class MainWindow(QMainWindow):
     def app_state(self) -> AppState:
         """Get the centralized application state."""
         return self._app_state
+
+    def _setup_menu_bar(self) -> None:
+        """Set up the application menu bar with View menu."""
+        menu_bar = self.menuBar()
+
+        # View menu
+        view_menu = menu_bar.addMenu("&View")
+        self._view_menu = view_menu
+
+        # Show All Tabs action
+        show_all_action = QAction("Show All Tabs", self)
+        show_all_action.triggered.connect(self._on_show_all_tabs)
+        view_menu.addAction(show_all_action)
+
+        view_menu.addSeparator()
+
+        # Add checkable action for each tab
+        self._tab_actions: dict[str, QAction] = {}
+        for title in self.dock_manager.get_all_dock_titles():
+            action = QAction(title, self)
+            action.setCheckable(True)
+            action.setChecked(True)
+            action.triggered.connect(lambda checked, t=title: self._on_toggle_tab(t))
+            view_menu.addAction(action)
+            self._tab_actions[title] = action
+
+        # Update check states when menu is about to show
+        view_menu.aboutToShow.connect(self._update_tab_action_states)
+
+        logger.debug("Menu bar configured with View menu")
+
+    def _on_show_all_tabs(self) -> None:
+        """Handle Show All Tabs action."""
+        self.dock_manager.show_all_docks()
+        logger.debug("Restored all tabs")
+
+    def _on_toggle_tab(self, title: str) -> None:
+        """Handle tab visibility toggle.
+
+        Args:
+            title: Title of the tab to toggle.
+        """
+        self.dock_manager.toggle_dock_visibility(title)
+
+    def _update_tab_action_states(self) -> None:
+        """Update checkable action states to reflect current visibility."""
+        for title, action in self._tab_actions.items():
+            action.setChecked(self.dock_manager.is_dock_visible(title))
