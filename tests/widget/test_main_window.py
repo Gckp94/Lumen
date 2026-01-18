@@ -79,11 +79,11 @@ class TestViewMenu:
 class TestMainWindow:
     """Tests for the MainWindow class."""
 
-    def test_main_window_has_six_docks(self, qtbot: QtBot) -> None:
-        """MainWindow contains exactly 6 docks."""
+    def test_main_window_has_seven_docks(self, qtbot: QtBot) -> None:
+        """MainWindow contains exactly 7 docks."""
         window = MainWindow()
         qtbot.addWidget(window)
-        assert window.dock_manager.dock_count() == 6
+        assert window.dock_manager.dock_count() == 7
 
     def test_dock_titles_match_workflow(self, qtbot: QtBot) -> None:
         """Dock titles match expected workflow order."""
