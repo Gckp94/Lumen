@@ -12,6 +12,7 @@ from src.ui.components.distribution_card import DistributionCard
 from src.ui.components.distribution_histogram import DistributionHistogram, HistogramDialog
 from src.ui.components.empty_state import EmptyState
 from src.ui.components.equity_chart import EquityChart
+from src.ui.components.exclude_column_panel import ExcludeColumnPanel
 from src.ui.components.equity_confidence_chart import EquityConfidenceBandChart
 from src.ui.components.mc_histogram import MonteCarloHistogram
 from src.ui.components.monte_carlo_charts import (
@@ -74,6 +75,7 @@ __all__ = [
     "EmptyState",
     "EquityChart",
     "EquityConfidenceBandChart",
+    "ExcludeColumnPanel",
     "ExportDialog",
     "FeatureImpactChart",
     "FilterChip",
