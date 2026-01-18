@@ -79,7 +79,7 @@ class TestColumnFilterRow:
     def test_has_values_returns_true_when_inputs_filled(
         self, qtbot: QtBot, app: QApplication
     ) -> None:
-        """has_values should return True when both min and max have values."""
+        """has_values should return True when min and/or max have values."""
         row = ColumnFilterRow(column_name="vwap")
         qtbot.addWidget(row)
 
