@@ -130,6 +130,15 @@ class TestMonteCarloConfig:
         config = MonteCarloConfig(position_sizing_mode=PositionSizingMode.FLAT_STAKE)
         assert config.position_sizing_mode == PositionSizingMode.FLAT_STAKE
 
+    def test_position_sizing_mode_compounded_custom(self) -> None:
+        """Test config accepts compounded_custom position sizing mode."""
+        config = MonteCarloConfig(
+            position_sizing_mode=PositionSizingMode.COMPOUNDED_CUSTOM,
+            custom_position_pct=15.0,
+        )
+        assert config.position_sizing_mode == PositionSizingMode.COMPOUNDED_CUSTOM
+        assert config.custom_position_pct == 15.0
+
 
 class TestMonteCarloEngine:
     """Tests for MonteCarloEngine class."""

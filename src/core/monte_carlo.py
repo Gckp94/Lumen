@@ -20,6 +20,7 @@ class PositionSizingMode(str, Enum):
 
     FLAT_STAKE = "flat_stake"
     COMPOUNDED_KELLY = "compounded_kelly"
+    COMPOUNDED_CUSTOM = "compounded_custom"
 
 
 @dataclass
