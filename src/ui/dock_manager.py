@@ -203,3 +203,83 @@ class DockManager(ads.CDockManager):
                 ads.DockWidgetArea.CenterDockWidgetArea, dock_widget, self._center_area
             )
             logger.debug("Re-docked floating widget: %s", dock_widget.windowTitle())
+
+    def toggle_dock_visibility(self, title: str) -> None:
+        """Toggle visibility of a dock widget.
+
+        Args:
+            title: Tab title of the dock to toggle.
+        """
+        dock_widget = self._dock_widgets.get(title)
+        if dock_widget is None:
+            logger.warning("Cannot toggle visibility: dock '%s' not found", title)
+            return
+
+        if dock_widget.isClosed():
+            dock_widget.toggleView(True)
+            # If it was floating and closed, re-dock it
+            if dock_widget.isFloating():
+                self.addDockWidget(
+                    ads.DockWidgetArea.CenterDockWidgetArea,
+                    dock_widget,
+                    self._center_area,
+                )
+            logger.debug("Shown dock widget: %s", title)
+        else:
+            dock_widget.toggleView(False)
+            logger.debug("Hidden dock widget: %s", title)
+
+    def show_all_docks(self) -> None:
+        """Show all dock widgets, restoring any that were hidden."""
+        for title, dock_widget in self._dock_widgets.items():
+            if dock_widget.isClosed():
+                dock_widget.toggleView(True)
+                # Re-dock if it was floating
+                if dock_widget.isFloating():
+                    self.addDockWidget(
+                        ads.DockWidgetArea.CenterDockWidgetArea,
+                        dock_widget,
+                        self._center_area,
+                    )
+                logger.debug("Restored dock widget: %s", title)
+
+    def set_active_dock(self, title: str) -> None:
+        """Set a dock widget as the active/current tab.
+
+        Args:
+            title: Tab title of the dock to activate.
+        """
+        dock_widget = self._dock_widgets.get(title)
+        if dock_widget is None:
+            logger.warning("Cannot set active: dock '%s' not found", title)
+            return
+
+        # Ensure it's visible first (not closed)
+        if dock_widget.isClosed():
+            dock_widget.toggleView(True)
+
+        # Raise the tab
+        dock_widget.raise_()
+        logger.debug("Set active dock: %s", title)
+
+    def is_dock_visible(self, title: str) -> bool:
+        """Check if a dock widget is visible (not closed).
+
+        Args:
+            title: Tab title of the dock to check.
+
+        Returns:
+            True if the dock is visible (not closed), False otherwise.
+        """
+        dock_widget = self._dock_widgets.get(title)
+        if dock_widget is None:
+            return False
+        return not dock_widget.isClosed()
+
+    def get_all_dock_titles(self) -> list[str]:
+        """Get all dock widget titles.
+
+        Returns:
+            List of all dock widget titles.
+        """
+        return list(self._dock_widgets.keys())
