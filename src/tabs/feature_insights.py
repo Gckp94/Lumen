@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -35,6 +36,7 @@ class FeatureInsightsTab(QWidget):
         super().__init__(parent)
         self.app_state = app_state
         self._results = None
+        self._column_checkboxes = {}
 
         self._setup_ui()
         self._connect_signals()
@@ -61,6 +63,36 @@ class FeatureInsightsTab(QWidget):
 
         layout.addLayout(header)
 
+        # Configuration section
+        config_frame = QFrame()
+        config_frame.setStyleSheet("""
+            QFrame {
+                background-color: #2a2a2a;
+                border-radius: 8px;
+                padding: 12px;
+            }
+        """)
+        config_layout = QVBoxLayout(config_frame)
+
+        config_label = QLabel("Exclude Columns (lookahead bias prevention):")
+        config_label.setStyleSheet("font-weight: bold;")
+        config_layout.addWidget(config_label)
+
+        # Scrollable checkbox area for columns
+        self._column_scroll = QScrollArea()
+        self._column_scroll.setWidgetResizable(True)
+        self._column_scroll.setMaximumHeight(150)
+        self._column_scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        self._column_container = QWidget()
+        self._column_layout = QHBoxLayout(self._column_container)
+        self._column_layout.setContentsMargins(0, 0, 0, 0)
+
+        self._column_scroll.setWidget(self._column_container)
+        config_layout.addWidget(self._column_scroll)
+
+        layout.addWidget(config_frame)
+
         # Placeholder content
         self._content_area = QScrollArea()
         self._content_area.setWidgetResizable(True)
@@ -84,6 +116,8 @@ class FeatureInsightsTab(QWidget):
     def _on_data_loaded(self, df) -> None:
         """Handle data loaded event."""
         self._run_button.setEnabled(df is not None and len(df) > 0)
+        if df is not None and len(df) > 0:
+            self._populate_column_checkboxes(df)
 
     @pyqtSlot(object)
     def _on_data_updated(self, df) -> None:
@@ -96,3 +130,27 @@ class FeatureInsightsTab(QWidget):
         logger.info("Feature analysis requested")
         # TODO: Implement analysis execution
         pass
+
+    def _populate_column_checkboxes(self, df) -> None:
+        """Populate column exclusion checkboxes."""
+        import pandas as pd
+
+        # Clear existing
+        while self._column_layout.count():
+            child = self._column_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        self._column_checkboxes = {}
+
+        # Default exclusions
+        default_exclude = {"gain_pct", "mae_pct", "mfe_pct", "close", "exit_price"}
+
+        for col in df.columns:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                cb = QCheckBox(col)
+                cb.setChecked(col in default_exclude)
+                self._column_checkboxes[col] = cb
+                self._column_layout.addWidget(cb)
+
+        self._column_layout.addStretch()
