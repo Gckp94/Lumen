@@ -1,6 +1,7 @@
 """Widget tests for the MainWindow."""
 
 import pytest
+from PyQt6.QtGui import QKeySequence
 from pytestqt.qtbot import QtBot
 
 from src.tabs.monte_carlo import MonteCarloTab
@@ -157,3 +158,20 @@ class TestMonteCarloTab:
         qtbot.addWidget(tab)
         config_panel = tab.findChild(MonteCarloConfigPanel)
         assert config_panel is not None
+
+
+@pytest.mark.widget
+class TestKeyboardShortcuts:
+    """Tests for keyboard shortcuts."""
+
+    def test_show_all_tabs_shortcut(self, main_window):
+        """Show All Tabs should have Ctrl+Shift+T shortcut."""
+        menu_bar = main_window.menuBar()
+        for action in menu_bar.actions():
+            if action.text() == "&View":
+                view_menu = action.menu()
+                for sub_action in view_menu.actions():
+                    if sub_action.text() == "Show All Tabs":
+                        assert sub_action.shortcut() == QKeySequence("Ctrl+Shift+T")
+                        return
+        pytest.fail("Show All Tabs action not found")

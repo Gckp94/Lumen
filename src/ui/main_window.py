@@ -79,6 +79,7 @@ class MainWindow(QMainWindow):
 
         # Show All Tabs action
         show_all_action = QAction("Show All Tabs", self)
+        show_all_action.setShortcut("Ctrl+Shift+T")
         show_all_action.triggered.connect(self._on_show_all_tabs)
         view_menu.addAction(show_all_action)
 
