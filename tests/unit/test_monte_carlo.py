@@ -139,6 +139,26 @@ class TestMonteCarloConfig:
         assert config.position_sizing_mode == PositionSizingMode.COMPOUNDED_CUSTOM
         assert config.custom_position_pct == 15.0
 
+    def test_invalid_custom_position_pct_zero(self) -> None:
+        """Test that custom_position_pct of 0 raises error."""
+        with pytest.raises(ValueError, match="custom_position_pct must be between 0 and 100"):
+            MonteCarloConfig(custom_position_pct=0)
+
+    def test_invalid_custom_position_pct_negative(self) -> None:
+        """Test that negative custom_position_pct raises error."""
+        with pytest.raises(ValueError, match="custom_position_pct must be between 0 and 100"):
+            MonteCarloConfig(custom_position_pct=-5.0)
+
+    def test_invalid_custom_position_pct_above_100(self) -> None:
+        """Test that custom_position_pct above 100 raises error."""
+        with pytest.raises(ValueError, match="custom_position_pct must be between 0 and 100"):
+            MonteCarloConfig(custom_position_pct=101.0)
+
+    def test_valid_custom_position_pct_boundary(self) -> None:
+        """Test valid boundary value for custom_position_pct."""
+        config = MonteCarloConfig(custom_position_pct=100.0)
+        assert config.custom_position_pct == 100.0
+
 
 class TestMonteCarloEngine:
     """Tests for MonteCarloEngine class."""

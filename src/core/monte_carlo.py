@@ -33,9 +33,10 @@ class MonteCarloConfig:
         ruin_threshold_pct: Percentage loss that defines ruin (e.g., 50 = lose half).
         var_confidence_pct: Confidence level for VaR calculation (e.g., 5 = 5th percentile).
         simulation_type: Either "resample" (with replacement) or "reshuffle" (permutation).
-        position_sizing_mode: Either "flat_stake" or "compounded_kelly".
+        position_sizing_mode: Either "flat_stake", "compounded_kelly", or "compounded_custom".
         flat_stake: Fixed dollar amount per trade (used when mode is flat_stake).
         fractional_kelly_pct: Fractional Kelly percentage (used when mode is compounded_kelly).
+        custom_position_pct: Custom position size percentage (used when mode is compounded_custom).
     """
 
     num_simulations: int = 5000
@@ -46,6 +47,7 @@ class MonteCarloConfig:
     position_sizing_mode: PositionSizingMode = PositionSizingMode.COMPOUNDED_KELLY
     flat_stake: float = 10000.0
     fractional_kelly_pct: float = 25.0
+    custom_position_pct: float = 10.0
 
     def __post_init__(self) -> None:
         """Validate configuration parameters."""
@@ -63,6 +65,8 @@ class MonteCarloConfig:
             raise ValueError("flat_stake must be positive")
         if not 0 < self.fractional_kelly_pct <= 100:
             raise ValueError("fractional_kelly_pct must be between 0 and 100")
+        if not 0 < self.custom_position_pct <= 100:
+            raise ValueError("custom_position_pct must be between 0 and 100")
 
 
 @dataclass
