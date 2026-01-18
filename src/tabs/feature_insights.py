@@ -9,10 +9,14 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import (
     QCheckBox,
     QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
     QScrollArea,
+    QSplitter,
     QVBoxLayout,
     QWidget,
 )
@@ -75,6 +79,7 @@ class FeatureInsightsTab(QWidget):
         super().__init__(parent)
         self.app_state = app_state
         self._results = None
+        self._selected_feature = None
         self._column_checkboxes = {}
         self._worker = None
 
@@ -144,17 +149,56 @@ class FeatureInsightsTab(QWidget):
         self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._placeholder.setStyleSheet("color: #888; font-size: 14px;")
 
-        # Results container
+        # Results container with splitter
         self._results_widget = QWidget()
         results_layout = QVBoxLayout(self._results_widget)
         results_layout.setContentsMargins(0, 0, 0, 0)
 
+        # Impact chart at top
         self._impact_chart = FeatureImpactChart()
-        self._impact_chart.setMinimumHeight(300)
+        self._impact_chart.setMinimumHeight(250)
         results_layout.addWidget(self._impact_chart)
 
+        # Splitter for feature list and details
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Left: Feature list
+        feature_list_frame = QFrame()
+        fl_layout = QVBoxLayout(feature_list_frame)
+        fl_layout.setContentsMargins(0, 0, 0, 0)
+        fl_label = QLabel("Features (by Impact)")
+        fl_label.setStyleSheet("font-weight: bold;")
+        fl_layout.addWidget(fl_label)
+
+        self._feature_list = QListWidget()
+        self._feature_list.currentItemChanged.connect(self._on_feature_selected)
+        fl_layout.addWidget(self._feature_list)
+        splitter.addWidget(feature_list_frame)
+
+        # Right: Details panel
+        details_frame = QFrame()
+        details_layout = QVBoxLayout(details_frame)
+        details_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Validation metrics group
+        self._validation_group = QGroupBox("Validation Metrics")
+        validation_layout = QVBoxLayout(self._validation_group)
+        self._stability_label = QLabel("Bootstrap Stability: --")
+        self._consistency_label = QLabel("Time Consistency: --")
+        self._warnings_label = QLabel("Warnings: None")
+        self._warnings_label.setWordWrap(True)
+        validation_layout.addWidget(self._stability_label)
+        validation_layout.addWidget(self._consistency_label)
+        validation_layout.addWidget(self._warnings_label)
+        details_layout.addWidget(self._validation_group)
+
+        # Range table
         self._range_table = RangeAnalysisTable()
-        results_layout.addWidget(self._range_table)
+        details_layout.addWidget(self._range_table)
+        splitter.addWidget(details_frame)
+
+        splitter.setSizes([250, 500])
+        results_layout.addWidget(splitter)
 
         self._content_area.setWidget(self._placeholder)  # Start with placeholder
 
@@ -226,13 +270,63 @@ class FeatureInsightsTab(QWidget):
         """Display analysis results."""
         logger.info("Analysis complete with %d features", len(results.features))
 
+        # Update impact chart
         self._impact_chart.update_data(results)
 
-        # Show first feature in table by default
+        # Populate feature list
+        self._feature_list.clear()
+        for feature in results.features:
+            item = QListWidgetItem(f"{feature.feature_name} ({feature.impact_score:.1f})")
+            item.setData(Qt.ItemDataRole.UserRole, feature.feature_name)
+            self._feature_list.addItem(item)
+
+        # Select first feature by default
         if results.features:
-            self._range_table.update_data(results.features[0])
+            self._feature_list.setCurrentRow(0)
 
         self._content_area.setWidget(self._results_widget)
+
+    @pyqtSlot(QListWidgetItem, QListWidgetItem)
+    def _on_feature_selected(
+        self, current: QListWidgetItem | None, previous: QListWidgetItem | None
+    ) -> None:
+        """Handle feature selection change."""
+        if current is None or self._results is None:
+            return
+
+        feature_name = current.data(Qt.ItemDataRole.UserRole)
+
+        # Find the feature in results
+        for feature in self._results.features:
+            if feature.feature_name == feature_name:
+                self._selected_feature = feature
+                self._update_feature_details(feature)
+                break
+
+    def _update_feature_details(self, feature) -> None:
+        """Update the details panel with selected feature info."""
+        # Update validation metrics
+        self._stability_label.setText(
+            f"Bootstrap Stability: {feature.bootstrap_stability:.1%}"
+        )
+
+        if feature.time_consistency is not None:
+            self._consistency_label.setText(
+                f"Time Consistency: {feature.time_consistency:.1%}"
+            )
+        else:
+            self._consistency_label.setText("Time Consistency: N/A (no date column)")
+
+        if feature.warnings:
+            warnings_text = "\n".join(f"• {w}" for w in feature.warnings)
+            self._warnings_label.setText(f"Warnings:\n{warnings_text}")
+            self._warnings_label.setStyleSheet("color: #ffaa00;")
+        else:
+            self._warnings_label.setText("Warnings: None")
+            self._warnings_label.setStyleSheet("color: #888;")
+
+        # Update range table
+        self._range_table.update_data(feature)
 
     def _populate_column_checkboxes(self, df) -> None:
         """Populate column exclusion checkboxes."""
