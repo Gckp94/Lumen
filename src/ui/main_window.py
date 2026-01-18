@@ -12,6 +12,7 @@ from src.tabs.breakdown import BreakdownTab
 from src.tabs.data_binning import DataBinningTab
 from src.tabs.data_input import DataInputTab
 from src.tabs.feature_explorer import FeatureExplorerTab
+from src.tabs.feature_insights import FeatureInsightsTab
 from src.tabs.monte_carlo import MonteCarloTab
 from src.tabs.pnl_stats import PnLStatsTab
 from src.ui.dock_manager import DockManager
@@ -47,7 +48,8 @@ class MainWindow(QMainWindow):
             ("Breakdown", BreakdownTab(self._app_state)),
             ("Data Binning", DataBinningTab(self._app_state)),
             ("PnL & Trading Stats", PnLStatsTab(self._app_state)),
-            ("Monte Carlo", MonteCarloTab()),
+            ("Monte Carlo", MonteCarloTab(self._app_state)),
+            ("Feature Insights", FeatureInsightsTab(self._app_state)),
         ]
 
         for title, widget in tabs:
