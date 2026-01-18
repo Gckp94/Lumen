@@ -1703,6 +1703,11 @@ class BinChartPanel(QWidget):
             self._show_empty_state("No Data Loaded", "Load trade data to begin analysis")
             return
 
+        # Filter to first triggers only for accurate analysis
+        # This matches the pattern used in PnL Stats and Data Input tabs
+        if "trigger_number" in df.columns:
+            df = df[df["trigger_number"] == 1].copy()
+
         if not self._selected_column:
             self._show_empty_state(
                 "Select a Column", "Choose a numeric column to configure bins"
