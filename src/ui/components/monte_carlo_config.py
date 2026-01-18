@@ -691,6 +691,10 @@ class MonteCarloConfigPanel(QFrame):
         self._kelly_btn.clicked.connect(
             lambda: self._on_position_mode_changed(PositionSizingMode.COMPOUNDED_KELLY)
         )
+        self._custom_btn.clicked.connect(
+            lambda: self._on_position_mode_changed(PositionSizingMode.COMPOUNDED_CUSTOM)
+        )
+        self._custom_pct_spin.valueChanged.connect(self._emit_config_changed)
 
         self._run_btn.clicked.connect(self.run_requested.emit)
         self._run_btn.cancel_clicked.connect(self.cancel_requested.emit)
