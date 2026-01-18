@@ -258,6 +258,19 @@ class MonteCarloHistogram(QWidget):
         if len(data) == 0:
             return np.array([]), np.array([])
 
+        # Check for zero or near-zero range (all values identical or very close)
+        data_min, data_max = np.min(data), np.max(data)
+        data_range = data_max - data_min
+
+        # If range is effectively zero, create a single bin centered on the value
+        if data_range < 1e-10 or np.isclose(data_min, data_max):
+            # Create a single bin with small padding around the value
+            center = data_min
+            padding = abs(center) * 0.01 if center != 0 else 0.01
+            bin_edges = np.array([center - padding, center + padding])
+            counts = np.array([len(data)])
+            return bin_edges, counts
+
         # Use existing Freedman-Diaconis implementation
         num_bins = calculate_suggested_bins(list(data), "freedman_diaconis")
 
