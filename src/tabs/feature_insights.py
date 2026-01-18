@@ -103,6 +103,9 @@ class FeatureInsightsTab(QWidget):
 
         self._run_button = QPushButton("Run Analysis")
         self._run_button.setEnabled(False)
+        self._run_button.setToolTip(
+            "Analyze features to identify which have the most impact on trading performance"
+        )
         self._run_button.clicked.connect(self._on_run_clicked)
         header.addWidget(self._run_button)
 
@@ -121,6 +124,10 @@ class FeatureInsightsTab(QWidget):
 
         config_label = QLabel("Exclude Columns (lookahead bias prevention):")
         config_label.setStyleSheet("font-weight: bold;")
+        config_label.setToolTip(
+            "Select columns that should not be analyzed to prevent lookahead bias. "
+            "Common exclusions include gain_pct, mae_pct, mfe_pct, and exit prices."
+        )
         config_layout.addWidget(config_label)
 
         # Scrollable checkbox area for columns
@@ -184,7 +191,14 @@ class FeatureInsightsTab(QWidget):
         self._validation_group = QGroupBox("Validation Metrics")
         validation_layout = QVBoxLayout(self._validation_group)
         self._stability_label = QLabel("Bootstrap Stability: --")
+        self._stability_label.setToolTip(
+            "How stable the impact score is across bootstrap resampling (higher is better)"
+        )
         self._consistency_label = QLabel("Time Consistency: --")
+        self._consistency_label.setToolTip(
+            "How consistent the feature's impact is across different time periods "
+            "(higher is better)"
+        )
         self._warnings_label = QLabel("Warnings: None")
         self._warnings_label.setWordWrap(True)
         validation_layout.addWidget(self._stability_label)
@@ -199,6 +213,9 @@ class FeatureInsightsTab(QWidget):
         # Apply filter button
         self._apply_filter_btn = QPushButton("Apply Favorable Ranges as Filter")
         self._apply_filter_btn.setEnabled(False)
+        self._apply_filter_btn.setToolTip(
+            "Create filters based on the favorable ranges of the selected feature"
+        )
         self._apply_filter_btn.clicked.connect(self._on_apply_filter)
         details_layout.addWidget(self._apply_filter_btn)
 
