@@ -712,6 +712,11 @@ class MonteCarloConfigPanel(QFrame):
         self._position_sizing_mode = mode
         self._flat_stake_btn.setChecked(mode == PositionSizingMode.FLAT_STAKE)
         self._kelly_btn.setChecked(mode == PositionSizingMode.COMPOUNDED_KELLY)
+        self._custom_btn.setChecked(mode == PositionSizingMode.COMPOUNDED_CUSTOM)
+
+        # Show/hide custom percentage spinner
+        self._custom_pct_spin.setVisible(mode == PositionSizingMode.COMPOUNDED_CUSTOM)
+
         self._emit_config_changed()
 
     def get_config(self) -> MonteCarloConfig:
