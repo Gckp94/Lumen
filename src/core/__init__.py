@@ -10,6 +10,14 @@ from .monte_carlo import (
     PositionSizingMode,
     extract_gains_from_app_state,
 )
+from .feature_analyzer import (
+    FeatureAnalyzer,
+    FeatureAnalyzerConfig,
+    FeatureAnalyzerResults,
+    FeatureAnalysisResult,
+    FeatureRangeResult,
+    RangeClassification,
+)
 
 __all__ = [
     "ExportManager",
@@ -20,4 +28,10 @@ __all__ = [
     "MonteCarloResults",
     "PositionSizingMode",
     "extract_gains_from_app_state",
+    "FeatureAnalyzer",
+    "FeatureAnalyzerConfig",
+    "FeatureAnalyzerResults",
+    "FeatureAnalysisResult",
+    "FeatureRangeResult",
+    "RangeClassification",
 ]
