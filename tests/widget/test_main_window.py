@@ -175,3 +175,14 @@ class TestKeyboardShortcuts:
                         assert sub_action.shortcut() == QKeySequence("Ctrl+Shift+T")
                         return
         pytest.fail("Show All Tabs action not found")
+
+
+@pytest.mark.widget
+class TestDefaultTab:
+    """Tests for default tab behavior."""
+
+    def test_data_input_is_default_active_tab(self, main_window):
+        """Data Input should be the active tab on startup."""
+        dock = main_window.dock_manager.get_dock("Data Input")
+        assert dock is not None
+        assert dock.isCurrentTab()
