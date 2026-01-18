@@ -195,6 +195,13 @@ class FeatureInsightsTab(QWidget):
         # Range table
         self._range_table = RangeAnalysisTable()
         details_layout.addWidget(self._range_table)
+
+        # Apply filter button
+        self._apply_filter_btn = QPushButton("Apply Favorable Ranges as Filter")
+        self._apply_filter_btn.setEnabled(False)
+        self._apply_filter_btn.clicked.connect(self._on_apply_filter)
+        details_layout.addWidget(self._apply_filter_btn)
+
         splitter.addWidget(details_frame)
 
         splitter.setSizes([250, 500])
@@ -327,6 +334,47 @@ class FeatureInsightsTab(QWidget):
 
         # Update range table
         self._range_table.update_data(feature)
+
+        # Enable apply filter button if there are favorable ranges
+        from src.core.feature_analyzer import RangeClassification
+
+        has_favorable = any(
+            r.classification == RangeClassification.FAVORABLE for r in feature.ranges
+        )
+        self._apply_filter_btn.setEnabled(has_favorable)
+
+    @pyqtSlot()
+    def _on_apply_filter(self) -> None:
+        """Create filter from favorable ranges of selected feature."""
+        if self._selected_feature is None:
+            return
+
+        from src.core.feature_analyzer import RangeClassification
+        from src.core.models import FilterCriteria
+
+        # Get favorable ranges
+        favorable_ranges = [
+            r
+            for r in self._selected_feature.ranges
+            if r.classification == RangeClassification.FAVORABLE
+        ]
+
+        if not favorable_ranges:
+            logger.warning("No favorable ranges to apply as filter")
+            return
+
+        # Create filter criteria for each favorable range
+        for range_result in favorable_ranges:
+            criteria = FilterCriteria(
+                column=self._selected_feature.feature_name,
+                operator="between",
+                value=(range_result.range_min, range_result.range_max),
+            )
+            # Add to app state filters
+            self.app_state.filters.append(criteria)
+
+        logger.info("Applied %d favorable ranges as filters", len(favorable_ranges))
+        self.app_state.filters_changed.emit(self.app_state.filters)
 
     def _populate_column_checkboxes(self, df) -> None:
         """Populate column exclusion checkboxes."""
