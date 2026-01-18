@@ -14,6 +14,7 @@ from enum import Enum
 
 import numpy as np
 from numpy.typing import NDArray
+from scipy import stats
 
 
 class RangeClassification(Enum):
@@ -204,3 +205,79 @@ def calculate_mutual_information(
     mi_corrected = mi - bias_correction
 
     return max(0.0, mi_corrected)  # MI is non-negative
+
+
+def calculate_rank_correlation(
+    feature: NDArray[np.float64],
+    gains: NDArray[np.float64],
+) -> float:
+    """Calculate Spearman rank correlation between feature and gains.
+
+    Rank correlation is robust to outliers and non-linear monotonic relationships.
+
+    Args:
+        feature: Array of feature values.
+        gains: Array of gain values.
+
+    Returns:
+        Correlation coefficient (-1 to 1).
+    """
+    if len(feature) != len(gains) or len(feature) < 3:
+        return 0.0
+
+    # Handle constant arrays
+    if np.std(feature) == 0 or np.std(gains) == 0:
+        return 0.0
+
+    try:
+        result = stats.spearmanr(feature, gains)
+        corr = result.correlation
+        return corr if np.isfinite(corr) else 0.0
+    except Exception:
+        return 0.0
+
+
+def calculate_conditional_variance(
+    feature: NDArray[np.float64],
+    gains: NDArray[np.float64],
+    n_quantiles: int = 10,
+) -> float:
+    """Measure how much the mean gain varies across feature quantiles.
+
+    High variance indicates the feature strongly affects expected gains.
+
+    Args:
+        feature: Array of feature values.
+        gains: Array of gain values.
+        n_quantiles: Number of quantiles to divide feature into.
+
+    Returns:
+        Variance of conditional means.
+    """
+    if len(feature) != len(gains) or len(feature) < n_quantiles:
+        return 0.0
+
+    # Handle constant feature
+    if np.std(feature) == 0:
+        return 0.0
+
+    try:
+        quantile_edges = np.percentile(feature, np.linspace(0, 100, n_quantiles + 1))
+        quantile_means = []
+
+        for i in range(n_quantiles):
+            if i == n_quantiles - 1:
+                # Last bin includes upper edge
+                mask = (feature >= quantile_edges[i]) & (feature <= quantile_edges[i + 1])
+            else:
+                mask = (feature >= quantile_edges[i]) & (feature < quantile_edges[i + 1])
+
+            if mask.sum() > 0:
+                quantile_means.append(gains[mask].mean())
+
+        if len(quantile_means) < 2:
+            return 0.0
+
+        return float(np.var(quantile_means))
+    except Exception:
+        return 0.0

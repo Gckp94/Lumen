@@ -105,3 +105,64 @@ class TestMutualInformation:
 
         mi = calculate_mutual_information(feature, gains)
         assert mi > 0.3  # Should detect the relationship
+
+
+class TestRankCorrelation:
+    """Test rank correlation calculation."""
+
+    def test_perfect_positive_correlation(self):
+        """Perfectly correlated data should have correlation ~1."""
+        from src.core.feature_analyzer import calculate_rank_correlation
+
+        feature = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        gains = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+
+        corr = calculate_rank_correlation(feature, gains)
+        assert corr > 0.99
+
+    def test_perfect_negative_correlation(self):
+        """Inversely correlated data should have correlation ~-1."""
+        from src.core.feature_analyzer import calculate_rank_correlation
+
+        feature = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        gains = np.array([1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1])
+
+        corr = calculate_rank_correlation(feature, gains)
+        assert corr < -0.99
+
+    def test_random_data_low_correlation(self):
+        """Random data should have correlation near 0."""
+        from src.core.feature_analyzer import calculate_rank_correlation
+
+        np.random.seed(42)
+        feature = np.random.randn(200)
+        gains = np.random.randn(200)
+
+        corr = calculate_rank_correlation(feature, gains)
+        assert abs(corr) < 0.2
+
+
+class TestConditionalVariance:
+    """Test conditional mean variance calculation."""
+
+    def test_feature_affects_mean_high_variance(self):
+        """When feature affects mean gain, variance should be high."""
+        from src.core.feature_analyzer import calculate_conditional_variance
+
+        # Low feature values -> low gains, high feature values -> high gains
+        feature = np.concatenate([np.ones(50) * 1, np.ones(50) * 10])
+        gains = np.concatenate([np.ones(50) * -0.02, np.ones(50) * 0.05])
+
+        variance = calculate_conditional_variance(feature, gains)
+        assert variance > 0.001  # Should be substantial
+
+    def test_feature_no_effect_low_variance(self):
+        """When feature doesn't affect mean, variance should be low."""
+        from src.core.feature_analyzer import calculate_conditional_variance
+
+        np.random.seed(42)
+        feature = np.random.randn(200)
+        gains = np.random.randn(200) * 0.01  # Random, no relationship
+
+        variance = calculate_conditional_variance(feature, gains)
+        assert variance < 0.0001  # Should be small
