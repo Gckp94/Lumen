@@ -172,3 +172,77 @@ class TestColumnFilterRow:
         assert row._column_label.text() == long_name
         # Word wrap should be disabled (text stays on single line)
         assert row._column_label.wordWrap() is False
+
+
+class TestColumnFilterRowPartialValues:
+    """Tests for partial min/max value support."""
+
+    def test_has_values_returns_true_with_min_only(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """has_values should return True when only min has value."""
+        row = ColumnFilterRow(column_name="vwap")
+        qtbot.addWidget(row)
+
+        row._min_input.setText("10")
+        assert row.has_values() is True
+
+    def test_has_values_returns_true_with_max_only(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """has_values should return True when only max has value."""
+        row = ColumnFilterRow(column_name="vwap")
+        qtbot.addWidget(row)
+
+        row._max_input.setText("100")
+        assert row.has_values() is True
+
+    def test_get_criteria_with_min_only(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """get_criteria should return FilterCriteria with max_val=None."""
+        row = ColumnFilterRow(column_name="vwap")
+        qtbot.addWidget(row)
+
+        row._min_input.setText("10")
+
+        criteria = row.get_criteria()
+        assert criteria is not None
+        assert criteria.column == "vwap"
+        assert criteria.min_val == 10.0
+        assert criteria.max_val is None
+
+    def test_get_criteria_with_max_only(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """get_criteria should return FilterCriteria with min_val=None."""
+        row = ColumnFilterRow(column_name="vwap")
+        qtbot.addWidget(row)
+
+        row._max_input.setText("100")
+
+        criteria = row.get_criteria()
+        assert criteria is not None
+        assert criteria.column == "vwap"
+        assert criteria.min_val is None
+        assert criteria.max_val == 100.0
+
+    def test_apply_button_enabled_with_min_only(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """Apply button should be enabled when only min has value."""
+        row = ColumnFilterRow(column_name="vwap")
+        qtbot.addWidget(row)
+
+        row._min_input.setText("10")
+        assert row._apply_btn.isEnabled() is True
+
+    def test_apply_button_enabled_with_max_only(
+        self, qtbot: QtBot, app: QApplication
+    ) -> None:
+        """Apply button should be enabled when only max has value."""
+        row = ColumnFilterRow(column_name="vwap")
+        qtbot.addWidget(row)
+
+        row._max_input.setText("100")
+        assert row._apply_btn.isEnabled() is True

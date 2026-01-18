@@ -259,12 +259,12 @@ class ColumnFilterRow(QWidget):
         return self._operator
 
     def has_values(self) -> bool:
-        """Check if both min and max have values.
+        """Check if min or max have values.
 
         Returns:
-            True if both inputs have text, False otherwise.
+            True if either input has text, False otherwise.
         """
-        return bool(self._min_input.text().strip() and self._max_input.text().strip())
+        return bool(self._min_input.text().strip() or self._max_input.text().strip())
 
     def get_criteria(self) -> FilterCriteria | None:
         """Get FilterCriteria if inputs are valid.
@@ -275,14 +275,25 @@ class ColumnFilterRow(QWidget):
         min_text = self._min_input.text().strip()
         max_text = self._max_input.text().strip()
 
-        if not min_text or not max_text:
+        # At least one value required
+        if not min_text and not max_text:
             return None
 
-        try:
-            min_val = float(min_text)
-            max_val = float(max_text)
-        except ValueError:
-            return None
+        # Parse values, None if empty
+        min_val: float | None = None
+        max_val: float | None = None
+
+        if min_text:
+            try:
+                min_val = float(min_text)
+            except ValueError:
+                return None
+
+        if max_text:
+            try:
+                max_val = float(max_text)
+            except ValueError:
+                return None
 
         criteria = FilterCriteria(
             column=self._column_name,
