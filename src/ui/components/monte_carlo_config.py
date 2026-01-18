@@ -734,6 +734,7 @@ class MonteCarloConfigPanel(QFrame):
             position_sizing_mode=self._position_sizing_mode,
             flat_stake=10000.0,  # Will be overwritten from app_state
             fractional_kelly_pct=25.0,  # Will be overwritten from app_state
+            custom_position_pct=self._custom_pct_spin.value(),
         )
 
     def set_config(self, config: MonteCarloConfig) -> None:
