@@ -2,13 +2,14 @@
 """Tests for feature analyzer module."""
 
 import numpy as np
-import pytest
+import pandas as pd
+
 from src.core.feature_analyzer import (
-    RangeClassification,
-    FeatureRangeResult,
     FeatureAnalysisResult,
     FeatureAnalyzerConfig,
     FeatureAnalyzerResults,
+    FeatureRangeResult,
+    RangeClassification,
 )
 
 
@@ -274,7 +275,11 @@ class TestBinAnalysis:
 
     def test_favorable_classification(self):
         """Bin with significantly better EV should be FAVORABLE."""
-        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig, RangeClassification
+        from src.core.feature_analyzer import (
+            FeatureAnalyzerConfig,
+            RangeClassification,
+            analyze_bin,
+        )
 
         config = FeatureAnalyzerConfig()
         # All gains are positive and high
@@ -288,7 +293,11 @@ class TestBinAnalysis:
 
     def test_unfavorable_classification(self):
         """Bin with significantly worse EV should be UNFAVORABLE."""
-        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig, RangeClassification
+        from src.core.feature_analyzer import (
+            FeatureAnalyzerConfig,
+            RangeClassification,
+            analyze_bin,
+        )
 
         config = FeatureAnalyzerConfig()
         # All gains are negative
@@ -302,7 +311,11 @@ class TestBinAnalysis:
 
     def test_insufficient_classification(self):
         """Bin with too few trades should be INSUFFICIENT."""
-        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig, RangeClassification
+        from src.core.feature_analyzer import (
+            FeatureAnalyzerConfig,
+            RangeClassification,
+            analyze_bin,
+        )
 
         config = FeatureAnalyzerConfig(min_bin_size=30)
         gains = np.array([0.05, 0.04, 0.06])  # Only 3 trades
@@ -314,7 +327,11 @@ class TestBinAnalysis:
 
     def test_neutral_classification(self):
         """Bin similar to baseline should be NEUTRAL."""
-        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig, RangeClassification
+        from src.core.feature_analyzer import (
+            FeatureAnalyzerConfig,
+            RangeClassification,
+            analyze_bin,
+        )
 
         config = FeatureAnalyzerConfig()
         np.random.seed(42)
@@ -328,7 +345,7 @@ class TestBinAnalysis:
 
     def test_confidence_interval_calculated(self):
         """Should calculate confidence intervals."""
-        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig
+        from src.core.feature_analyzer import FeatureAnalyzerConfig, analyze_bin
 
         config = FeatureAnalyzerConfig(bootstrap_iterations=500)
         gains = np.array([0.05, 0.04, 0.06, 0.03, 0.05] * 20)
@@ -339,3 +356,115 @@ class TestBinAnalysis:
         assert result["confidence_lower"] is not None
         assert result["confidence_upper"] is not None
         assert result["confidence_lower"] < result["ev"] < result["confidence_upper"]
+
+
+class TestFeatureAnalyzer:
+    """Test main FeatureAnalyzer class."""
+
+    def test_excludes_configured_columns(self):
+        """Should exclude columns in config.exclude_columns."""
+        from src.core.feature_analyzer import FeatureAnalyzer, FeatureAnalyzerConfig
+
+        df = pd.DataFrame(
+            {
+                "feature1": np.random.randn(100),
+                "feature2": np.random.randn(100),
+                "gain_pct": np.random.randn(100) * 0.02,
+                "mae_pct": np.random.randn(100) * 0.01,
+            }
+        )
+
+        config = FeatureAnalyzerConfig(exclude_columns={"gain_pct", "mae_pct"})
+        analyzer = FeatureAnalyzer(config)
+
+        columns = analyzer.get_analyzable_columns(df)
+
+        assert "feature1" in columns
+        assert "feature2" in columns
+        assert "gain_pct" not in columns
+        assert "mae_pct" not in columns
+
+    def test_excludes_non_numeric_columns(self):
+        """Should exclude non-numeric columns."""
+        from src.core.feature_analyzer import FeatureAnalyzer, FeatureAnalyzerConfig
+
+        df = pd.DataFrame(
+            {
+                "feature1": np.random.randn(100),
+                "ticker": ["AAPL"] * 100,
+                "date": pd.date_range("2024-01-01", periods=100),
+            }
+        )
+
+        config = FeatureAnalyzerConfig()
+        analyzer = FeatureAnalyzer(config)
+
+        columns = analyzer.get_analyzable_columns(df)
+
+        assert "feature1" in columns
+        assert "ticker" not in columns
+        assert "date" not in columns
+
+    def test_run_returns_results(self):
+        """run() should return FeatureAnalyzerResults."""
+        from src.core.feature_analyzer import (
+            FeatureAnalyzer,
+            FeatureAnalyzerConfig,
+        )
+
+        np.random.seed(42)
+        df = pd.DataFrame(
+            {
+                "feature1": np.random.randn(200),
+                "feature2": np.random.randn(200),
+                "gain_pct": np.random.randn(200) * 0.02,
+            }
+        )
+
+        config = FeatureAnalyzerConfig(
+            exclude_columns={"gain_pct"},
+            top_n_features=2,
+            bootstrap_iterations=100,  # Faster for test
+        )
+        analyzer = FeatureAnalyzer(config)
+
+        results = analyzer.run(df, gain_col="gain_pct")
+
+        assert isinstance(results, FeatureAnalyzerResults)
+        assert results.baseline_trade_count == 200
+        assert len(results.features) <= 2
+
+    def test_run_with_impactful_feature(self):
+        """Feature with strong relationship should rank higher."""
+        from src.core.feature_analyzer import FeatureAnalyzer, FeatureAnalyzerConfig
+
+        np.random.seed(42)
+        n = 300
+
+        # Feature that predicts gains
+        important_feature = np.random.randn(n)
+        gains = important_feature * 0.02 + np.random.randn(n) * 0.005
+
+        # Random feature
+        random_feature = np.random.randn(n)
+
+        df = pd.DataFrame(
+            {
+                "important": important_feature,
+                "random": random_feature,
+                "gain_pct": gains,
+            }
+        )
+
+        config = FeatureAnalyzerConfig(
+            exclude_columns={"gain_pct"},
+            top_n_features=2,
+            bootstrap_iterations=100,
+        )
+        analyzer = FeatureAnalyzer(config)
+
+        results = analyzer.run(df, gain_col="gain_pct")
+
+        # Important feature should rank first
+        assert results.features[0].feature_name == "important"
+        assert results.features[0].impact_score > results.features[1].impact_score
