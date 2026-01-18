@@ -750,6 +750,8 @@ class MonteCarloConfigPanel(QFrame):
         self._var_spin.blockSignals(True)
         self._flat_stake_btn.blockSignals(True)
         self._kelly_btn.blockSignals(True)
+        self._custom_btn.blockSignals(True)
+        self._custom_pct_spin.blockSignals(True)
 
         self._type_toggle.set_simulation_type(config.simulation_type)
         self._num_sims_spin.setValue(config.num_simulations)
@@ -757,14 +759,9 @@ class MonteCarloConfigPanel(QFrame):
         self._ruin_spin.setValue(config.ruin_threshold_pct)
         self._var_spin.setValue(config.var_confidence_pct)
 
-        # Set position sizing mode
-        self._position_sizing_mode = config.position_sizing_mode
-        self._flat_stake_btn.setChecked(
-            config.position_sizing_mode == PositionSizingMode.FLAT_STAKE
-        )
-        self._kelly_btn.setChecked(
-            config.position_sizing_mode == PositionSizingMode.COMPOUNDED_KELLY
-        )
+        # Set position sizing mode (updates button states and spinner visibility)
+        self._on_position_mode_changed(config.position_sizing_mode)
+        self._custom_pct_spin.setValue(config.custom_position_pct)
 
         self._num_sims_spin.blockSignals(False)
         self._capital_spin.blockSignals(False)
@@ -772,6 +769,8 @@ class MonteCarloConfigPanel(QFrame):
         self._var_spin.blockSignals(False)
         self._flat_stake_btn.blockSignals(False)
         self._kelly_btn.blockSignals(False)
+        self._custom_btn.blockSignals(False)
+        self._custom_pct_spin.blockSignals(False)
 
     def set_running(self, running: bool) -> None:
         """Set running state.
@@ -788,6 +787,8 @@ class MonteCarloConfigPanel(QFrame):
         self._var_spin.setEnabled(not running)
         self._flat_stake_btn.setEnabled(not running)
         self._kelly_btn.setEnabled(not running)
+        self._custom_btn.setEnabled(not running)
+        self._custom_pct_spin.setEnabled(not running)
 
     def set_run_enabled(self, enabled: bool) -> None:
         """Set whether run button is enabled.
