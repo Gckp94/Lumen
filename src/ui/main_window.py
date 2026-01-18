@@ -39,6 +39,7 @@ class MainWindow(QMainWindow):
 
         self._setup_docks()
         self._setup_menu_bar()
+        self._apply_menu_styling()
 
         # Set Data Input as the default active tab
         self.dock_manager.set_active_dock("Data Input")
@@ -115,3 +116,77 @@ class MainWindow(QMainWindow):
         """Update checkable action states to reflect current visibility."""
         for title, action in self._tab_actions.items():
             action.setChecked(self.dock_manager.is_dock_visible(title))
+
+    def _apply_menu_styling(self) -> None:
+        """Apply custom styling to the menu bar."""
+        from src.ui.constants import Colors, Fonts
+
+        menu_stylesheet = f"""
+            QMenuBar {{
+                background-color: {Colors.BG_BASE};
+                color: {Colors.TEXT_PRIMARY};
+                font-family: "{Fonts.UI}";
+                font-size: 13px;
+                padding: 4px 0px;
+                border-bottom: 1px solid {Colors.BG_BORDER};
+            }}
+
+            QMenuBar::item {{
+                background-color: transparent;
+                padding: 6px 12px;
+                margin: 0px 2px;
+                border-radius: 4px;
+            }}
+
+            QMenuBar::item:selected {{
+                background-color: {Colors.BG_ELEVATED};
+            }}
+
+            QMenuBar::item:pressed {{
+                background-color: {Colors.BG_SURFACE};
+            }}
+
+            QMenu {{
+                background-color: {Colors.BG_SURFACE};
+                color: {Colors.TEXT_PRIMARY};
+                font-family: "{Fonts.UI}";
+                font-size: 13px;
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 6px;
+                padding: 6px 0px;
+            }}
+
+            QMenu::item {{
+                padding: 8px 32px 8px 16px;
+                margin: 2px 6px;
+                border-radius: 4px;
+            }}
+
+            QMenu::item:selected {{
+                background-color: {Colors.BG_ELEVATED};
+            }}
+
+            QMenu::separator {{
+                height: 1px;
+                background-color: {Colors.BG_BORDER};
+                margin: 6px 12px;
+            }}
+
+            QMenu::indicator {{
+                width: 16px;
+                height: 16px;
+                margin-left: 8px;
+            }}
+
+            QMenu::indicator:checked {{
+                background-color: {Colors.SIGNAL_CYAN};
+                border-radius: 3px;
+            }}
+
+            QMenu::indicator:unchecked {{
+                background-color: transparent;
+                border: 1px solid {Colors.TEXT_SECONDARY};
+                border-radius: 3px;
+            }}
+        """
+        self.menuBar().setStyleSheet(menu_stylesheet)
