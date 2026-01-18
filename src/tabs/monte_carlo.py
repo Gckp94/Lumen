@@ -451,7 +451,6 @@ class MonteCarloTab(QWidget):
             total: Total number of simulations.
         """
         self._config_panel.update_progress(completed, total)
-        self._app_state.monte_carlo_progress.emit(completed, total)
 
     def _on_simulation_complete(self, results: MonteCarloResults) -> None:
         """Handle simulation completion.
@@ -484,7 +483,6 @@ class MonteCarloTab(QWidget):
         self._cleanup_worker()
 
         self._app_state.monte_carlo_running = False
-        self._app_state.monte_carlo_error.emit(error_message)
 
         self._config_panel.set_running(False)
         self._status_label.setText("Simulation failed")
