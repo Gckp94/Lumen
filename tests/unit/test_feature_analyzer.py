@@ -267,3 +267,75 @@ class TestOptimalBinning:
 
         for i in range(len(bins) - 1):
             assert bins[i][1] == bins[i + 1][0]  # End of one = start of next
+
+
+class TestBinAnalysis:
+    """Test bin analysis and classification."""
+
+    def test_favorable_classification(self):
+        """Bin with significantly better EV should be FAVORABLE."""
+        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig, RangeClassification
+
+        config = FeatureAnalyzerConfig()
+        # All gains are positive and high
+        gains = np.array([0.05, 0.04, 0.06, 0.03, 0.05] * 20)
+        baseline_ev = 0.01  # Low baseline
+
+        result, classification = analyze_bin(gains, baseline_ev, config)
+
+        assert classification == RangeClassification.FAVORABLE
+        assert result["ev"] > baseline_ev
+
+    def test_unfavorable_classification(self):
+        """Bin with significantly worse EV should be UNFAVORABLE."""
+        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig, RangeClassification
+
+        config = FeatureAnalyzerConfig()
+        # All gains are negative
+        gains = np.array([-0.03, -0.04, -0.02, -0.05, -0.03] * 20)
+        baseline_ev = 0.01  # Positive baseline
+
+        result, classification = analyze_bin(gains, baseline_ev, config)
+
+        assert classification == RangeClassification.UNFAVORABLE
+        assert result["ev"] < baseline_ev
+
+    def test_insufficient_classification(self):
+        """Bin with too few trades should be INSUFFICIENT."""
+        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig, RangeClassification
+
+        config = FeatureAnalyzerConfig(min_bin_size=30)
+        gains = np.array([0.05, 0.04, 0.06])  # Only 3 trades
+        baseline_ev = 0.01
+
+        result, classification = analyze_bin(gains, baseline_ev, config)
+
+        assert classification == RangeClassification.INSUFFICIENT
+
+    def test_neutral_classification(self):
+        """Bin similar to baseline should be NEUTRAL."""
+        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig, RangeClassification
+
+        config = FeatureAnalyzerConfig()
+        np.random.seed(42)
+        # Gains similar to baseline
+        gains = np.random.randn(100) * 0.02 + 0.01
+        baseline_ev = 0.01
+
+        result, classification = analyze_bin(gains, baseline_ev, config)
+
+        assert classification == RangeClassification.NEUTRAL
+
+    def test_confidence_interval_calculated(self):
+        """Should calculate confidence intervals."""
+        from src.core.feature_analyzer import analyze_bin, FeatureAnalyzerConfig
+
+        config = FeatureAnalyzerConfig(bootstrap_iterations=500)
+        gains = np.array([0.05, 0.04, 0.06, 0.03, 0.05] * 20)
+        baseline_ev = 0.01
+
+        result, _ = analyze_bin(gains, baseline_ev, config)
+
+        assert result["confidence_lower"] is not None
+        assert result["confidence_upper"] is not None
+        assert result["confidence_lower"] < result["ev"] < result["confidence_upper"]

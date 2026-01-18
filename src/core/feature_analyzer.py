@@ -479,3 +479,88 @@ def find_optimal_bins(
         bins[i] = (bins[i][0], bins[i + 1][0])
 
     return bins
+
+
+def analyze_bin(
+    gains: NDArray[np.float64],
+    baseline_ev: float,
+    config: FeatureAnalyzerConfig,
+) -> tuple[dict[str, float | int | None], RangeClassification]:
+    """Analyze a bin and classify it relative to baseline.
+
+    Args:
+        gains: Array of gains for trades in this bin.
+        baseline_ev: Baseline expected value for comparison.
+        config: Configuration with thresholds.
+
+    Returns:
+        Tuple of (metrics dict, classification).
+    """
+    n = len(gains)
+
+    # Insufficient data
+    if n < config.min_bin_size:
+        return {
+            "trade_count": n,
+            "ev": float(gains.mean()) if n > 0 else None,
+            "win_rate": float((gains > 0).mean() * 100) if n > 0 else None,
+            "total_pnl": float(gains.sum()),
+            "confidence_lower": None,
+            "confidence_upper": None,
+            "p_value": None,
+            "viability_score": 0.0,
+        }, RangeClassification.INSUFFICIENT
+
+    # Calculate core metrics
+    ev = float(gains.mean())
+    win_rate = float((gains > 0).mean() * 100)
+    total_pnl = float(gains.sum())
+
+    # Bootstrap confidence interval for EV
+    bootstrap_evs = []
+    rng = np.random.default_rng(42)  # Reproducible
+    for _ in range(config.bootstrap_iterations):
+        sample = rng.choice(gains, size=n, replace=True)
+        bootstrap_evs.append(sample.mean())
+
+    alpha = 1 - config.confidence_level
+    ci_lower = float(np.percentile(bootstrap_evs, alpha / 2 * 100))
+    ci_upper = float(np.percentile(bootstrap_evs, (1 - alpha / 2) * 100))
+
+    # Statistical test vs baseline (one-sample t-test)
+    t_stat, p_value = stats.ttest_1samp(gains, baseline_ev)
+    p_value = float(p_value)
+
+    # Viability score: EV advantage weighted by sample size
+    ev_diff = ev - baseline_ev
+    # Convert to percentage points (* 100) for meaningful scale
+    viability_score = float(ev_diff * 100 * np.sqrt(n))
+
+    # Classification
+    ev_diff_pct = (ev - baseline_ev) * 100  # Convert to percentage points
+
+    if n < config.min_bin_size:
+        classification = RangeClassification.INSUFFICIENT
+    elif (
+        ev_diff_pct > config.favorable_threshold
+        and p_value < config.significance_threshold
+    ):
+        classification = RangeClassification.FAVORABLE
+    elif (
+        ev_diff_pct < config.unfavorable_threshold
+        and p_value < config.significance_threshold
+    ):
+        classification = RangeClassification.UNFAVORABLE
+    else:
+        classification = RangeClassification.NEUTRAL
+
+    return {
+        "trade_count": n,
+        "ev": ev,
+        "win_rate": win_rate,
+        "total_pnl": total_pnl,
+        "confidence_lower": ci_lower,
+        "confidence_upper": ci_upper,
+        "p_value": p_value,
+        "viability_score": viability_score,
+    }, classification
