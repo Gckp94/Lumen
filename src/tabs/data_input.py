@@ -1713,6 +1713,19 @@ class DataInputTab(QWidget):
             )
             baseline_df["adjusted_gain_pct"] = adjusted_gains
 
+            # Also update filtered_df if it exists (it's a copy, so won't auto-update)
+            filtered_df = self._app_state.filtered_df
+            if filtered_df is not None and not filtered_df.empty:
+                # Update adjusted_gain_pct for rows that exist in filtered_df
+                # Use index alignment to copy only matching rows
+                filtered_df["adjusted_gain_pct"] = baseline_df.loc[
+                    filtered_df.index, "adjusted_gain_pct"
+                ]
+                logger.debug(
+                    "Updated adjusted_gain_pct in filtered_df (%d rows)",
+                    len(filtered_df),
+                )
+
         # Ensure time_minutes column exists for time-based analysis
         has_time_col = mapping.time and mapping.time in baseline_df.columns
         if has_time_col and "time_minutes" not in baseline_df.columns:

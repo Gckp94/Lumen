@@ -12,6 +12,7 @@ from src.core.models import AdjustmentParams, MetricsUserInputs
 
 if TYPE_CHECKING:
     from src.core.models import ColumnMapping, FilterCriteria, TradingMetrics
+    from src.core.monte_carlo import MonteCarloResults
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,11 @@ class AppState(QObject):
     # Calculation status signals (Story 4.1)
     filtered_calculation_started = pyqtSignal()
     filtered_calculation_completed = pyqtSignal()
+    # Monte Carlo signals (Story 7.2)
+    monte_carlo_started = pyqtSignal()
+    monte_carlo_progress = pyqtSignal(int, int)  # completed, total
+    monte_carlo_completed = pyqtSignal(object)  # MonteCarloResults
+    monte_carlo_error = pyqtSignal(str)
 
     def __init__(self) -> None:
         """Initialize AppState with default empty values."""
@@ -79,6 +85,9 @@ class AppState(QObject):
         self.filtered_kelly_equity_curve: pd.DataFrame | None = None
         # Calculation status (Story 4.1)
         self._is_calculating_filtered: bool = False
+        # Monte Carlo state (Story 7.2)
+        self.monte_carlo_results: MonteCarloResults | None = None
+        self._monte_carlo_running: bool = False
 
     @property
     def has_data(self) -> bool:
@@ -106,3 +115,21 @@ class AppState(QObject):
             value: Whether calculation is in progress.
         """
         self._is_calculating_filtered = value
+
+    @property
+    def monte_carlo_running(self) -> bool:
+        """Check if Monte Carlo simulation is in progress.
+
+        Returns:
+            True if simulation is running, False otherwise.
+        """
+        return self._monte_carlo_running
+
+    @monte_carlo_running.setter
+    def monte_carlo_running(self, value: bool) -> None:
+        """Set Monte Carlo running status.
+
+        Args:
+            value: Whether simulation is in progress.
+        """
+        self._monte_carlo_running = value
