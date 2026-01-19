@@ -6,6 +6,11 @@ import logging
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt
+
+from src.core.parameter_sensitivity import (
+    ParameterSensitivityConfig,
+    ParameterSensitivityWorker,
+)
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QComboBox,
@@ -170,14 +175,111 @@ class ParameterSensitivityTab(QWidget):
         self._resolution_group.setVisible(is_sweep)
 
     def _on_run_clicked(self) -> None:
-        """Handle run button click."""
-        logger.info("Run analysis clicked")
-        # TODO: Implement analysis execution
+        """Handle run button click - start analysis."""
+        if not self._app_state.has_data:
+            logger.warning("No data loaded")
+            return
+
+        # Build config from UI state
+        is_sweep = self._sweep_radio.isChecked()
+        metric_map = {
+            "Expected Value": "expected_value",
+            "Win Rate": "win_rate",
+            "Profit Factor": "profit_factor",
+        }
+        primary_metric = metric_map.get(self._metric_combo.currentText(), "expected_value")
+
+        config = ParameterSensitivityConfig(
+            mode="sweep" if is_sweep else "neighborhood",
+            primary_metric=primary_metric,
+            grid_resolution=self._resolution_spin.value() if is_sweep else 10,
+        )
+
+        # Get baseline data and filters
+        baseline_df = self._app_state.baseline_df
+        column_mapping = self._app_state.column_mapping or {}
+        active_filters = self._app_state.filters or []
+
+        if not active_filters and not is_sweep:
+            logger.warning("No active filters for neighborhood scan")
+            self._results_label.setText("Apply filters in Feature Explorer first")
+            return
+
+        # Start worker
+        self._worker = ParameterSensitivityWorker(
+            config=config,
+            baseline_df=baseline_df,
+            column_mapping=column_mapping,
+            active_filters=active_filters,
+        )
+        self._worker.progress.connect(self._on_progress)
+        self._worker.completed.connect(self._on_completed)
+        self._worker.error.connect(self._on_error)
+        self._worker.start()
+
+        # Update UI state
+        self._run_btn.setVisible(False)
+        self._cancel_btn.setVisible(True)
+        self._progress_bar.setVisible(True)
+        self._progress_bar.setValue(0)
 
     def _on_cancel_clicked(self) -> None:
         """Handle cancel button click."""
         if self._worker:
             self._worker.cancel()
+
+    def _on_progress(self, current: int, total: int) -> None:
+        """Handle progress update."""
+        if total > 0:
+            self._progress_bar.setValue(int(current / total * 100))
+
+    def _on_completed(self, results) -> None:
+        """Handle analysis completion."""
+        self._run_btn.setVisible(True)
+        self._cancel_btn.setVisible(False)
+        self._progress_bar.setVisible(False)
+
+        if isinstance(results, list):
+            # Neighborhood scan results
+            self._display_neighborhood_results(results)
+        else:
+            # Sweep result
+            self._display_sweep_results(results)
+
+    def _on_error(self, message: str) -> None:
+        """Handle analysis error."""
+        self._run_btn.setVisible(True)
+        self._cancel_btn.setVisible(False)
+        self._progress_bar.setVisible(False)
+        self._results_label.setText(f"Error: {message}")
+        logger.error("Sensitivity analysis error: %s", message)
+
+    def _display_neighborhood_results(self, results: list) -> None:
+        """Display neighborhood scan results."""
+        if not results:
+            self._results_label.setText("No filters to analyze")
+            return
+
+        # Build summary text
+        lines = ["<h3>Neighborhood Scan Results</h3>"]
+        for r in results:
+            status_color = {"robust": "#22C55E", "caution": "#F59E0B", "fragile": "#EF4444"}
+            color = status_color.get(r.status, "#64748B")
+            lines.append(
+                f"<p><b>{r.filter_name}</b>: "
+                f"<span style='color:{color}'>{r.status.upper()}</span> "
+                f"(worst: -{r.worst_degradation:.1f}% at ±{r.worst_level*100:.0f}%)</p>"
+            )
+
+        self._results_label.setText("".join(lines))
+
+    def _display_sweep_results(self, result) -> None:
+        """Display sweep results."""
+        self._results_label.setText(
+            f"<h3>Parameter Sweep Complete</h3>"
+            f"<p>Filter: {result.filter_1_name}</p>"
+            f"<p>Grid: {len(result.filter_1_values)} points</p>"
+        )
 
     def cleanup(self) -> None:
         """Clean up resources."""
