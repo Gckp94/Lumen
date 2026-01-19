@@ -29,6 +29,8 @@ class TestMainWindowDocking:
             "PnL & Trading Stats",
             "Breakdown",
             "Monte Carlo",
+            "Feature Insights",
+            "Parameter Sensitivity",
         ]
 
         assert window.dock_manager.dock_count() == len(expected_tabs)

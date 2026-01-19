@@ -79,11 +79,11 @@ class TestViewMenu:
 class TestMainWindow:
     """Tests for the MainWindow class."""
 
-    def test_main_window_has_seven_docks(self, qtbot: QtBot) -> None:
-        """MainWindow contains exactly 7 docks."""
+    def test_main_window_has_eight_docks(self, qtbot: QtBot) -> None:
+        """MainWindow contains exactly 8 docks."""
         window = MainWindow()
         qtbot.addWidget(window)
-        assert window.dock_manager.dock_count() == 7
+        assert window.dock_manager.dock_count() == 8
 
     def test_dock_titles_match_workflow(self, qtbot: QtBot) -> None:
         """Dock titles match expected workflow order."""
@@ -96,6 +96,8 @@ class TestMainWindow:
             "PnL & Trading Stats",
             "Breakdown",
             "Monte Carlo",
+            "Feature Insights",
+            "Parameter Sensitivity",
         ]
         for title in expected:
             assert window.dock_manager.get_dock(title) is not None
@@ -122,6 +124,8 @@ class TestMainWindow:
         assert window.dock_manager.get_dock("PnL & Trading Stats") is not None
         assert window.dock_manager.get_dock("Breakdown") is not None
         assert window.dock_manager.get_dock("Monte Carlo") is not None
+        assert window.dock_manager.get_dock("Feature Insights") is not None
+        assert window.dock_manager.get_dock("Parameter Sensitivity") is not None
 
     def test_window_minimum_size(self, qtbot: QtBot) -> None:
         """Window has correct minimum size."""
