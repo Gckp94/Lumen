@@ -9,7 +9,9 @@ from src.core.parameter_sensitivity import (
     ParameterSensitivityConfig,
     NeighborhoodResult,
     SweepResult,
+    ParameterSensitivityEngine,
 )
+from src.core.models import FilterCriteria
 
 
 class TestParameterSensitivityConfig:
@@ -48,3 +50,47 @@ class TestParameterSensitivityConfig:
             ParameterSensitivityConfig(grid_resolution=3)
         with pytest.raises(ValueError, match="grid_resolution"):
             ParameterSensitivityConfig(grid_resolution=30)
+
+
+class TestParameterSensitivityEngine:
+    """Tests for ParameterSensitivityEngine."""
+
+    @pytest.fixture
+    def sample_df(self):
+        """Create sample trading data."""
+        np.random.seed(42)
+        n = 100
+        return pd.DataFrame({
+            "gain_pct": np.random.uniform(-0.05, 0.10, n),
+            "entry_time": np.random.uniform(9.0, 16.0, n),
+            "gap_pct": np.random.uniform(1.0, 10.0, n),
+        })
+
+    @pytest.fixture
+    def sample_filters(self):
+        """Create sample filters."""
+        return [
+            FilterCriteria(column="entry_time", operator="between", min_val=9.5, max_val=11.0),
+            FilterCriteria(column="gap_pct", operator="between", min_val=2.0, max_val=6.0),
+        ]
+
+    def test_engine_initialization(self, sample_df, sample_filters):
+        """Engine should initialize with baseline data and filters."""
+        engine = ParameterSensitivityEngine(
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=sample_filters,
+        )
+        assert engine._baseline_df is not None
+        assert len(engine._active_filters) == 2
+
+    def test_engine_cancel(self, sample_df, sample_filters):
+        """Engine should support cancellation."""
+        engine = ParameterSensitivityEngine(
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=sample_filters,
+        )
+        assert not engine._cancelled
+        engine.cancel()
+        assert engine._cancelled

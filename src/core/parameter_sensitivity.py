@@ -91,3 +91,42 @@ class SweepResult:
     filter_2_values: np.ndarray | None
     metric_grids: dict[str, np.ndarray]
     current_position: tuple[int, int] | None
+
+
+# Import after dataclasses to avoid circular import issues
+from src.core.models import FilterCriteria
+
+
+class ParameterSensitivityEngine:
+    """Engine for running parameter sensitivity analysis.
+
+    Tests filter boundary robustness by applying perturbations and
+    measuring metric degradation.
+
+    Example:
+        >>> config = ParameterSensitivityConfig(mode="neighborhood")
+        >>> engine = ParameterSensitivityEngine(baseline_df, col_map, filters)
+        >>> results = engine.run_neighborhood_scan(config)
+    """
+
+    def __init__(
+        self,
+        baseline_df: pd.DataFrame,
+        column_mapping: dict[str, str],
+        active_filters: list[FilterCriteria],
+    ) -> None:
+        """Initialize the sensitivity engine.
+
+        Args:
+            baseline_df: Data BEFORE user filters (but after first-trigger).
+            column_mapping: Column name mappings (must include 'gain').
+            active_filters: Current active filters to test.
+        """
+        self._baseline_df = baseline_df
+        self._column_mapping = column_mapping
+        self._active_filters = active_filters
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """Request cancellation of running analysis."""
+        self._cancelled = True
