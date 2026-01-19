@@ -51,3 +51,6 @@ dmypy.json
 .ruff_cache/
 
 # uv lock file is version controlled
+
+# Git worktrees
+.worktrees/
