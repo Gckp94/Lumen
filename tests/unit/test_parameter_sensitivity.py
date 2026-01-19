@@ -94,3 +94,26 @@ class TestParameterSensitivityEngine:
         assert not engine._cancelled
         engine.cancel()
         assert engine._cancelled
+
+    def test_generate_perturbations(self, sample_df, sample_filters):
+        """Should generate perturbed filter configurations."""
+        engine = ParameterSensitivityEngine(
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=sample_filters,
+        )
+
+        # Test perturbation of entry_time filter (9.5 - 11.0, range = 1.5)
+        original = sample_filters[0]
+        perturbed = engine._generate_perturbations(original, level=0.10)
+
+        # Should return 4 variations: shift down, shift up, expand, contract
+        assert len(perturbed) == 4
+
+        # Check shift down (both bounds - 10% of range = -0.15)
+        assert perturbed[0].min_val == pytest.approx(9.35, abs=0.01)
+        assert perturbed[0].max_val == pytest.approx(10.85, abs=0.01)
+
+        # Check shift up (both bounds + 10% of range = +0.15)
+        assert perturbed[1].min_val == pytest.approx(9.65, abs=0.01)
+        assert perturbed[1].max_val == pytest.approx(11.15, abs=0.01)

@@ -130,3 +130,55 @@ class ParameterSensitivityEngine:
     def cancel(self) -> None:
         """Request cancellation of running analysis."""
         self._cancelled = True
+
+    def _generate_perturbations(
+        self,
+        filter_def: FilterCriteria,
+        level: float,
+    ) -> list[FilterCriteria]:
+        """Generate perturbed versions of a filter.
+
+        Args:
+            filter_def: Original filter to perturb.
+            level: Perturbation level as fraction of range (e.g., 0.10 = 10%).
+
+        Returns:
+            List of 4 FilterCriteria: shift down, shift up, expand, contract.
+        """
+        if filter_def.min_val is None or filter_def.max_val is None:
+            # Can't perturb partial bounds
+            return []
+
+        range_size = filter_def.max_val - filter_def.min_val
+        delta = range_size * level
+
+        return [
+            # Shift both bounds down
+            FilterCriteria(
+                column=filter_def.column,
+                operator=filter_def.operator,
+                min_val=filter_def.min_val - delta,
+                max_val=filter_def.max_val - delta,
+            ),
+            # Shift both bounds up
+            FilterCriteria(
+                column=filter_def.column,
+                operator=filter_def.operator,
+                min_val=filter_def.min_val + delta,
+                max_val=filter_def.max_val + delta,
+            ),
+            # Expand range (bounds move outward)
+            FilterCriteria(
+                column=filter_def.column,
+                operator=filter_def.operator,
+                min_val=filter_def.min_val - delta,
+                max_val=filter_def.max_val + delta,
+            ),
+            # Contract range (bounds move inward)
+            FilterCriteria(
+                column=filter_def.column,
+                operator=filter_def.operator,
+                min_val=filter_def.min_val + delta,
+                max_val=filter_def.max_val - delta,
+            ),
+        ]
