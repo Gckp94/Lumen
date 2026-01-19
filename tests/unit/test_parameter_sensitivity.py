@@ -117,3 +117,18 @@ class TestParameterSensitivityEngine:
         # Check shift up (both bounds + 10% of range = +0.15)
         assert perturbed[1].min_val == pytest.approx(9.65, abs=0.01)
         assert perturbed[1].max_val == pytest.approx(11.15, abs=0.01)
+
+    def test_calculate_metrics_for_config(self, sample_df, sample_filters):
+        """Should calculate metrics for a filter configuration."""
+        engine = ParameterSensitivityEngine(
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=sample_filters,
+        )
+
+        metrics = engine._calculate_metrics_for_filters(sample_filters)
+
+        assert "win_rate" in metrics
+        assert "profit_factor" in metrics
+        assert "expected_value" in metrics
+        assert isinstance(metrics["win_rate"], float)

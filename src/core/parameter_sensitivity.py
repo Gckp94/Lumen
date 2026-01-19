@@ -95,6 +95,8 @@ class SweepResult:
 
 # Import after dataclasses to avoid circular import issues
 from src.core.models import FilterCriteria
+from src.core.filter_engine import FilterEngine
+from src.core.metrics import MetricsCalculator
 
 
 class ParameterSensitivityEngine:
@@ -182,3 +184,46 @@ class ParameterSensitivityEngine:
                 max_val=filter_def.max_val - delta,
             ),
         ]
+
+    def _calculate_metrics_for_filters(
+        self,
+        filters: list[FilterCriteria],
+    ) -> dict[str, float]:
+        """Apply filters and calculate metrics.
+
+        Args:
+            filters: List of filters to apply to baseline data.
+
+        Returns:
+            Dict mapping metric name to value.
+        """
+        filter_engine = FilterEngine()
+        filtered_df = filter_engine.apply_filters(self._baseline_df, filters)
+
+        if len(filtered_df) == 0:
+            # No trades pass filters - return zeros
+            return {
+                "win_rate": 0.0,
+                "profit_factor": 0.0,
+                "expected_value": 0.0,
+                "num_trades": 0,
+            }
+
+        gain_col = self._column_mapping.get("gain", "gain_pct")
+        calculator = MetricsCalculator()
+        metrics_result, _, _ = calculator.calculate(
+            df=filtered_df,
+            gain_col=gain_col,
+            derived=True,
+        )
+
+        return {
+            "win_rate": metrics_result.win_rate or 0.0,
+            "profit_factor": (
+                abs(metrics_result.avg_winner / metrics_result.avg_loser)
+                if metrics_result.avg_winner and metrics_result.avg_loser
+                else 0.0
+            ),
+            "expected_value": metrics_result.ev or 0.0,
+            "num_trades": metrics_result.num_trades,
+        }
