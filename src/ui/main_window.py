@@ -15,6 +15,7 @@ from src.tabs.data_input import DataInputTab
 from src.tabs.feature_explorer import FeatureExplorerTab
 from src.tabs.feature_insights import FeatureInsightsTab
 from src.tabs.monte_carlo import MonteCarloTab
+from src.tabs.parameter_sensitivity import ParameterSensitivityTab
 from src.tabs.pnl_stats import PnLStatsTab
 from src.ui.dock_manager import DockManager
 
@@ -56,6 +57,7 @@ class MainWindow(QMainWindow):
             ("Data Binning", DataBinningTab(self._app_state)),
             ("PnL & Trading Stats", PnLStatsTab(self._app_state)),
             ("Monte Carlo", MonteCarloTab(self._app_state)),
+            ("Parameter Sensitivity", ParameterSensitivityTab(self._app_state)),
             ("Feature Insights", FeatureInsightsTab(self._app_state)),
         ]
 
