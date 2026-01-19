@@ -343,3 +343,132 @@ class ParameterSensitivityEngine:
             progress_callback(total_steps, total_steps)
 
         return results
+
+    def run_parameter_sweep(
+        self,
+        config: ParameterSensitivityConfig,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> SweepResult:
+        """Run parameter sweep across 1-2 filter dimensions.
+
+        Args:
+            config: Configuration with sweep settings.
+            progress_callback: Optional callback for progress updates.
+
+        Returns:
+            SweepResult with metric grids.
+
+        Raises:
+            ValueError: If sweep_filter_1 or sweep_range_1 not configured.
+        """
+        self._cancelled = False
+
+        if config.sweep_filter_1 is None or config.sweep_range_1 is None:
+            raise ValueError("sweep_filter_1 and sweep_range_1 are required for sweep mode")
+
+        # Generate value grids
+        filter_1_values = np.linspace(
+            config.sweep_range_1[0],
+            config.sweep_range_1[1],
+            config.grid_resolution,
+        )
+
+        is_2d = config.sweep_filter_2 is not None and config.sweep_range_2 is not None
+        if is_2d:
+            filter_2_values = np.linspace(
+                config.sweep_range_2[0],
+                config.sweep_range_2[1],
+                config.grid_resolution,
+            )
+        else:
+            filter_2_values = None
+
+        # Initialize metric grids
+        if is_2d:
+            grid_shape = (config.grid_resolution, config.grid_resolution)
+        else:
+            grid_shape = (config.grid_resolution,)
+
+        metric_grids: dict[str, np.ndarray] = {
+            metric: np.zeros(grid_shape) for metric in config.metrics
+        }
+
+        # Calculate total steps
+        total_steps = config.grid_resolution * (config.grid_resolution if is_2d else 1)
+        current_step = 0
+
+        # Run sweep
+        for i, val_1 in enumerate(filter_1_values):
+            if self._cancelled:
+                break
+
+            if is_2d:
+                for j, val_2 in enumerate(filter_2_values):
+                    if self._cancelled:
+                        break
+
+                    # Create filters for this grid point
+                    # Use a small window around the value (±5% of range)
+                    range_1 = config.sweep_range_1[1] - config.sweep_range_1[0]
+                    range_2 = config.sweep_range_2[1] - config.sweep_range_2[0]
+                    window_1 = range_1 * 0.05
+                    window_2 = range_2 * 0.05
+
+                    filters = [
+                        FilterCriteria(
+                            column=config.sweep_filter_1,
+                            operator="between",
+                            min_val=val_1 - window_1,
+                            max_val=val_1 + window_1,
+                        ),
+                        FilterCriteria(
+                            column=config.sweep_filter_2,
+                            operator="between",
+                            min_val=val_2 - window_2,
+                            max_val=val_2 + window_2,
+                        ),
+                    ]
+
+                    metrics = self._calculate_metrics_for_filters(filters)
+
+                    for metric_name in config.metrics:
+                        metric_grids[metric_name][i, j] = metrics.get(metric_name, 0.0)
+
+                    current_step += 1
+                    if progress_callback:
+                        progress_callback(current_step, total_steps)
+            else:
+                # 1D sweep
+                range_1 = config.sweep_range_1[1] - config.sweep_range_1[0]
+                window_1 = range_1 * 0.05
+
+                filters = [
+                    FilterCriteria(
+                        column=config.sweep_filter_1,
+                        operator="between",
+                        min_val=val_1 - window_1,
+                        max_val=val_1 + window_1,
+                    ),
+                ]
+
+                metrics = self._calculate_metrics_for_filters(filters)
+
+                for metric_name in config.metrics:
+                    metric_grids[metric_name][i] = metrics.get(metric_name, 0.0)
+
+                current_step += 1
+                if progress_callback:
+                    progress_callback(current_step, total_steps)
+
+        # Final progress
+        if progress_callback and not self._cancelled:
+            progress_callback(total_steps, total_steps)
+
+        return SweepResult(
+            filter_1_name=config.sweep_filter_1,
+            filter_1_values=filter_1_values,
+            filter_2_name=config.sweep_filter_2,
+            filter_2_values=filter_2_values,
+            metric_grids=metric_grids,
+            current_position=None,  # TODO: Calculate from active filters
+        )

@@ -178,3 +178,53 @@ class TestParameterSensitivityEngine:
         assert len(progress_calls) > 0
         # Final call should be complete
         assert progress_calls[-1][0] == progress_calls[-1][1]
+
+    def test_run_parameter_sweep_1d(self, sample_df):
+        """Should run 1D parameter sweep (single filter)."""
+        engine = ParameterSensitivityEngine(
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=[],
+        )
+        config = ParameterSensitivityConfig(
+            mode="sweep",
+            sweep_filter_1="entry_time",
+            sweep_range_1=(9.0, 12.0),
+            sweep_filter_2=None,
+            sweep_range_2=None,
+            grid_resolution=5,
+            metrics=("win_rate", "expected_value"),
+        )
+
+        result = engine.run_parameter_sweep(config)
+
+        assert isinstance(result, SweepResult)
+        assert result.filter_1_name == "entry_time"
+        assert len(result.filter_1_values) == 5
+        assert result.filter_2_name is None
+        assert result.filter_2_values is None
+        assert "win_rate" in result.metric_grids
+        assert result.metric_grids["win_rate"].shape == (5,)
+
+    def test_run_parameter_sweep_2d(self, sample_df):
+        """Should run 2D parameter sweep (two filters)."""
+        engine = ParameterSensitivityEngine(
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=[],
+        )
+        config = ParameterSensitivityConfig(
+            mode="sweep",
+            sweep_filter_1="entry_time",
+            sweep_range_1=(9.0, 12.0),
+            sweep_filter_2="gap_pct",
+            sweep_range_2=(2.0, 8.0),
+            grid_resolution=5,
+            metrics=("win_rate",),
+        )
+
+        result = engine.run_parameter_sweep(config)
+
+        assert result.filter_2_name == "gap_pct"
+        assert len(result.filter_2_values) == 5
+        assert result.metric_grids["win_rate"].shape == (5, 5)
