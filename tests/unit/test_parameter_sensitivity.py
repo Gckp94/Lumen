@@ -5,11 +5,13 @@ import pytest
 import numpy as np
 import pandas as pd
 
+from PyQt6.QtCore import QThread
 from src.core.parameter_sensitivity import (
     ParameterSensitivityConfig,
     NeighborhoodResult,
     SweepResult,
     ParameterSensitivityEngine,
+    ParameterSensitivityWorker,
 )
 from src.core.models import FilterCriteria
 
@@ -228,3 +230,40 @@ class TestParameterSensitivityEngine:
         assert result.filter_2_name == "gap_pct"
         assert len(result.filter_2_values) == 5
         assert result.metric_grids["win_rate"].shape == (5, 5)
+
+
+class TestParameterSensitivityWorker:
+    """Tests for async worker."""
+
+    @pytest.fixture
+    def sample_df(self):
+        np.random.seed(42)
+        n = 50
+        return pd.DataFrame({
+            "gain_pct": np.random.uniform(-0.05, 0.10, n),
+            "entry_time": np.random.uniform(9.0, 16.0, n),
+        })
+
+    def test_worker_is_qthread(self, sample_df):
+        """Worker should be a QThread subclass."""
+        config = ParameterSensitivityConfig(mode="neighborhood")
+        worker = ParameterSensitivityWorker(
+            config=config,
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=[],
+        )
+        assert isinstance(worker, QThread)
+
+    def test_worker_has_signals(self, sample_df):
+        """Worker should have progress, completed, and error signals."""
+        config = ParameterSensitivityConfig(mode="neighborhood")
+        worker = ParameterSensitivityWorker(
+            config=config,
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=[],
+        )
+        assert hasattr(worker, "progress")
+        assert hasattr(worker, "completed")
+        assert hasattr(worker, "error")

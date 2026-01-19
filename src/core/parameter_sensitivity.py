@@ -9,6 +9,7 @@ from typing import Callable, Literal
 
 import numpy as np
 import pandas as pd
+from PyQt6.QtCore import QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
 
@@ -472,3 +473,73 @@ class ParameterSensitivityEngine:
             metric_grids=metric_grids,
             current_position=None,  # TODO: Calculate from active filters
         )
+
+
+class ParameterSensitivityWorker(QThread):
+    """Background worker for running sensitivity analysis.
+
+    Signals:
+        progress: Emitted with (current, total) during analysis.
+        completed: Emitted with results when analysis completes.
+        error: Emitted with error message if analysis fails.
+    """
+
+    progress = pyqtSignal(int, int)
+    completed = pyqtSignal(object)
+    error = pyqtSignal(str)
+
+    def __init__(
+        self,
+        config: ParameterSensitivityConfig,
+        baseline_df: pd.DataFrame,
+        column_mapping: dict[str, str],
+        active_filters: list[FilterCriteria],
+    ) -> None:
+        """Initialize the worker.
+
+        Args:
+            config: Analysis configuration.
+            baseline_df: Baseline data for analysis.
+            column_mapping: Column name mappings.
+            active_filters: Active filters to test.
+        """
+        super().__init__()
+        self._config = config
+        self._baseline_df = baseline_df
+        self._column_mapping = column_mapping
+        self._active_filters = active_filters
+        self._engine: ParameterSensitivityEngine | None = None
+
+    def run(self) -> None:
+        """Execute the analysis in background thread."""
+        try:
+            self._engine = ParameterSensitivityEngine(
+                baseline_df=self._baseline_df,
+                column_mapping=self._column_mapping,
+                active_filters=self._active_filters,
+            )
+
+            def on_progress(current: int, total: int) -> None:
+                self.progress.emit(current, total)
+
+            if self._config.mode == "neighborhood":
+                results = self._engine.run_neighborhood_scan(
+                    self._config,
+                    progress_callback=on_progress,
+                )
+            else:
+                results = self._engine.run_parameter_sweep(
+                    self._config,
+                    progress_callback=on_progress,
+                )
+
+            self.completed.emit(results)
+
+        except Exception as e:
+            logger.exception("Sensitivity analysis failed")
+            self.error.emit(str(e))
+
+    def cancel(self) -> None:
+        """Request cancellation of running analysis."""
+        if self._engine:
+            self._engine.cancel()
