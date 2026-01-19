@@ -63,6 +63,11 @@ class AppState(QObject):
     monte_carlo_progress = pyqtSignal(int, int)  # completed, total
     monte_carlo_completed = pyqtSignal(object)  # MonteCarloResults
     monte_carlo_error = pyqtSignal(str)
+    # Parameter sensitivity signals
+    sensitivity_started = pyqtSignal()
+    sensitivity_progress = pyqtSignal(int, int)  # current, total
+    sensitivity_completed = pyqtSignal(object)  # NeighborhoodResult list or SweepResult
+    sensitivity_error = pyqtSignal(str)
 
     def __init__(self) -> None:
         """Initialize AppState with default empty values."""
