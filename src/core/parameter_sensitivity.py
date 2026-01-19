@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Literal
+from typing import Callable, Literal
 
 import numpy as np
 import pandas as pd
@@ -227,3 +227,119 @@ class ParameterSensitivityEngine:
             "expected_value": metrics_result.ev or 0.0,
             "num_trades": metrics_result.num_trades,
         }
+
+    def _classify_degradation(self, degradation: float) -> Literal["robust", "caution", "fragile"]:
+        """Classify degradation level into status category.
+
+        Args:
+            degradation: Percentage degradation (e.g., 15.0 for 15% drop).
+
+        Returns:
+            Status classification.
+        """
+        if degradation < 10.0:
+            return "robust"
+        elif degradation < 25.0:
+            return "caution"
+        else:
+            return "fragile"
+
+    def run_neighborhood_scan(
+        self,
+        config: ParameterSensitivityConfig,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> list[NeighborhoodResult]:
+        """Run neighborhood scan on all active filters.
+
+        For each filter, tests perturbations while keeping other filters fixed.
+
+        Args:
+            config: Configuration for the scan.
+            progress_callback: Optional callback for progress updates (current, total).
+
+        Returns:
+            List of NeighborhoodResult, one per active filter.
+        """
+        self._cancelled = False
+        results: list[NeighborhoodResult] = []
+
+        # Calculate total steps for progress
+        num_filters = len(self._active_filters)
+        num_levels = len(config.perturbation_levels)
+        perturbations_per_level = 4  # shift down, shift up, expand, contract
+        total_steps = num_filters * (1 + num_levels * perturbations_per_level)
+        current_step = 0
+
+        for filter_idx, test_filter in enumerate(self._active_filters):
+            if self._cancelled:
+                break
+
+            # Get other filters (keep fixed)
+            other_filters = [f for i, f in enumerate(self._active_filters) if i != filter_idx]
+
+            # Calculate baseline metrics (with all filters including test filter)
+            baseline_metrics = self._calculate_metrics_for_filters(self._active_filters)
+            current_step += 1
+            if progress_callback:
+                progress_callback(current_step, total_steps)
+
+            # Test perturbations
+            perturbation_results: dict[float, dict[str, float]] = {}
+            worst_degradation = 0.0
+            worst_metric = config.primary_metric
+            worst_level = config.perturbation_levels[0]
+
+            for level in config.perturbation_levels:
+                if self._cancelled:
+                    break
+
+                perturbed_filters = self._generate_perturbations(test_filter, level)
+                level_metrics_list: list[dict[str, float]] = []
+
+                for perturbed in perturbed_filters:
+                    if self._cancelled:
+                        break
+
+                    # Apply other filters + perturbed test filter
+                    test_filters = other_filters + [perturbed]
+                    metrics = self._calculate_metrics_for_filters(test_filters)
+                    level_metrics_list.append(metrics)
+
+                    current_step += 1
+                    if progress_callback:
+                        progress_callback(current_step, total_steps)
+
+                # Average metrics across all perturbation types at this level
+                if level_metrics_list:
+                    avg_metrics: dict[str, float] = {}
+                    for metric_name in config.metrics:
+                        values = [m.get(metric_name, 0.0) for m in level_metrics_list]
+                        avg_metrics[metric_name] = sum(values) / len(values)
+                    perturbation_results[level] = avg_metrics
+
+                    # Check for worst degradation
+                    baseline_val = baseline_metrics.get(config.primary_metric, 0.0)
+                    perturbed_val = avg_metrics.get(config.primary_metric, 0.0)
+                    if baseline_val != 0:
+                        degradation = ((baseline_val - perturbed_val) / abs(baseline_val)) * 100
+                        if degradation > worst_degradation:
+                            worst_degradation = degradation
+                            worst_level = level
+
+            # Create result
+            results.append(NeighborhoodResult(
+                filter_name=f"{test_filter.column}: {test_filter.min_val:.2f} - {test_filter.max_val:.2f}",
+                filter_column=test_filter.column,
+                baseline_metrics=baseline_metrics,
+                perturbations=perturbation_results,
+                worst_degradation=worst_degradation,
+                worst_metric=worst_metric,
+                worst_level=worst_level,
+                status=self._classify_degradation(worst_degradation),
+            ))
+
+        # Final progress
+        if progress_callback and not self._cancelled:
+            progress_callback(total_steps, total_steps)
+
+        return results

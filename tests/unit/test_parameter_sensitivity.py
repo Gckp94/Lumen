@@ -132,3 +132,49 @@ class TestParameterSensitivityEngine:
         assert "profit_factor" in metrics
         assert "expected_value" in metrics
         assert isinstance(metrics["win_rate"], float)
+
+    def test_run_neighborhood_scan(self, sample_df, sample_filters):
+        """Should run complete neighborhood scan and return results."""
+        engine = ParameterSensitivityEngine(
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=sample_filters,
+        )
+        config = ParameterSensitivityConfig(
+            mode="neighborhood",
+            perturbation_levels=(0.05, 0.10),
+            metrics=("win_rate", "expected_value"),
+        )
+
+        results = engine.run_neighborhood_scan(config)
+
+        # Should have result for each filter
+        assert len(results) == 2
+
+        # Check first result structure
+        result = results[0]
+        assert isinstance(result, NeighborhoodResult)
+        assert result.filter_column == "entry_time"
+        assert result.baseline_metrics is not None
+        assert 0.05 in result.perturbations
+        assert 0.10 in result.perturbations
+        assert result.status in ("robust", "caution", "fragile")
+
+    def test_neighborhood_scan_with_progress(self, sample_df, sample_filters):
+        """Should call progress callback during scan."""
+        engine = ParameterSensitivityEngine(
+            baseline_df=sample_df,
+            column_mapping={"gain": "gain_pct"},
+            active_filters=sample_filters,
+        )
+        config = ParameterSensitivityConfig(mode="neighborhood")
+
+        progress_calls = []
+        def on_progress(current, total):
+            progress_calls.append((current, total))
+
+        engine.run_neighborhood_scan(config, progress_callback=on_progress)
+
+        assert len(progress_calls) > 0
+        # Final call should be complete
+        assert progress_calls[-1][0] == progress_calls[-1][1]
