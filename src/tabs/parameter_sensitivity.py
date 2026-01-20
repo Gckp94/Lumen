@@ -471,6 +471,12 @@ class ParameterSensitivityTab(QWidget):
             self._results_label.setText("Apply filters in Feature Explorer first")
             return
 
+        # Clear previous results
+        self._sweep_result = None
+        self._results_label.setText("Running analysis...")
+        self._results_label.setVisible(True)
+        self._results_container.setVisible(False)
+
         # Start worker
         self._worker = ParameterSensitivityWorker(
             config=config,
@@ -512,13 +518,15 @@ class ParameterSensitivityTab(QWidget):
             # Sweep result
             self._display_sweep_results(results)
 
-    def _on_error(self, message: str) -> None:
-        """Handle analysis error."""
+    def _on_error(self, error_msg: str) -> None:
+        """Handle worker error."""
         self._run_btn.setVisible(True)
         self._cancel_btn.setVisible(False)
         self._progress_bar.setVisible(False)
-        self._results_label.setText(f"Error: {message}")
-        logger.error("Sensitivity analysis error: %s", message)
+        self._results_label.setText(f"Error: {error_msg}")
+        self._results_label.setVisible(True)
+        self._results_container.setVisible(False)
+        logging.error("Parameter sensitivity error: %s", error_msg)
 
     def _display_neighborhood_results(self, results: list) -> None:
         """Display neighborhood scan results."""
@@ -545,6 +553,12 @@ class ParameterSensitivityTab(QWidget):
         Args:
             result: SweepResult from the sensitivity engine.
         """
+        if result is None or not result.metric_grids:
+            self._results_label.setText("No results to display")
+            self._results_label.setVisible(True)
+            self._results_container.setVisible(False)
+            return
+
         self._sweep_result = result
 
         # Hide placeholder, show results container
