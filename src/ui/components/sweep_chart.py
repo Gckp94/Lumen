@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-import pyqtgraph as pg
+import pyqtgraph as pg  # type: ignore[import-untyped]
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from src.ui.constants import Colors, Fonts
@@ -75,7 +75,13 @@ class SweepChart(QWidget):
             y_values: Metric values (Y-axis).
             x_label: Label for X-axis (filter name).
             y_label: Label for Y-axis (metric name).
+
+        Raises:
+            ValueError: If x_values and y_values have different lengths.
         """
+        if len(x_values) != len(y_values):
+            raise ValueError("x_values and y_values must have the same length")
+
         self._is_2d = False
         self._x_values = x_values
         self._y_values = y_values

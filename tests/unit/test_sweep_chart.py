@@ -47,3 +47,21 @@ class TestSweepChart1D:
         chart.set_current_position(x_index=4)
 
         assert chart._current_marker is not None
+        x_data, y_data = chart._current_marker.getData()
+        assert len(x_data) == 1
+        assert x_data[0] == x_values[4]
+        assert y_data[0] == y_values[4]
+
+    def test_clear(self, qtbot: QtBot):
+        """Clear method resets all data."""
+        chart = SweepChart()
+        qtbot.addWidget(chart)
+
+        x_values = np.linspace(0, 10, 10)
+        y_values = np.array([0.5, 0.52, 0.55, 0.58, 0.60, 0.58, 0.55, 0.52, 0.50, 0.48])
+
+        chart.set_1d_data(x_values, y_values, "filter", "metric")
+        chart.clear()
+
+        assert chart._x_values is None
+        assert chart._y_values is None
