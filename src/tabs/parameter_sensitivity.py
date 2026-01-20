@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -31,6 +33,7 @@ from src.core.parameter_sensitivity import (
 )
 from src.ui.components.sweep_chart import SweepChart
 from src.ui.components.no_scroll_widgets import NoScrollComboBox, NoScrollDoubleSpinBox
+from src.ui.constants import Colors
 
 if TYPE_CHECKING:
     from src.core.app_state import AppState
@@ -258,6 +261,51 @@ class ParameterSensitivityTab(QWidget):
         self._sweep_chart = SweepChart()
         self._sweep_chart.setMinimumHeight(400)
         results_layout.addWidget(self._sweep_chart, stretch=1)
+
+        # Summary statistics panel
+        self._stats_frame = QFrame()
+        self._stats_frame.setObjectName("sensitivity_stats")
+        stats_layout = QHBoxLayout(self._stats_frame)
+        stats_layout.setContentsMargins(8, 8, 8, 8)
+
+        # Min value
+        min_layout = QVBoxLayout()
+        min_layout.addWidget(QLabel("Min"))
+        self._min_label = QLabel("--")
+        self._min_label.setStyleSheet(f"color: {Colors.SIGNAL_CORAL}; font-weight: bold;")
+        min_layout.addWidget(self._min_label)
+        stats_layout.addLayout(min_layout)
+
+        stats_layout.addStretch()
+
+        # Max value
+        max_layout = QVBoxLayout()
+        max_layout.addWidget(QLabel("Max"))
+        self._max_label = QLabel("--")
+        self._max_label.setStyleSheet(f"color: {Colors.SIGNAL_CYAN}; font-weight: bold;")
+        max_layout.addWidget(self._max_label)
+        stats_layout.addLayout(max_layout)
+
+        stats_layout.addStretch()
+
+        # Current position value
+        current_layout = QVBoxLayout()
+        current_layout.addWidget(QLabel("Current"))
+        self._current_label = QLabel("--")
+        self._current_label.setStyleSheet(f"color: {Colors.SIGNAL_AMBER}; font-weight: bold;")
+        current_layout.addWidget(self._current_label)
+        stats_layout.addLayout(current_layout)
+
+        stats_layout.addStretch()
+
+        # Range (max - min)
+        range_layout = QVBoxLayout()
+        range_layout.addWidget(QLabel("Range"))
+        self._range_label = QLabel("--")
+        range_layout.addWidget(self._range_label)
+        stats_layout.addLayout(range_layout)
+
+        results_layout.addWidget(self._stats_frame)
 
         self._results_container.setVisible(False)
         layout.addWidget(self._results_container)
@@ -543,6 +591,9 @@ class ParameterSensitivityTab(QWidget):
                     y_index=result.current_position[1],
                 )
 
+        # Update summary statistics
+        self._update_summary_stats(metric_name)
+
     def _on_metric_changed(self, metric_name: str) -> None:
         """Handle metric selection change.
 
@@ -554,6 +605,43 @@ class ParameterSensitivityTab(QWidget):
 
         # Re-display with new metric
         self._display_sweep_results(self._sweep_result)
+
+    def _update_summary_stats(self, metric_name: str) -> None:
+        """Update summary statistics display.
+
+        Args:
+            metric_name: Current metric name.
+        """
+        if self._sweep_result is None:
+            return
+
+        values = self._sweep_result.metric_grids[metric_name]
+        min_val = float(np.min(values))
+        max_val = float(np.max(values))
+        range_val = max_val - min_val
+
+        # Format based on metric type
+        if metric_name == "win_rate":
+            fmt = lambda v: f"{v:.1%}"
+        elif metric_name == "profit_factor":
+            fmt = lambda v: f"{v:.2f}"
+        else:
+            fmt = lambda v: f"${v:.2f}"
+
+        self._min_label.setText(fmt(min_val))
+        self._max_label.setText(fmt(max_val))
+        self._range_label.setText(fmt(range_val))
+
+        # Current position value
+        if self._sweep_result.current_position is not None:
+            pos = self._sweep_result.current_position
+            if self._sweep_result.filter_2_name is None:
+                current_val = float(values[pos[0]])
+            else:
+                current_val = float(values[pos[1], pos[0]])
+            self._current_label.setText(fmt(current_val))
+        else:
+            self._current_label.setText("--")
 
     def cleanup(self) -> None:
         """Clean up resources."""
