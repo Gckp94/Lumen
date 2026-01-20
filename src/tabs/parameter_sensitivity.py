@@ -26,7 +26,9 @@ from PyQt6.QtWidgets import (
 from src.core.parameter_sensitivity import (
     ParameterSensitivityConfig,
     ParameterSensitivityWorker,
+    SweepResult,
 )
+from src.ui.components.sweep_chart import SweepChart
 from src.ui.components.no_scroll_widgets import NoScrollComboBox, NoScrollDoubleSpinBox
 
 if TYPE_CHECKING:
@@ -52,6 +54,7 @@ class ParameterSensitivityTab(QWidget):
         super().__init__()
         self._app_state = app_state
         self._worker = None
+        self._sweep_result: SweepResult | None = None
 
         self._setup_ui()
         self._connect_signals()
@@ -228,10 +231,35 @@ class ParameterSensitivityTab(QWidget):
         layout = QVBoxLayout(main)
         layout.setContentsMargins(12, 12, 12, 12)
 
-        # Placeholder for results
+        # Placeholder label (shown when no results)
         self._results_label = QLabel("Run an analysis to see results")
         self._results_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._results_label)
+
+        # Results container (hidden initially)
+        self._results_container = QWidget()
+        results_layout = QVBoxLayout(self._results_container)
+        results_layout.setContentsMargins(0, 0, 0, 0)
+        results_layout.setSpacing(8)
+
+        # Metric selector row
+        metric_row = QHBoxLayout()
+        metric_row.addWidget(QLabel("Metric:"))
+        self._results_metric_combo = QComboBox()
+        self._results_metric_combo.addItems(["win_rate", "profit_factor", "expected_value"])
+        self._results_metric_combo.setCurrentText("expected_value")
+        self._results_metric_combo.currentTextChanged.connect(self._on_metric_changed)
+        metric_row.addWidget(self._results_metric_combo)
+        metric_row.addStretch()
+        results_layout.addLayout(metric_row)
+
+        # Sweep chart
+        self._sweep_chart = SweepChart()
+        self._sweep_chart.setMinimumHeight(400)
+        results_layout.addWidget(self._sweep_chart, stretch=1)
+
+        self._results_container.setVisible(False)
+        layout.addWidget(self._results_container)
 
         return main
 
@@ -469,6 +497,18 @@ class ParameterSensitivityTab(QWidget):
             f"<p>Filter: {result.filter_1_name}</p>"
             f"<p>Grid: {len(result.filter_1_values)} points</p>"
         )
+
+    def _on_metric_changed(self, metric_name: str) -> None:
+        """Handle metric selection change.
+
+        Args:
+            metric_name: Selected metric name.
+        """
+        if self._sweep_result is None:
+            return
+
+        # Re-display with new metric (will be implemented in Task 4)
+        pass
 
     def cleanup(self) -> None:
         """Clean up resources."""
