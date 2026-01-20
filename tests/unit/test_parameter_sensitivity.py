@@ -13,7 +13,7 @@ from src.core.parameter_sensitivity import (
     ParameterSensitivityEngine,
     ParameterSensitivityWorker,
 )
-from src.core.models import FilterCriteria
+from src.core.models import ColumnMapping, FilterCriteria
 
 
 class TestParameterSensitivityConfig:
@@ -76,32 +76,43 @@ class TestParameterSensitivityEngine:
             FilterCriteria(column="gap_pct", operator="between", min_val=2.0, max_val=6.0),
         ]
 
-    def test_engine_initialization(self, sample_df, sample_filters):
+    @pytest.fixture
+    def sample_column_mapping(self):
+        """Create sample column mapping."""
+        return ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+        )
+
+    def test_engine_initialization(self, sample_df, sample_filters, sample_column_mapping):
         """Engine should initialize with baseline data and filters."""
         engine = ParameterSensitivityEngine(
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=sample_filters,
         )
         assert engine._baseline_df is not None
         assert len(engine._active_filters) == 2
 
-    def test_engine_cancel(self, sample_df, sample_filters):
+    def test_engine_cancel(self, sample_df, sample_filters, sample_column_mapping):
         """Engine should support cancellation."""
         engine = ParameterSensitivityEngine(
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=sample_filters,
         )
         assert not engine._cancelled
         engine.cancel()
         assert engine._cancelled
 
-    def test_generate_perturbations(self, sample_df, sample_filters):
+    def test_generate_perturbations(self, sample_df, sample_filters, sample_column_mapping):
         """Should generate perturbed filter configurations."""
         engine = ParameterSensitivityEngine(
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=sample_filters,
         )
 
@@ -120,11 +131,11 @@ class TestParameterSensitivityEngine:
         assert perturbed[1].min_val == pytest.approx(9.65, abs=0.01)
         assert perturbed[1].max_val == pytest.approx(11.15, abs=0.01)
 
-    def test_calculate_metrics_for_config(self, sample_df, sample_filters):
+    def test_calculate_metrics_for_config(self, sample_df, sample_filters, sample_column_mapping):
         """Should calculate metrics for a filter configuration."""
         engine = ParameterSensitivityEngine(
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=sample_filters,
         )
 
@@ -135,11 +146,11 @@ class TestParameterSensitivityEngine:
         assert "expected_value" in metrics
         assert isinstance(metrics["win_rate"], float)
 
-    def test_run_neighborhood_scan(self, sample_df, sample_filters):
+    def test_run_neighborhood_scan(self, sample_df, sample_filters, sample_column_mapping):
         """Should run complete neighborhood scan and return results."""
         engine = ParameterSensitivityEngine(
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=sample_filters,
         )
         config = ParameterSensitivityConfig(
@@ -162,11 +173,11 @@ class TestParameterSensitivityEngine:
         assert 0.10 in result.perturbations
         assert result.status in ("robust", "caution", "fragile")
 
-    def test_neighborhood_scan_with_progress(self, sample_df, sample_filters):
+    def test_neighborhood_scan_with_progress(self, sample_df, sample_filters, sample_column_mapping):
         """Should call progress callback during scan."""
         engine = ParameterSensitivityEngine(
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=sample_filters,
         )
         config = ParameterSensitivityConfig(mode="neighborhood")
@@ -181,11 +192,11 @@ class TestParameterSensitivityEngine:
         # Final call should be complete
         assert progress_calls[-1][0] == progress_calls[-1][1]
 
-    def test_run_parameter_sweep_1d(self, sample_df):
+    def test_run_parameter_sweep_1d(self, sample_df, sample_column_mapping):
         """Should run 1D parameter sweep (single filter)."""
         engine = ParameterSensitivityEngine(
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=[],
         )
         config = ParameterSensitivityConfig(
@@ -208,11 +219,11 @@ class TestParameterSensitivityEngine:
         assert "win_rate" in result.metric_grids
         assert result.metric_grids["win_rate"].shape == (5,)
 
-    def test_run_parameter_sweep_2d(self, sample_df):
+    def test_run_parameter_sweep_2d(self, sample_df, sample_column_mapping):
         """Should run 2D parameter sweep (two filters)."""
         engine = ParameterSensitivityEngine(
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=[],
         )
         config = ParameterSensitivityConfig(
@@ -244,24 +255,35 @@ class TestParameterSensitivityWorker:
             "entry_time": np.random.uniform(9.0, 16.0, n),
         })
 
-    def test_worker_is_qthread(self, sample_df):
+    @pytest.fixture
+    def sample_column_mapping(self):
+        """Create sample column mapping."""
+        return ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+        )
+
+    def test_worker_is_qthread(self, sample_df, sample_column_mapping):
         """Worker should be a QThread subclass."""
         config = ParameterSensitivityConfig(mode="neighborhood")
         worker = ParameterSensitivityWorker(
             config=config,
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=[],
         )
         assert isinstance(worker, QThread)
 
-    def test_worker_has_signals(self, sample_df):
+    def test_worker_has_signals(self, sample_df, sample_column_mapping):
         """Worker should have progress, completed, and error signals."""
         config = ParameterSensitivityConfig(mode="neighborhood")
         worker = ParameterSensitivityWorker(
             config=config,
             baseline_df=sample_df,
-            column_mapping={"gain": "gain_pct"},
+            column_mapping=sample_column_mapping,
             active_filters=[],
         )
         assert hasattr(worker, "progress")

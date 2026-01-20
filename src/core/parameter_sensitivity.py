@@ -95,7 +95,7 @@ class SweepResult:
 
 
 # Import after dataclasses to avoid circular import issues
-from src.core.models import FilterCriteria
+from src.core.models import ColumnMapping, FilterCriteria
 from src.core.filter_engine import FilterEngine
 from src.core.metrics import MetricsCalculator
 
@@ -115,14 +115,14 @@ class ParameterSensitivityEngine:
     def __init__(
         self,
         baseline_df: pd.DataFrame,
-        column_mapping: dict[str, str],
+        column_mapping: ColumnMapping,
         active_filters: list[FilterCriteria],
     ) -> None:
         """Initialize the sensitivity engine.
 
         Args:
             baseline_df: Data BEFORE user filters (but after first-trigger).
-            column_mapping: Column name mappings (must include 'gain').
+            column_mapping: ColumnMapping dataclass with column names.
             active_filters: Current active filters to test.
         """
         self._baseline_df = baseline_df
@@ -210,7 +210,7 @@ class ParameterSensitivityEngine:
                 "num_trades": 0,
             }
 
-        gain_col = self._column_mapping.get("gain", "gain_pct")
+        gain_col = self._column_mapping.gain_pct
         calculator = MetricsCalculator()
         metrics_result, _, _ = calculator.calculate(
             df=filtered_df,
@@ -492,7 +492,7 @@ class ParameterSensitivityWorker(QThread):
         self,
         config: ParameterSensitivityConfig,
         baseline_df: pd.DataFrame,
-        column_mapping: dict[str, str],
+        column_mapping: ColumnMapping,
         active_filters: list[FilterCriteria],
     ) -> None:
         """Initialize the worker.
@@ -500,7 +500,7 @@ class ParameterSensitivityWorker(QThread):
         Args:
             config: Analysis configuration.
             baseline_df: Baseline data for analysis.
-            column_mapping: Column name mappings.
+            column_mapping: ColumnMapping dataclass with column names.
             active_filters: Active filters to test.
         """
         super().__init__()

@@ -197,8 +197,13 @@ class ParameterSensitivityTab(QWidget):
 
         # Get baseline data and filters
         baseline_df = self._app_state.baseline_df
-        column_mapping = self._app_state.column_mapping or {}
+        column_mapping = self._app_state.column_mapping
         active_filters = self._app_state.filters or []
+
+        if column_mapping is None:
+            logger.warning("No column mapping available")
+            self._results_label.setText("Load data first")
+            return
 
         if not active_filters and not is_sweep:
             logger.warning("No active filters for neighborhood scan")
