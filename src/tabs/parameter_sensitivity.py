@@ -133,6 +133,70 @@ class ParameterSensitivityTab(QWidget):
         self._resolution_group.setVisible(False)
         layout.addWidget(self._resolution_group)
 
+        # Sweep filter configuration (for sweep mode)
+        self._sweep_config_group = QGroupBox("Sweep Filters")
+        sweep_config_layout = QVBoxLayout(self._sweep_config_group)
+        sweep_config_layout.setSpacing(8)
+
+        # Filter 1 (X-axis) - required
+        filter1_label = QLabel("Filter 1 (X-axis):")
+        sweep_config_layout.addWidget(filter1_label)
+
+        self._sweep_filter1_combo = NoScrollComboBox()
+        self._sweep_filter1_combo.setPlaceholderText("Select column...")
+        sweep_config_layout.addWidget(self._sweep_filter1_combo)
+
+        # Range 1
+        range1_layout = QHBoxLayout()
+        range1_layout.addWidget(QLabel("Min:"))
+        self._sweep_min1_spin = NoScrollDoubleSpinBox()
+        self._sweep_min1_spin.setDecimals(4)
+        self._sweep_min1_spin.setRange(-1e9, 1e9)
+        range1_layout.addWidget(self._sweep_min1_spin)
+        range1_layout.addWidget(QLabel("Max:"))
+        self._sweep_max1_spin = NoScrollDoubleSpinBox()
+        self._sweep_max1_spin.setDecimals(4)
+        self._sweep_max1_spin.setRange(-1e9, 1e9)
+        range1_layout.addWidget(self._sweep_max1_spin)
+        sweep_config_layout.addLayout(range1_layout)
+
+        # Enable 2D sweep checkbox
+        self._enable_2d_checkbox = QCheckBox("Enable 2D Sweep")
+        sweep_config_layout.addWidget(self._enable_2d_checkbox)
+
+        # Filter 2 (Y-axis) - optional
+        self._filter2_container = QWidget()
+        filter2_layout = QVBoxLayout(self._filter2_container)
+        filter2_layout.setContentsMargins(0, 0, 0, 0)
+        filter2_layout.setSpacing(8)
+
+        filter2_label = QLabel("Filter 2 (Y-axis):")
+        filter2_layout.addWidget(filter2_label)
+
+        self._sweep_filter2_combo = NoScrollComboBox()
+        self._sweep_filter2_combo.setPlaceholderText("Select column...")
+        filter2_layout.addWidget(self._sweep_filter2_combo)
+
+        # Range 2
+        range2_layout = QHBoxLayout()
+        range2_layout.addWidget(QLabel("Min:"))
+        self._sweep_min2_spin = NoScrollDoubleSpinBox()
+        self._sweep_min2_spin.setDecimals(4)
+        self._sweep_min2_spin.setRange(-1e9, 1e9)
+        range2_layout.addWidget(self._sweep_min2_spin)
+        range2_layout.addWidget(QLabel("Max:"))
+        self._sweep_max2_spin = NoScrollDoubleSpinBox()
+        self._sweep_max2_spin.setDecimals(4)
+        self._sweep_max2_spin.setRange(-1e9, 1e9)
+        range2_layout.addWidget(self._sweep_max2_spin)
+        filter2_layout.addLayout(range2_layout)
+
+        self._filter2_container.setVisible(False)
+        sweep_config_layout.addWidget(self._filter2_container)
+
+        self._sweep_config_group.setVisible(False)
+        layout.addWidget(self._sweep_config_group)
+
         layout.addStretch()
 
         # Run button and progress
