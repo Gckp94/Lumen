@@ -77,7 +77,7 @@ class TestSweepChart2D:
 
         x_values = np.linspace(0, 10, 5)
         y_values = np.linspace(0, 5, 4)
-        z_values = np.random.rand(4, 5)  # Shape: (len(y), len(x))
+        z_values = np.arange(20).reshape(4, 5).astype(float)  # Deterministic
 
         chart.set_2d_data(
             x_values=x_values,
@@ -99,7 +99,7 @@ class TestSweepChart2D:
 
         x_values = np.linspace(0, 10, 5)
         y_values = np.linspace(0, 5, 4)
-        z_values = np.random.rand(4, 5)
+        z_values = np.arange(20).reshape(4, 5).astype(float)  # Deterministic
 
         chart.set_2d_data(x_values, y_values, z_values, "f1", "f2", "metric")
         chart.set_current_position(x_index=2, y_index=1)
@@ -109,3 +109,15 @@ class TestSweepChart2D:
         assert len(x_data) == 1
         assert x_data[0] == x_values[2]
         assert y_data[0] == y_values[1]
+
+    def test_set_2d_data_shape_validation(self, qtbot: QtBot):
+        """Raises ValueError if z_values shape doesn't match x/y dimensions."""
+        chart = SweepChart()
+        qtbot.addWidget(chart)
+
+        x_values = np.linspace(0, 10, 5)
+        y_values = np.linspace(0, 5, 4)
+        z_values = np.arange(15).reshape(3, 5).astype(float)  # Wrong shape: should be (4, 5)
+
+        with pytest.raises(ValueError, match="z_values shape"):
+            chart.set_2d_data(x_values, y_values, z_values, "f1", "f2", "metric")

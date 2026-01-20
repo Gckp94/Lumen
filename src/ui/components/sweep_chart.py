@@ -134,7 +134,20 @@ class SweepChart(QWidget):
             x_label: Label for X-axis (filter 1 name).
             y_label: Label for Y-axis (filter 2 name).
             z_label: Label for colorbar (metric name).
+
+        Raises:
+            ValueError: If z_values shape does not match (len(y_values), len(x_values)).
         """
+        # Validate z_values shape
+        expected_shape = (len(y_values), len(x_values))
+        if z_values.shape != expected_shape:
+            raise ValueError(
+                f"z_values shape {z_values.shape} does not match expected {expected_shape}"
+            )
+
+        # Note: z_label is reserved for future colorbar support
+        _ = z_label  # Unused for now
+
         self._is_2d = True
         self._x_values = x_values
         self._y_values = y_values
@@ -218,6 +231,7 @@ class SweepChart(QWidget):
 
     def clear(self) -> None:
         """Clear all chart data."""
+        self._is_2d = False
         self._x_values = None
         self._y_values = None
         self._z_values = None
