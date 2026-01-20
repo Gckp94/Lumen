@@ -56,6 +56,12 @@ class ParameterSensitivityTab(QWidget):
         self._setup_ui()
         self._connect_signals()
 
+        # Connect to app state data changes
+        self._app_state.data_loaded.connect(self._populate_sweep_columns)
+
+        # Populate if data already loaded
+        self._populate_sweep_columns()
+
     def _setup_ui(self) -> None:
         """Set up the user interface."""
         layout = QHBoxLayout(self)
@@ -245,6 +251,35 @@ class ParameterSensitivityTab(QWidget):
     def _on_2d_toggle_changed(self, enabled: bool) -> None:
         """Handle 2D sweep toggle change."""
         self._filter2_container.setVisible(enabled)
+
+    def _populate_sweep_columns(self) -> None:
+        """Populate sweep filter combo boxes with numeric columns from data."""
+        import pandas as pd
+
+        # Clear existing items
+        self._sweep_filter1_combo.clear()
+        self._sweep_filter2_combo.clear()
+
+        if not self._app_state.has_data:
+            return
+
+        baseline_df = self._app_state.baseline_df
+        if baseline_df is None or not isinstance(baseline_df, pd.DataFrame):
+            return
+
+        # Get numeric columns
+        numeric_cols = baseline_df.select_dtypes(
+            include=["int64", "float64", "int32", "float32"]
+        ).columns.tolist()
+
+        if not numeric_cols:
+            return
+
+        # Add to combo boxes
+        self._sweep_filter1_combo.addItems(numeric_cols)
+        self._sweep_filter2_combo.addItems(numeric_cols)
+
+        logger.debug("Populated sweep combos with %d numeric columns", len(numeric_cols))
 
     def _on_run_clicked(self) -> None:
         """Handle run button click - start analysis."""
