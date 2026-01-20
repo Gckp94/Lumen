@@ -241,6 +241,8 @@ class ParameterSensitivityTab(QWidget):
         self._enable_2d_checkbox.toggled.connect(self._on_2d_toggle_changed)
         self._run_btn.clicked.connect(self._on_run_clicked)
         self._cancel_btn.clicked.connect(self._on_cancel_clicked)
+        self._sweep_filter1_combo.currentTextChanged.connect(self._on_filter1_selected)
+        self._sweep_filter2_combo.currentTextChanged.connect(self._on_filter2_selected)
 
     def _on_mode_changed(self) -> None:
         """Handle mode selection change."""
@@ -251,6 +253,48 @@ class ParameterSensitivityTab(QWidget):
     def _on_2d_toggle_changed(self, enabled: bool) -> None:
         """Handle 2D sweep toggle change."""
         self._filter2_container.setVisible(enabled)
+
+    def _on_filter1_selected(self, column_name: str) -> None:
+        """Handle filter 1 column selection - auto-fill range from data."""
+        if not column_name or not self._app_state.has_data:
+            return
+
+        baseline_df = self._app_state.baseline_df
+        if baseline_df is None or column_name not in baseline_df.columns:
+            return
+
+        col_data = baseline_df[column_name].dropna()
+        if len(col_data) == 0:
+            return
+
+        min_val = float(col_data.min())
+        max_val = float(col_data.max())
+
+        self._sweep_min1_spin.setValue(min_val)
+        self._sweep_max1_spin.setValue(max_val)
+
+        logger.debug("Filter 1 '%s' range: %.4f to %.4f", column_name, min_val, max_val)
+
+    def _on_filter2_selected(self, column_name: str) -> None:
+        """Handle filter 2 column selection - auto-fill range from data."""
+        if not column_name or not self._app_state.has_data:
+            return
+
+        baseline_df = self._app_state.baseline_df
+        if baseline_df is None or column_name not in baseline_df.columns:
+            return
+
+        col_data = baseline_df[column_name].dropna()
+        if len(col_data) == 0:
+            return
+
+        min_val = float(col_data.min())
+        max_val = float(col_data.max())
+
+        self._sweep_min2_spin.setValue(min_val)
+        self._sweep_max2_spin.setValue(max_val)
+
+        logger.debug("Filter 2 '%s' range: %.4f to %.4f", column_name, min_val, max_val)
 
     def _populate_sweep_columns(self) -> None:
         """Populate sweep filter combo boxes with numeric columns from data."""
