@@ -340,10 +340,43 @@ class ParameterSensitivityTab(QWidget):
         }
         primary_metric = metric_map.get(self._metric_combo.currentText(), "expected_value")
 
+        # Build sweep filter parameters if in sweep mode
+        sweep_filter_1 = None
+        sweep_range_1 = None
+        sweep_filter_2 = None
+        sweep_range_2 = None
+
+        if is_sweep:
+            sweep_filter_1 = self._sweep_filter1_combo.currentText()
+            if not sweep_filter_1:
+                logger.warning("No filter 1 column selected for sweep")
+                self._results_label.setText("Select a column for Filter 1")
+                return
+
+            sweep_range_1 = (
+                self._sweep_min1_spin.value(),
+                self._sweep_max1_spin.value(),
+            )
+
+            if self._enable_2d_checkbox.isChecked():
+                sweep_filter_2 = self._sweep_filter2_combo.currentText()
+                if not sweep_filter_2:
+                    logger.warning("No filter 2 column selected for 2D sweep")
+                    self._results_label.setText("Select a column for Filter 2")
+                    return
+                sweep_range_2 = (
+                    self._sweep_min2_spin.value(),
+                    self._sweep_max2_spin.value(),
+                )
+
         config = ParameterSensitivityConfig(
             mode="sweep" if is_sweep else "neighborhood",
             primary_metric=primary_metric,
             grid_resolution=self._resolution_spin.value() if is_sweep else 10,
+            sweep_filter_1=sweep_filter_1,
+            sweep_range_1=sweep_range_1,
+            sweep_filter_2=sweep_filter_2,
+            sweep_range_2=sweep_range_2,
         )
 
         # Get baseline data and filters
