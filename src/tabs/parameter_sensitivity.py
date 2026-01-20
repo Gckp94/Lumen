@@ -232,6 +232,7 @@ class ParameterSensitivityTab(QWidget):
     def _connect_signals(self) -> None:
         """Connect widget signals."""
         self._mode_group.buttonClicked.connect(self._on_mode_changed)
+        self._enable_2d_checkbox.toggled.connect(self._on_2d_toggle_changed)
         self._run_btn.clicked.connect(self._on_run_clicked)
         self._cancel_btn.clicked.connect(self._on_cancel_clicked)
 
@@ -239,6 +240,11 @@ class ParameterSensitivityTab(QWidget):
         """Handle mode selection change."""
         is_sweep = self._sweep_radio.isChecked()
         self._resolution_group.setVisible(is_sweep)
+        self._sweep_config_group.setVisible(is_sweep)
+
+    def _on_2d_toggle_changed(self, enabled: bool) -> None:
+        """Handle 2D sweep toggle change."""
+        self._filter2_container.setVisible(enabled)
 
     def _on_run_clicked(self) -> None:
         """Handle run button click - start analysis."""
