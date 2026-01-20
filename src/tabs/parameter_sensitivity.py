@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.parameter_sensitivity import (
+    NeighborhoodResult,
     ParameterSensitivityConfig,
     ParameterSensitivityWorker,
     SweepResult,
@@ -450,7 +451,7 @@ class ParameterSensitivityTab(QWidget):
         if total > 0:
             self._progress_bar.setValue(int(current / total * 100))
 
-    def _on_completed(self, results) -> None:
+    def _on_completed(self, results: list[NeighborhoodResult] | SweepResult) -> None:
         """Handle analysis completion."""
         self._run_btn.setVisible(True)
         self._cancel_btn.setVisible(False)
@@ -504,6 +505,12 @@ class ParameterSensitivityTab(QWidget):
 
         # Get current metric
         metric_name = self._results_metric_combo.currentText()
+
+        # Validate metric exists
+        if metric_name not in result.metric_grids:
+            # Fall back to first available metric
+            metric_name = next(iter(result.metric_grids.keys()))
+            self._results_metric_combo.setCurrentText(metric_name)
 
         # Display based on dimensionality
         if result.filter_2_name is None:
