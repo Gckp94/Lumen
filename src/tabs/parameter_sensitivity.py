@@ -6,13 +6,9 @@ import logging
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt
-
-from src.core.parameter_sensitivity import (
-    ParameterSensitivityConfig,
-    ParameterSensitivityWorker,
-)
 from PyQt6.QtWidgets import (
     QButtonGroup,
+    QCheckBox,
     QComboBox,
     QFrame,
     QGroupBox,
@@ -26,6 +22,12 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from src.core.parameter_sensitivity import (
+    ParameterSensitivityConfig,
+    ParameterSensitivityWorker,
+)
+from src.ui.components.no_scroll_widgets import NoScrollComboBox, NoScrollDoubleSpinBox
 
 if TYPE_CHECKING:
     from src.core.app_state import AppState
