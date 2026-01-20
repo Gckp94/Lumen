@@ -490,13 +490,51 @@ class ParameterSensitivityTab(QWidget):
 
         self._results_label.setText("".join(lines))
 
-    def _display_sweep_results(self, result) -> None:
-        """Display sweep results."""
-        self._results_label.setText(
-            f"<h3>Parameter Sweep Complete</h3>"
-            f"<p>Filter: {result.filter_1_name}</p>"
-            f"<p>Grid: {len(result.filter_1_values)} points</p>"
-        )
+    def _display_sweep_results(self, result: SweepResult) -> None:
+        """Display sweep results in the chart.
+
+        Args:
+            result: SweepResult from the sensitivity engine.
+        """
+        self._sweep_result = result
+
+        # Hide placeholder, show results container
+        self._results_label.setVisible(False)
+        self._results_container.setVisible(True)
+
+        # Get current metric
+        metric_name = self._results_metric_combo.currentText()
+
+        # Display based on dimensionality
+        if result.filter_2_name is None:
+            # 1D sweep - line chart
+            self._sweep_chart.set_1d_data(
+                x_values=result.filter_1_values,
+                y_values=result.metric_grids[metric_name],
+                x_label=result.filter_1_name,
+                y_label=metric_name,
+            )
+
+            # Mark current position if available
+            if result.current_position is not None:
+                self._sweep_chart.set_current_position(x_index=result.current_position[0])
+        else:
+            # 2D sweep - heatmap
+            self._sweep_chart.set_2d_data(
+                x_values=result.filter_1_values,
+                y_values=result.filter_2_values,
+                z_values=result.metric_grids[metric_name],
+                x_label=result.filter_1_name,
+                y_label=result.filter_2_name,
+                z_label=metric_name,
+            )
+
+            # Mark current position if available
+            if result.current_position is not None:
+                self._sweep_chart.set_current_position(
+                    x_index=result.current_position[0],
+                    y_index=result.current_position[1],
+                )
 
     def _on_metric_changed(self, metric_name: str) -> None:
         """Handle metric selection change.
@@ -507,8 +545,8 @@ class ParameterSensitivityTab(QWidget):
         if self._sweep_result is None:
             return
 
-        # Re-display with new metric (will be implemented in Task 4)
-        pass
+        # Re-display with new metric
+        self._display_sweep_results(self._sweep_result)
 
     def cleanup(self) -> None:
         """Clean up resources."""
