@@ -65,3 +65,47 @@ class TestSweepChart1D:
 
         assert chart._x_values is None
         assert chart._y_values is None
+
+
+class TestSweepChart2D:
+    """Tests for 2D sweep heatmap visualization."""
+
+    def test_set_2d_data(self, qtbot: QtBot):
+        """Can set 2D sweep data."""
+        chart = SweepChart()
+        qtbot.addWidget(chart)
+
+        x_values = np.linspace(0, 10, 5)
+        y_values = np.linspace(0, 5, 4)
+        z_values = np.random.rand(4, 5)  # Shape: (len(y), len(x))
+
+        chart.set_2d_data(
+            x_values=x_values,
+            y_values=y_values,
+            z_values=z_values,
+            x_label="filter_1",
+            y_label="filter_2",
+            z_label="win_rate",
+        )
+
+        assert chart._is_2d is True
+        assert chart._z_values is not None
+        assert chart._z_values.shape == (4, 5)
+
+    def test_set_current_position_2d(self, qtbot: QtBot):
+        """Can mark current filter position on 2D heatmap."""
+        chart = SweepChart()
+        qtbot.addWidget(chart)
+
+        x_values = np.linspace(0, 10, 5)
+        y_values = np.linspace(0, 5, 4)
+        z_values = np.random.rand(4, 5)
+
+        chart.set_2d_data(x_values, y_values, z_values, "f1", "f2", "metric")
+        chart.set_current_position(x_index=2, y_index=1)
+
+        assert chart._current_marker is not None
+        x_data, y_data = chart._current_marker.getData()
+        assert len(x_data) == 1
+        assert x_data[0] == x_values[2]
+        assert y_data[0] == y_values[1]

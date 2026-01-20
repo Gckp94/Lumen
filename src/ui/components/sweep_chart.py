@@ -50,6 +50,11 @@ class SweepChart(QWidget):
         )
         self._plot_widget.addItem(self._line_curve)
 
+        # Create ImageItem for 2D heatmap
+        self._heatmap = pg.ImageItem()
+        self._plot_widget.addItem(self._heatmap)
+        self._heatmap.setVisible(False)
+
         # Create scatter for current position marker
         self._current_marker = pg.ScatterPlotItem(
             size=12,
@@ -86,8 +91,82 @@ class SweepChart(QWidget):
         self._x_values = x_values
         self._y_values = y_values
 
+        # Show line curve, hide heatmap
+        self._line_curve.setVisible(True)
+        self._heatmap.setVisible(False)
+
         # Update line curve
         self._line_curve.setData(x=x_values, y=y_values)
+
+        # Update axis labels
+        self._plot_widget.setLabel(
+            "bottom",
+            x_label,
+            **{"font-family": Fonts.DATA, "color": Colors.TEXT_SECONDARY},
+        )
+        self._plot_widget.setLabel(
+            "left",
+            y_label,
+            **{"font-family": Fonts.DATA, "color": Colors.TEXT_SECONDARY},
+        )
+
+        # Clear current marker
+        self._current_marker.setData(x=[], y=[])
+
+        # Auto-range
+        self._plot_widget.autoRange()
+
+    def set_2d_data(
+        self,
+        x_values: np.ndarray,
+        y_values: np.ndarray,
+        z_values: np.ndarray,
+        x_label: str,
+        y_label: str,
+        z_label: str,
+    ) -> None:
+        """Set data for 2D sweep heatmap visualization.
+
+        Args:
+            x_values: Filter 1 values (X-axis).
+            y_values: Filter 2 values (Y-axis).
+            z_values: Metric values as 2D array, shape (len(y), len(x)).
+            x_label: Label for X-axis (filter 1 name).
+            y_label: Label for Y-axis (filter 2 name).
+            z_label: Label for colorbar (metric name).
+        """
+        self._is_2d = True
+        self._x_values = x_values
+        self._y_values = y_values
+        self._z_values = z_values
+
+        # Hide line curve, show heatmap
+        self._line_curve.setVisible(False)
+        self._heatmap.setVisible(True)
+
+        # Calculate cell dimensions
+        x_step = (x_values[-1] - x_values[0]) / (len(x_values) - 1) if len(x_values) > 1 else 1
+        y_step = (y_values[-1] - y_values[0]) / (len(y_values) - 1) if len(y_values) > 1 else 1
+
+        # Set heatmap data and position
+        self._heatmap.setImage(z_values.T)  # Transpose for correct orientation
+        self._heatmap.setRect(
+            x_values[0] - x_step / 2,
+            y_values[0] - y_step / 2,
+            x_values[-1] - x_values[0] + x_step,
+            y_values[-1] - y_values[0] + y_step,
+        )
+
+        # Create colormap (coral to cyan gradient)
+        cmap = pg.ColorMap(
+            pos=[0, 0.5, 1],
+            color=[
+                pg.mkColor(Colors.SIGNAL_CORAL),
+                pg.mkColor(Colors.TEXT_SECONDARY),
+                pg.mkColor(Colors.SIGNAL_CYAN),
+            ],
+        )
+        self._heatmap.setColorMap(cmap)
 
         # Update axis labels
         self._plot_widget.setLabel(
@@ -120,8 +199,16 @@ class SweepChart(QWidget):
             return
 
         if self._is_2d:
-            # 2D heatmap marker - will be implemented in Task 2
-            pass
+            # 2D heatmap marker
+            if (
+                self._y_values is not None
+                and y_index is not None
+                and 0 <= x_index < len(self._x_values)
+                and 0 <= y_index < len(self._y_values)
+            ):
+                x = self._x_values[x_index]
+                y = self._y_values[y_index]
+                self._current_marker.setData(x=[x], y=[y])
         else:
             # 1D line chart marker
             if 0 <= x_index < len(self._x_values) and self._y_values is not None:
@@ -136,3 +223,6 @@ class SweepChart(QWidget):
         self._z_values = None
         self._line_curve.setData(x=[], y=[])
         self._current_marker.setData(x=[], y=[])
+        self._heatmap.setImage(None)
+        self._heatmap.setVisible(False)
+        self._line_curve.setVisible(True)
