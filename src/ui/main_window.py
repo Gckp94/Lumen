@@ -17,6 +17,7 @@ from src.tabs.feature_insights import FeatureInsightsTab
 from src.tabs.monte_carlo import MonteCarloTab
 from src.tabs.parameter_sensitivity import ParameterSensitivityTab
 from src.tabs.pnl_stats import PnLStatsTab
+from src.tabs.portfolio_overview import PortfolioOverviewTab
 from src.ui.dock_manager import DockManager
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ class MainWindow(QMainWindow):
             ("Monte Carlo", MonteCarloTab(self._app_state)),
             ("Parameter Sensitivity", ParameterSensitivityTab(self._app_state)),
             ("Feature Insights", FeatureInsightsTab(self._app_state)),
+            ("Portfolio Overview", PortfolioOverviewTab(self._app_state)),
         ]
 
         for title, widget in tabs:
