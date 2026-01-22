@@ -41,3 +41,30 @@ class TestStrategyConfig:
         assert mapping.date_col == "trade_date"
         assert mapping.gain_pct_col == "return_pct"
         assert mapping.win_loss_col == "outcome"
+
+
+class TestStrategyConfigSheetName:
+    def test_strategy_config_sheet_name_defaults_to_none(self):
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                date_col="date",
+                gain_pct_col="gain",
+                win_loss_col="wl",
+            ),
+        )
+        assert config.sheet_name is None
+
+    def test_strategy_config_stores_sheet_name(self):
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                date_col="date",
+                gain_pct_col="gain",
+                win_loss_col="wl",
+            ),
+            sheet_name="Sheet2",
+        )
+        assert config.sheet_name == "Sheet2"

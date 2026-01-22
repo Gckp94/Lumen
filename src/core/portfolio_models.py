@@ -25,6 +25,7 @@ class StrategyConfig:
     name: str
     file_path: str
     column_mapping: PortfolioColumnMapping
+    sheet_name: Optional[str] = None
     stop_pct: float = 2.0
     efficiency: float = 1.0
     size_type: PositionSizeType = PositionSizeType.CUSTOM_PCT
