@@ -28,10 +28,10 @@ def sample_csv(tmp_path):
 
 
 class TestPortfolioOverviewIntegration:
-    def test_full_workflow(self, app, qtbot, sample_csv, tmp_path):
+    def test_full_workflow(self, app, qtbot, sample_csv, tmp_path, isolated_config_manager):
         """Test adding strategy, configuring, and seeing charts update."""
         app_state = AppState()
-        tab = PortfolioOverviewTab(app_state)
+        tab = PortfolioOverviewTab(app_state, config_manager=isolated_config_manager)
         qtbot.addWidget(tab)
 
         # Load CSV data directly (simulating import dialog)
@@ -52,7 +52,7 @@ class TestPortfolioOverviewIntegration:
         assert "Test Strategy" in tab._charts._data
         assert len(tab._charts._data["Test Strategy"]) == 10
 
-    def test_baseline_vs_combined_calculation(self, app, qtbot, tmp_path):
+    def test_baseline_vs_combined_calculation(self, app, qtbot, tmp_path, isolated_config_manager):
         """Test that baseline and combined are calculated correctly."""
         # Create two CSV files
         df1 = pd.DataFrame({
@@ -72,7 +72,7 @@ class TestPortfolioOverviewIntegration:
         df2.to_csv(csv2, index=False)
 
         app_state = AppState()
-        tab = PortfolioOverviewTab(app_state)
+        tab = PortfolioOverviewTab(app_state, config_manager=isolated_config_manager)
         qtbot.addWidget(tab)
 
         # Add baseline strategy
