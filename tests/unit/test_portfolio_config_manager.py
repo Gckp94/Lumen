@@ -46,3 +46,71 @@ class TestPortfolioConfigManager:
 
         assert strategies == []
         assert account_start == 100_000  # default
+
+
+class TestPortfolioConfigManagerSheetName:
+    def test_saves_sheet_name(self, tmp_path):
+        config_path = tmp_path / "test_config.json"
+        manager = PortfolioConfigManager(config_path)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                date_col="date",
+                gain_pct_col="gain",
+                win_loss_col="wl",
+            ),
+            sheet_name="Sheet2",
+        )
+        manager.save([config], 100_000)
+
+        with open(config_path) as f:
+            data = json.load(f)
+
+        assert data["strategies"][0]["sheet_name"] == "Sheet2"
+
+    def test_loads_sheet_name(self, tmp_path):
+        config_path = tmp_path / "test_config.json"
+        data = {
+            "account_start": 100_000,
+            "strategies": [{
+                "name": "Test",
+                "file_path": "/path/to/file.xlsx",
+                "column_mapping": {
+                    "date_col": "date",
+                    "gain_pct_col": "gain",
+                    "win_loss_col": "wl",
+                },
+                "sheet_name": "Sheet2",
+            }],
+        }
+        with open(config_path, "w") as f:
+            json.dump(data, f)
+
+        manager = PortfolioConfigManager(config_path)
+        strategies, _ = manager.load()
+
+        assert strategies[0].sheet_name == "Sheet2"
+
+    def test_loads_none_when_sheet_name_missing(self, tmp_path):
+        config_path = tmp_path / "test_config.json"
+        data = {
+            "account_start": 100_000,
+            "strategies": [{
+                "name": "Test",
+                "file_path": "/path/to/file.csv",
+                "column_mapping": {
+                    "date_col": "date",
+                    "gain_pct_col": "gain",
+                    "win_loss_col": "wl",
+                },
+            }],
+        }
+        with open(config_path, "w") as f:
+            json.dump(data, f)
+
+        manager = PortfolioConfigManager(config_path)
+        strategies, _ = manager.load()
+
+        assert strategies[0].sheet_name is None
