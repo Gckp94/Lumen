@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
     QHeaderView,
 )
 
+from src.core.file_loader import FileLoader
 from src.core.portfolio_models import PortfolioColumnMapping
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
 
@@ -38,6 +39,8 @@ class ImportStrategyDialog(QDialog):
         self.setMinimumSize(500, 500)
         self._preview_df: Optional[pd.DataFrame] = None
         self._file_path: Optional[str] = None
+        self._file_loader = FileLoader()
+        self._selected_sheet: Optional[str] = None
         self._setup_ui()
         self._connect_signals()
 
@@ -55,6 +58,18 @@ class ImportStrategyDialog(QDialog):
         self._browse_btn = QPushButton("Browse...")
         file_layout.addWidget(self._browse_btn)
         layout.addLayout(file_layout)
+
+        # Sheet selection (hidden by default, shown for Excel files)
+        sheet_layout = QHBoxLayout()
+        self._sheet_label = QLabel("Sheet:")
+        self._sheet_label.setVisible(False)
+        sheet_layout.addWidget(self._sheet_label)
+        self._sheet_selector = QComboBox()
+        self._sheet_selector.setVisible(False)
+        self._sheet_selector.setMinimumWidth(150)
+        sheet_layout.addWidget(self._sheet_selector, stretch=1)
+        sheet_layout.addStretch()
+        layout.addLayout(sheet_layout)
 
         # Column mapping group
         mapping_group = QGroupBox("Column Mapping")
@@ -184,3 +199,9 @@ class ImportStrategyDialog(QDialog):
     def get_dataframe(self) -> Optional[pd.DataFrame]:
         """Get the loaded DataFrame."""
         return self._preview_df
+
+    def get_selected_sheet(self) -> Optional[str]:
+        """Get the selected sheet name, or None if not applicable."""
+        if self._sheet_selector.isVisible() and self._sheet_selector.currentText():
+            return self._sheet_selector.currentText()
+        return None

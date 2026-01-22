@@ -97,3 +97,16 @@ class TestImportStrategyDialog:
         assert result is not None
         assert list(result.columns) == ["col1", "col2"]
         assert len(result) == 2
+
+
+class TestImportStrategyDialogSheetSelection:
+    def test_sheet_selector_hidden_by_default(self, app, qtbot):
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        assert not dialog._sheet_selector.isVisible()
+        assert not dialog._sheet_label.isVisible()
+
+    def test_get_selected_sheet_returns_none_when_hidden(self, app, qtbot):
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        assert dialog.get_selected_sheet() is None
