@@ -46,3 +46,47 @@ class TestPortfolioOverviewTab:
         tab = PortfolioOverviewTab(mock_app_state)
         qtbot.addWidget(tab)
         assert tab._charts is not None
+
+    def test_debounce_timer_configured_correctly(self, app, qtbot, mock_app_state):
+        """Verify timer is configured with 300ms debounce."""
+        tab = PortfolioOverviewTab(mock_app_state)
+        qtbot.addWidget(tab)
+        # Timer should be single shot
+        assert tab._recalc_timer.isSingleShot()
+        # Start the timer to verify interval is set correctly
+        tab._schedule_recalculation()
+        assert tab._recalc_timer.interval() == 300
+
+    def test_schedule_recalculation_starts_timer(self, app, qtbot, mock_app_state):
+        """Verify schedule_recalculation starts the debounce timer."""
+        tab = PortfolioOverviewTab(mock_app_state)
+        qtbot.addWidget(tab)
+        tab._schedule_recalculation()
+        assert tab._recalc_timer.isActive()
+
+    def test_recalculate_updates_charts(self, app, qtbot, mock_app_state):
+        """Verify recalculation updates charts with data."""
+        import pandas as pd
+        from src.core.portfolio_models import PortfolioColumnMapping, StrategyConfig
+
+        tab = PortfolioOverviewTab(mock_app_state)
+        qtbot.addWidget(tab)
+
+        # Add a mock strategy with data
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+        )
+        tab._strategy_data["Test"] = pd.DataFrame({
+            "date": pd.to_datetime(["2024-01-01"]),
+            "gain_pct": [5.0],
+            "wl": ["W"],
+        })
+        tab._strategy_table.add_strategy(config)
+
+        # Trigger recalculation directly
+        tab._recalculate()
+
+        # Charts should have data
+        assert len(tab._charts._data) > 0
