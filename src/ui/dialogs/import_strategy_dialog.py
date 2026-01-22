@@ -107,10 +107,12 @@ class ImportStrategyDialog(QDialog):
             combo.currentTextChanged.connect(self._validate_mapping)
 
     def _on_browse(self):
+        # Use home directory as starting point to avoid slow network drive resolution
+        start_dir = str(Path.home())
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Strategy File",
-            "",
+            start_dir,
             "Data Files (*.csv *.xlsx *.xls);;CSV Files (*.csv);;Excel Files (*.xlsx *.xls)",
         )
         if file_path:
