@@ -64,12 +64,12 @@ class TestPortfolioOverviewTab:
         tab._schedule_recalculation()
         assert tab._recalc_timer.isActive()
 
-    def test_recalculate_updates_charts(self, app, qtbot, mock_app_state):
+    def test_recalculate_updates_charts(self, app, qtbot, mock_app_state, isolated_config_manager):
         """Verify recalculation updates charts with data."""
         import pandas as pd
         from src.core.portfolio_models import PortfolioColumnMapping, StrategyConfig
 
-        tab = PortfolioOverviewTab(mock_app_state)
+        tab = PortfolioOverviewTab(mock_app_state, config_manager=isolated_config_manager)
         qtbot.addWidget(tab)
 
         # Add a mock strategy with data
