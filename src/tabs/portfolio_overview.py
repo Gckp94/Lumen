@@ -49,17 +49,23 @@ class PortfolioOverviewTab(QWidget):
         _recalc_timer: Timer for debounced recalculation.
     """
 
-    def __init__(self, app_state: AppState, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        app_state: AppState,
+        parent: Optional[QWidget] = None,
+        config_manager: Optional[PortfolioConfigManager] = None,
+    ) -> None:
         """Initialize the Portfolio Overview tab.
 
         Args:
             app_state: Application state instance.
             parent: Optional parent widget.
+            config_manager: Optional config manager for dependency injection.
         """
         super().__init__(parent)
         self._app_state = app_state
         self._calculator = PortfolioCalculator()
-        self._config_manager = PortfolioConfigManager()
+        self._config_manager = config_manager or PortfolioConfigManager()
         self._strategy_data: dict[str, pd.DataFrame] = {}
         self._recalc_timer = QTimer(self)
         self._recalc_timer.setSingleShot(True)

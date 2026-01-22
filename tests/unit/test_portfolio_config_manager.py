@@ -114,3 +114,20 @@ class TestPortfolioConfigManagerSheetName:
         strategies, _ = manager.load()
 
         assert strategies[0].sheet_name is None
+
+
+def test_portfolio_overview_accepts_config_manager(tmp_path):
+    """PortfolioOverviewTab should accept injected config manager."""
+    from PyQt6.QtWidgets import QApplication
+    from src.tabs.portfolio_overview import PortfolioOverviewTab
+    from src.core.app_state import AppState
+    from src.core.portfolio_config_manager import PortfolioConfigManager
+
+    app = QApplication.instance() or QApplication([])
+    config_file = tmp_path / "test_portfolio_config.json"
+    config_manager = PortfolioConfigManager(config_file)
+    app_state = AppState()
+
+    # This should work without error
+    tab = PortfolioOverviewTab(app_state, config_manager=config_manager)
+    assert tab._config_manager._config_path == config_file
