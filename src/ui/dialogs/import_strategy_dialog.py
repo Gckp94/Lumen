@@ -117,6 +117,7 @@ class ImportStrategyDialog(QDialog):
         self._browse_btn.clicked.connect(self._on_browse)
         self._cancel_btn.clicked.connect(self.reject)
         self._import_btn.clicked.connect(self.accept)
+        self._sheet_selector.currentTextChanged.connect(self._on_sheet_changed)
 
         for combo in [self._date_combo, self._gain_combo, self._wl_combo]:
             combo.currentTextChanged.connect(self._validate_mapping)
@@ -134,18 +135,41 @@ class ImportStrategyDialog(QDialog):
             self._load_file(file_path)
 
     def _load_file(self, file_path: str):
+        """Load a file and populate the preview."""
         try:
-            if file_path.endswith(".csv"):
-                df = pd.read_csv(file_path)
-            else:
-                df = pd.read_excel(file_path)
-
             self._file_path = file_path
+            suffix = Path(file_path).suffix.lower()
+
+            # Handle Excel files - show sheet selector
+            if suffix in {".xlsx", ".xls"}:
+                sheet_names = self._file_loader.get_sheet_names(Path(file_path))
+                self._sheet_selector.clear()
+                self._sheet_selector.addItems(sheet_names)
+                self._sheet_label.setVisible(True)
+                self._sheet_selector.setVisible(True)
+                # Load first sheet by default
+                df = self._file_loader.load(Path(file_path), sheet_names[0])
+            else:
+                # CSV file - hide sheet selector
+                self._sheet_label.setVisible(False)
+                self._sheet_selector.setVisible(False)
+                df = pd.read_csv(file_path)
+
             self._file_label.setText(Path(file_path).name)
             self._name_edit.setText(Path(file_path).stem)
             self.set_preview_data(df)
         except Exception as e:
             logger.error(f"Failed to load file: {e}")
+
+    def _on_sheet_changed(self, sheet_name: str):
+        """Handle sheet selection change - reload data from selected sheet."""
+        if not self._file_path or not sheet_name:
+            return
+        try:
+            df = self._file_loader.load(Path(self._file_path), sheet_name)
+            self.set_preview_data(df)
+        except Exception as e:
+            logger.error(f"Failed to load sheet {sheet_name}: {e}")
 
     def set_preview_data(self, df: pd.DataFrame):
         """Set the preview data and populate column dropdowns."""

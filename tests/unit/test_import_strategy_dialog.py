@@ -110,3 +110,53 @@ class TestImportStrategyDialogSheetSelection:
         dialog = ImportStrategyDialog()
         qtbot.addWidget(dialog)
         assert dialog.get_selected_sheet() is None
+
+
+class TestImportStrategyDialogExcelSheetSelection:
+    def test_shows_sheet_selector_for_excel_file(self, app, qtbot, tmp_path):
+        # Create a test Excel file with multiple sheets
+        excel_path = tmp_path / "test.xlsx"
+        with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+            pd.DataFrame({"col1": [1]}).to_excel(writer, sheet_name="Sheet1", index=False)
+            pd.DataFrame({"col2": [2]}).to_excel(writer, sheet_name="Sheet2", index=False)
+
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+
+        # Simulate loading the Excel file
+        dialog._load_file(str(excel_path))
+
+        # Use isVisibleTo to check visibility relative to parent (works without showing dialog)
+        assert not dialog._sheet_selector.isHidden()
+        assert not dialog._sheet_label.isHidden()
+        assert dialog._sheet_selector.count() == 2
+        assert dialog._sheet_selector.itemText(0) == "Sheet1"
+        assert dialog._sheet_selector.itemText(1) == "Sheet2"
+
+    def test_hides_sheet_selector_for_csv_file(self, app, qtbot, tmp_path):
+        csv_path = tmp_path / "test.csv"
+        pd.DataFrame({"col1": [1, 2]}).to_csv(csv_path, index=False)
+
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        dialog._load_file(str(csv_path))
+
+        assert dialog._sheet_selector.isHidden()
+        assert dialog._sheet_label.isHidden()
+
+    def test_loads_selected_sheet_data(self, app, qtbot, tmp_path):
+        excel_path = tmp_path / "test.xlsx"
+        with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+            pd.DataFrame({"sheet1_col": [1]}).to_excel(writer, sheet_name="First", index=False)
+            pd.DataFrame({"sheet2_col": [2]}).to_excel(writer, sheet_name="Second", index=False)
+
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        dialog._load_file(str(excel_path))
+
+        # Select second sheet
+        dialog._sheet_selector.setCurrentText("Second")
+
+        # Verify preview shows second sheet data
+        assert "sheet2_col" in [dialog._preview_table.horizontalHeaderItem(i).text()
+                                for i in range(dialog._preview_table.columnCount())]
