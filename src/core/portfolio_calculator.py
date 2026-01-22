@@ -1,0 +1,101 @@
+# src/core/portfolio_calculator.py
+"""Portfolio equity and drawdown calculation."""
+import logging
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+
+from src.core.portfolio_models import StrategyConfig, PositionSizeType
+
+logger = logging.getLogger(__name__)
+
+
+class PortfolioCalculator:
+    """Calculates equity curves for single or multiple strategies."""
+
+    def __init__(self, starting_capital: float = 100_000):
+        self.starting_capital = starting_capital
+
+    def calculate_single_strategy(
+        self,
+        trades_df: pd.DataFrame,
+        config: StrategyConfig,
+    ) -> pd.DataFrame:
+        """Calculate equity curve for a single strategy with daily compounding.
+
+        Args:
+            trades_df: DataFrame with trade data (must have columns from config.column_mapping)
+            config: Strategy configuration
+
+        Returns:
+            DataFrame with columns: date, trade_num, pnl, equity, peak, drawdown
+        """
+        if trades_df.empty:
+            return pd.DataFrame(columns=["date", "trade_num", "pnl", "equity", "peak", "drawdown"])
+
+        mapping = config.column_mapping
+        df = trades_df.copy()
+        df = df.sort_values(mapping.date_col).reset_index(drop=True)
+
+        # Group by date for daily compounding
+        df["_date"] = pd.to_datetime(df[mapping.date_col]).dt.date
+
+        results = []
+        account_value = self.starting_capital
+        peak = self.starting_capital
+        trade_num = 0
+
+        for date, day_trades in df.groupby("_date", sort=True):
+            day_opening = account_value
+
+            for _, trade in day_trades.iterrows():
+                trade_num += 1
+                gain_pct = float(trade[mapping.gain_pct_col])
+
+                # Calculate position size
+                position_size = self._calculate_position_size(
+                    day_opening, config
+                )
+
+                # Apply efficiency and stop adjustment
+                adjusted_gain = gain_pct * config.efficiency
+                pnl = position_size * (adjusted_gain / 100.0)
+
+                account_value += pnl
+                peak = max(peak, account_value)
+                drawdown = account_value - peak
+
+                results.append({
+                    "date": trade[mapping.date_col],
+                    "trade_num": trade_num,
+                    "pnl": pnl,
+                    "equity": account_value,
+                    "peak": peak,
+                    "drawdown": drawdown,
+                })
+
+        return pd.DataFrame(results)
+
+    def _calculate_position_size(
+        self,
+        account_value: float,
+        config: StrategyConfig,
+    ) -> float:
+        """Calculate position size based on config."""
+        if config.size_type == PositionSizeType.FLAT_DOLLAR:
+            size = config.size_value
+        elif config.size_type == PositionSizeType.CUSTOM_PCT:
+            size = account_value * (config.size_value / 100.0)
+        elif config.size_type == PositionSizeType.FRAC_KELLY:
+            # For frac kelly, size_value is the fraction (e.g., 0.25 for quarter kelly)
+            # Simplified: treat as percentage for now
+            size = account_value * (config.size_value / 100.0)
+        else:
+            size = account_value * 0.10  # fallback 10%
+
+        # Apply max compound limit
+        if config.max_compound is not None:
+            size = min(size, config.max_compound)
+
+        return size
