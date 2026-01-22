@@ -65,3 +65,97 @@ class TestPortfolioCalculatorSingleStrategy:
         # 10% of 100k = 10k, but capped at 5k
         # Day 1: 5% of 5k = 250 gain
         assert result.iloc[0]["equity"] == pytest.approx(100_250, rel=0.01)
+
+    def test_flat_dollar_position_sizing(self, sample_trades):
+        """FLAT_DOLLAR uses fixed dollar amount as position size."""
+        config = StrategyConfig(
+            name="FlatDollar",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            size_type=PositionSizeType.FLAT_DOLLAR,
+            size_value=5_000,  # Fixed $5k position
+            stop_pct=2.0,
+            efficiency=1.0,
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_single_strategy(sample_trades, config)
+
+        # Day 1: 5% gain on $5k position = $250 gain
+        assert result.iloc[0]["equity"] == pytest.approx(100_250, rel=0.01)
+
+    def test_flat_dollar_with_max_compound(self, sample_trades):
+        """FLAT_DOLLAR respects max_compound cap."""
+        config = StrategyConfig(
+            name="FlatDollarCapped",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            size_type=PositionSizeType.FLAT_DOLLAR,
+            size_value=10_000,  # $10k position
+            max_compound=5_000,  # But capped at $5k
+            stop_pct=2.0,
+            efficiency=1.0,
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_single_strategy(sample_trades, config)
+
+        # Day 1: 5% gain on $5k (capped) position = $250 gain
+        assert result.iloc[0]["equity"] == pytest.approx(100_250, rel=0.01)
+
+    def test_frac_kelly_position_sizing(self, sample_trades):
+        """FRAC_KELLY uses size_value as percentage multiplier."""
+        config = StrategyConfig(
+            name="FracKelly",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            size_type=PositionSizeType.FRAC_KELLY,
+            size_value=25.0,  # 25% (quarter kelly simplified as percentage)
+            stop_pct=2.0,
+            efficiency=1.0,
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_single_strategy(sample_trades, config)
+
+        # Day 1: 5% gain on 25% of 100k = 5% on $25k = $1250 gain
+        assert result.iloc[0]["equity"] == pytest.approx(101_250, rel=0.01)
+
+    def test_efficiency_multiplier(self, sample_trades):
+        """Efficiency multiplies the gain_pct."""
+        config = StrategyConfig(
+            name="Efficiency",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            size_type=PositionSizeType.CUSTOM_PCT,
+            size_value=10.0,  # 10% position
+            stop_pct=2.0,
+            efficiency=0.5,  # 50% efficiency
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_single_strategy(sample_trades, config)
+
+        # Day 1: 5% gain * 0.5 efficiency = 2.5% effective gain
+        # Position: 10% of 100k = $10k
+        # PnL: 2.5% of $10k = $250
+        assert result.iloc[0]["equity"] == pytest.approx(100_250, rel=0.01)
+
+    def test_empty_dataframe_returns_empty_with_columns(self):
+        """Empty DataFrame returns empty DataFrame with correct columns."""
+        config = StrategyConfig(
+            name="Empty",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            size_type=PositionSizeType.CUSTOM_PCT,
+            size_value=10.0,
+            stop_pct=2.0,
+            efficiency=1.0,
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        empty_df = pd.DataFrame(columns=["date", "gain_pct", "wl"])
+        result = calc.calculate_single_strategy(empty_df, config)
+
+        assert len(result) == 0
+        assert "date" in result.columns
+        assert "trade_num" in result.columns
+        assert "pnl" in result.columns
+        assert "equity" in result.columns
+        assert "peak" in result.columns
+        assert "drawdown" in result.columns
