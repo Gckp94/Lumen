@@ -6,6 +6,7 @@ and visualizing multi-strategy portfolio performance.
 """
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
@@ -190,12 +191,15 @@ class PortfolioOverviewTab(QWidget):
         self._account_start_spin.setValue(account_start)
 
         for config in strategies:
-            # Try to reload the CSV data
+            # Try to reload the data file
             try:
                 if config.file_path.endswith(".csv"):
                     df = pd.read_csv(config.file_path)
                 else:
-                    df = pd.read_excel(config.file_path)
+                    # Use stored sheet_name for Excel files
+                    from src.core.file_loader import FileLoader
+                    loader = FileLoader()
+                    df = loader.load(Path(config.file_path), config.sheet_name)
                 self._strategy_data[config.name] = df
                 self._strategy_table.add_strategy(config)
             except Exception as e:
@@ -215,6 +219,7 @@ class PortfolioOverviewTab(QWidget):
             file_path = dialog.get_file_path()
             strategy_name = dialog.get_strategy_name()
             column_mapping = dialog.get_column_mapping()
+            sheet_name = dialog.get_selected_sheet()
             df = dialog.get_dataframe()
 
             if df is not None and file_path:
@@ -223,6 +228,7 @@ class PortfolioOverviewTab(QWidget):
                     name=strategy_name,
                     file_path=file_path,
                     column_mapping=column_mapping,
+                    sheet_name=sheet_name,
                 )
 
                 # Store the data
@@ -234,7 +240,8 @@ class PortfolioOverviewTab(QWidget):
                 # Trigger recalculation
                 self._schedule_recalculation()
 
-                logger.info(f"Added strategy: {strategy_name} from {file_path}")
+                logger.info(f"Added strategy: {strategy_name} from {file_path}" +
+                           (f" sheet={sheet_name}" if sheet_name else ""))
 
     def _schedule_recalculation(self) -> None:
         """Schedule a recalculation with debouncing."""
