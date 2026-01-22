@@ -99,3 +99,77 @@ class PortfolioCalculator:
             size = min(size, config.max_compound)
 
         return size
+
+    def calculate_portfolio(
+        self,
+        strategies: list[tuple[pd.DataFrame, StrategyConfig]],
+    ) -> pd.DataFrame:
+        """Calculate combined equity curve for multiple strategies.
+
+        Trades are merged chronologically. All trades on the same day use
+        that day's opening account value for position sizing.
+
+        Args:
+            strategies: List of (trades_df, config) tuples
+
+        Returns:
+            DataFrame with columns: date, trade_num, strategy, pnl, equity, peak, drawdown
+        """
+        if not strategies:
+            return pd.DataFrame(
+                columns=["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown"]
+            )
+
+        all_trades = []
+        for trades_df, config in strategies:
+            if trades_df.empty:
+                continue
+            df = trades_df.copy()
+            mapping = config.column_mapping
+            df["_strategy_name"] = config.name
+            df["_gain_pct"] = df[mapping.gain_pct_col]
+            df["_date"] = pd.to_datetime(df[mapping.date_col])
+            df["_config"] = [config] * len(df)
+            all_trades.append(df[["_date", "_gain_pct", "_strategy_name", "_config"]])
+
+        if not all_trades:
+            return pd.DataFrame(
+                columns=["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown"]
+            )
+
+        merged = pd.concat(all_trades, ignore_index=True)
+        merged = merged.sort_values("_date").reset_index(drop=True)
+        merged["_date_only"] = merged["_date"].dt.date
+
+        results = []
+        account_value = self.starting_capital
+        peak = self.starting_capital
+        trade_num = 0
+
+        for date, day_trades in merged.groupby("_date_only", sort=True):
+            day_opening = account_value
+
+            for _, trade in day_trades.iterrows():
+                trade_num += 1
+                config: StrategyConfig = trade["_config"]
+                gain_pct = float(trade["_gain_pct"])
+
+                position_size = self._calculate_position_size(day_opening, config)
+                adjusted_gain = gain_pct * config.efficiency
+                pnl = position_size * (adjusted_gain / 100.0)
+
+                account_value += pnl
+                peak = max(peak, account_value)
+                drawdown = account_value - peak
+
+                results.append({
+                    "date": trade["_date"],
+                    "trade_num": trade_num,
+                    "strategy": trade["_strategy_name"],
+                    "pnl": pnl,
+                    "equity": account_value,
+                    "peak": peak,
+                    "drawdown": drawdown,
+                })
+
+        return pd.DataFrame(results)

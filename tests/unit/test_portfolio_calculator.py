@@ -159,3 +159,64 @@ class TestPortfolioCalculatorSingleStrategy:
         assert "equity" in result.columns
         assert "peak" in result.columns
         assert "drawdown" in result.columns
+
+
+class TestPortfolioCalculatorMultiStrategy:
+    @pytest.fixture
+    def strategy_a_trades(self):
+        return pd.DataFrame({
+            "date": pd.to_datetime(["2024-01-01", "2024-01-03"]),
+            "gain_pct": [5.0, 3.0],
+            "wl": ["W", "W"],
+        })
+
+    @pytest.fixture
+    def strategy_b_trades(self):
+        return pd.DataFrame({
+            "date": pd.to_datetime(["2024-01-02", "2024-01-03"]),
+            "gain_pct": [2.0, -1.0],
+            "wl": ["W", "L"],
+        })
+
+    @pytest.fixture
+    def config_a(self):
+        return StrategyConfig(
+            name="Strategy A",
+            file_path="a.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            size_type=PositionSizeType.CUSTOM_PCT,
+            size_value=10.0,
+        )
+
+    @pytest.fixture
+    def config_b(self):
+        return StrategyConfig(
+            name="Strategy B",
+            file_path="b.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            size_type=PositionSizeType.CUSTOM_PCT,
+            size_value=5.0,
+        )
+
+    def test_merge_strategies_chronologically(self, strategy_a_trades, strategy_b_trades, config_a, config_b):
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_portfolio(
+            strategies=[(strategy_a_trades, config_a), (strategy_b_trades, config_b)]
+        )
+        assert len(result) == 4
+        assert result.iloc[0]["strategy"] == "Strategy A"
+        assert result.iloc[1]["strategy"] == "Strategy B"
+
+    def test_same_day_trades_use_same_opening_value(self, strategy_a_trades, strategy_b_trades, config_a, config_b):
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_portfolio(
+            strategies=[(strategy_a_trades, config_a), (strategy_b_trades, config_b)]
+        )
+        day3_trades = result[result["date"].dt.date == pd.Timestamp("2024-01-03").date()]
+        assert len(day3_trades) == 2
+
+    def test_empty_input_returns_empty_with_columns(self):
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_portfolio(strategies=[])
+        assert len(result) == 0
+        assert list(result.columns) == ["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown"]
