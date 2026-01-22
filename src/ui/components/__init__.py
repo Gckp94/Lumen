@@ -46,6 +46,7 @@ from src.ui.components.monte_carlo_section import (
 from src.ui.components.metrics_grid import MetricsGrid
 from src.ui.components.metrics_section_card import MetricsSectionCard
 from src.ui.components.range_analysis_table import RangeAnalysisTable
+from src.ui.components.strategy_table import StrategyTableWidget
 from src.ui.components.no_scroll_widgets import (
     NoScrollComboBox,
     NoScrollDoubleSpinBox,
@@ -104,6 +105,7 @@ __all__ = [
     "RangeAnalysisTable",
     "RunButton",
     "SimulationTypeToggle",
+    "StrategyTableWidget",
     "TabbedChartContainer",
     "Toast",
     "ToggleSwitch",
