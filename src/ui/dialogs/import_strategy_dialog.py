@@ -226,6 +226,9 @@ class ImportStrategyDialog(QDialog):
 
     def get_selected_sheet(self) -> Optional[str]:
         """Get the selected sheet name, or None if not applicable."""
-        if self._sheet_selector.isVisible() and self._sheet_selector.currentText():
+        # Check if sheet selector has items (indicating an Excel file was loaded)
+        # Note: Use count() > 0 instead of isVisible() since isVisible() returns False
+        # when the dialog itself is not shown (e.g., during unit tests)
+        if self._sheet_selector.count() > 0 and self._sheet_selector.currentText():
             return self._sheet_selector.currentText()
         return None
