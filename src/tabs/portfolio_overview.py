@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.app_state import AppState
 from src.core.portfolio_calculator import PortfolioCalculator
+from src.core.portfolio_config_manager import PortfolioConfigManager
 from src.core.portfolio_models import PortfolioColumnMapping, StrategyConfig
 from src.ui.components.no_scroll_widgets import NoScrollDoubleSpinBox
 from src.ui.components.portfolio_charts import PortfolioChartsWidget
@@ -57,6 +58,7 @@ class PortfolioOverviewTab(QWidget):
         super().__init__(parent)
         self._app_state = app_state
         self._calculator = PortfolioCalculator()
+        self._config_manager = PortfolioConfigManager()
         self._strategy_data: dict[str, pd.DataFrame] = {}
         self._recalc_timer = QTimer(self)
         self._recalc_timer.setSingleShot(True)
@@ -64,6 +66,7 @@ class PortfolioOverviewTab(QWidget):
 
         self._setup_ui()
         self._connect_signals()
+        self._load_saved_config()
 
     def _setup_ui(self) -> None:
         """Set up the tab layout."""
@@ -181,6 +184,28 @@ class PortfolioOverviewTab(QWidget):
         self._strategy_table.strategy_changed.connect(self._schedule_recalculation)
         self._account_start_spin.valueChanged.connect(self._schedule_recalculation)
 
+    def _load_saved_config(self) -> None:
+        """Load saved strategies on startup."""
+        strategies, account_start = self._config_manager.load()
+        self._account_start_spin.setValue(account_start)
+
+        for config in strategies:
+            # Try to reload the CSV data
+            try:
+                if config.file_path.endswith(".csv"):
+                    df = pd.read_csv(config.file_path)
+                else:
+                    df = pd.read_excel(config.file_path)
+                self._strategy_data[config.name] = df
+                self._strategy_table.add_strategy(config)
+            except Exception as e:
+                logger.warning(f"Could not load file for {config.name}: {e}")
+                # Still add strategy but data will be missing
+                self._strategy_table.add_strategy(config)
+
+        if strategies:
+            self._schedule_recalculation()
+
     def _on_add_strategy(self) -> None:
         """Handle Add Strategy button click."""
         dialog = ImportStrategyDialog(self)
@@ -278,3 +303,6 @@ class PortfolioOverviewTab(QWidget):
         # Update charts
         self._charts.set_data(chart_data)
         logger.debug(f"Recalculated {len(chart_data)} equity curves")
+
+        # Save configuration
+        self._config_manager.save(strategies, self._account_start_spin.value())
