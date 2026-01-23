@@ -132,20 +132,26 @@ class TestDockAllFloating:
 class TestMainWindowStartup:
     """Tests for MainWindow startup behavior."""
 
-    def test_main_window_calls_dock_all_floating(self):
-        """Verify MainWindow.__init__ calls dock_all_floating on dock_manager.
+    def test_main_window_calls_dock_all_floating_on_show(self):
+        """Verify MainWindow.showEvent calls dock_all_floating on dock_manager.
 
         Uses source code inspection to verify the method call exists,
         since full Qt mocking is complex and prone to hanging.
+        The call is deferred via QTimer.singleShot to ensure it runs after
+        Qt finishes processing initial events.
         """
         import inspect
         from src.ui.main_window import MainWindow
 
-        # Get the source code of __init__
-        source = inspect.getsource(MainWindow.__init__)
+        # Get the source code of showEvent
+        source = inspect.getsource(MainWindow.showEvent)
 
-        # Verify dock_all_floating is called in __init__
+        # Verify dock_all_floating is called in showEvent
         assert "dock_all_floating" in source, (
-            "Expected MainWindow.__init__ to call self.dock_manager.dock_all_floating() "
+            "Expected MainWindow.showEvent to call dock_all_floating() "
             "to ensure all tabs are docked at startup"
+        )
+        # Verify it's deferred via QTimer.singleShot
+        assert "QTimer.singleShot" in source, (
+            "Expected dock_all_floating call to be deferred via QTimer.singleShot"
         )

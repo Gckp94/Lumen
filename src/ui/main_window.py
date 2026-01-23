@@ -46,10 +46,24 @@ class MainWindow(QMainWindow):
         # Set Data Input as the default active tab
         self.dock_manager.set_active_dock("Data Input")
 
-        # Ensure all tabs are docked (fixes intermittent auto-undocking on startup)
-        self.dock_manager.dock_all_floating()
+        # Track first show for deferred dock fix
+        self._first_show = True
 
         logger.debug("MainWindow initialized with dockable tabs")
+
+    def showEvent(self, event) -> None:
+        """Handle window show event.
+
+        On first show, defer dock_all_floating() to run after Qt finishes
+        processing initial events. This fixes intermittent auto-undocking
+        where tabs float after the window appears.
+        """
+        super().showEvent(event)
+        if self._first_show:
+            self._first_show = False
+            # Defer to next event loop iteration to ensure all Qt setup is complete
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, self.dock_manager.dock_all_floating)
 
     def _setup_docks(self) -> None:
         """Set up dockable widgets for all workflow tabs."""
