@@ -283,3 +283,26 @@ class DockManager(ads.CDockManager):
             List of all dock widget titles.
         """
         return list(self._dock_widgets.keys())
+
+    def dock_all_floating(self) -> None:
+        """Dock all floating widgets back to the center area.
+
+        Iterates through all floating containers and re-docks their
+        dock widgets to the center dock area. This ensures a consistent
+        startup state with all tabs docked.
+        """
+        if self._center_area is None:
+            logger.warning("Cannot dock floating widgets: center area not initialized")
+            return
+
+        floating_containers = self.floatingWidgets()
+        for container in floating_containers:
+            # Each floating container holds dock widgets
+            dock_widget = container.dockWidget()
+            if dock_widget is not None:
+                self.addDockWidget(
+                    ads.DockWidgetArea.CenterDockWidgetArea,
+                    dock_widget,
+                    self._center_area,
+                )
+                logger.debug("Docked floating widget: %s", dock_widget.windowTitle())
