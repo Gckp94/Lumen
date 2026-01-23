@@ -13,13 +13,10 @@ from src.core.portfolio_models import (
 class TestPortfolioCalculatorSingleStrategy:
     @pytest.fixture
     def sample_trades(self):
-        """Sample trade data with 5 trades.
-
-        gain_pct is in decimal form: 0.05 = 5%
-        """
+        """Sample trade data with 5 trades."""
         return pd.DataFrame({
             "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-02", "2024-01-03", "2024-01-04"]),
-            "gain_pct": [0.05, -0.02, 0.03, 0.04, -0.01],  # decimal form: 0.05 = 5%
+            "gain_pct": [5.0, -2.0, 3.0, 4.0, -1.0],
             "wl": ["W", "L", "W", "W", "L"],
         })
 
@@ -174,7 +171,7 @@ class TestPortfolioCalculatorSingleStrategy:
         # Date "13/01/2021" - day 13 can't be a month, must be DD/MM/YYYY
         trades_df = pd.DataFrame({
             "date": ["13/01/2021", "14/01/2021", "15/01/2021"],
-            "gain_pct": [0.01, -0.005, 0.02],  # decimal form: 0.01 = 1%
+            "gain_pct": [1.0, -0.5, 2.0],
             "wl": ["W", "L", "W"],
         })
 
@@ -207,12 +204,11 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
         """Efficiency should be subtracted from gain, not multiplied."""
         # gain=10%, MAE=2% (below stop=8%), efficiency=5%
         # Expected: adjusted = 10% - 5% = 5%, pnl = $10k * 5% = $500
-        # Note: gain_pct and mae are in decimal form (0.10 = 10%)
         trades = pd.DataFrame({
             "date": ["2024-01-01"],
-            "gain_pct": [0.10],  # 10% in decimal form
+            "gain_pct": [10.0],
             "wl": ["W"],
-            "mae": [0.02],  # 2% in decimal form, below stop of 8%
+            "mae": [2.0],  # Below stop of 8%
         })
         config = StrategyConfig(
             name="Test",
@@ -234,12 +230,11 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
         """When MAE > stop, gain should be replaced with -stop."""
         # gain=-5%, MAE=12% (above stop=8%), efficiency=5%
         # Expected: adjusted = -8% - 5% = -13%, pnl = $10k * -13% = -$1300
-        # Note: gain_pct and mae are in decimal form (0.12 = 12%)
         trades = pd.DataFrame({
             "date": ["2024-01-01"],
-            "gain_pct": [-0.05],  # -5% in decimal form
+            "gain_pct": [-5.0],
             "wl": ["L"],
-            "mae": [0.12],  # 12% in decimal form, above stop of 8%
+            "mae": [12.0],  # Above stop of 8%
         })
         config = StrategyConfig(
             name="Test",
@@ -262,7 +257,7 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
         """When no MAE column, just subtract efficiency from gain."""
         trades = pd.DataFrame({
             "date": ["2024-01-01"],
-            "gain_pct": [0.10],  # 10% in decimal form
+            "gain_pct": [10.0],
         })
         config = StrategyConfig(
             name="Test",
@@ -285,10 +280,9 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
         """Win/loss should be derived from adjusted gain, not raw gain."""
         # Trade 1: raw gain=+3%, efficiency=5% -> adjusted=-2% -> LOSS
         # Trade 2: raw gain=+10%, efficiency=5% -> adjusted=+5% -> WIN
-        # Note: gain_pct in decimal form (0.03 = 3%)
         trades = pd.DataFrame({
             "date": ["2024-01-01", "2024-01-02"],
-            "gain_pct": [0.03, 0.10],  # Both positive raw gains, in decimal form
+            "gain_pct": [3.0, 10.0],  # Both positive raw gains
         })
         config = StrategyConfig(
             name="Test",
@@ -311,19 +305,17 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
 class TestPortfolioCalculatorMultiStrategy:
     @pytest.fixture
     def strategy_a_trades(self):
-        """Strategy A trades with gain_pct in decimal form (0.05 = 5%)."""
         return pd.DataFrame({
             "date": pd.to_datetime(["2024-01-01", "2024-01-03"]),
-            "gain_pct": [0.05, 0.03],  # decimal form: 0.05 = 5%
+            "gain_pct": [5.0, 3.0],
             "wl": ["W", "W"],
         })
 
     @pytest.fixture
     def strategy_b_trades(self):
-        """Strategy B trades with gain_pct in decimal form (0.02 = 2%)."""
         return pd.DataFrame({
             "date": pd.to_datetime(["2024-01-02", "2024-01-03"]),
-            "gain_pct": [0.02, -0.01],  # decimal form: 0.02 = 2%
+            "gain_pct": [2.0, -1.0],
             "wl": ["W", "L"],
         })
 
@@ -373,12 +365,11 @@ class TestPortfolioCalculatorMultiStrategy:
     def test_portfolio_applies_stop_loss_and_efficiency(self):
         """Portfolio calculation should apply stop loss and efficiency subtraction."""
         # Strategy A: MAE below stop, gain=10%
-        # Note: gain_pct and mae in decimal form (0.10 = 10%)
         trades_a = pd.DataFrame({
             "date": ["2024-01-01"],
-            "gain_pct": [0.10],  # 10% in decimal form
+            "gain_pct": [10.0],
             "wl": ["W"],
-            "mae": [0.02],  # 2% in decimal form, below stop
+            "mae": [2.0],  # Below stop
         })
         config_a = StrategyConfig(
             name="A",
@@ -391,12 +382,11 @@ class TestPortfolioCalculatorMultiStrategy:
         )
 
         # Strategy B: MAE above stop, gain=-3%
-        # Note: gain_pct and mae in decimal form (0.12 = 12%)
         trades_b = pd.DataFrame({
             "date": ["2024-01-02"],
-            "gain_pct": [-0.03],  # -3% in decimal form
+            "gain_pct": [-3.0],
             "wl": ["L"],
-            "mae": [0.12],  # 12% in decimal form, above stop
+            "mae": [12.0],  # Above stop
         })
         config_b = StrategyConfig(
             name="B",
@@ -426,7 +416,7 @@ class TestPortfolioCalculatorMultiStrategy:
         # Date "13/01/2021" - day 13 can't be a month, must be DD/MM/YYYY
         trades_df = pd.DataFrame({
             "date": ["13/01/2021", "14/01/2021"],
-            "gain_pct": [0.01, 0.02],  # decimal form: 0.01 = 1%
+            "gain_pct": [1.0, 2.0],
             "wl": ["W", "W"],
         })
 

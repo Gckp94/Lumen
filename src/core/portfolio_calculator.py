@@ -51,8 +51,7 @@ class PortfolioCalculator:
 
             for _, trade in day_trades.iterrows():
                 trade_num += 1
-                # Convert from decimal form (0.07 = 7%) to percentage form (7.0 = 7%)
-                gain_pct = float(trade[mapping.gain_pct_col]) * 100.0
+                gain_pct = float(trade[mapping.gain_pct_col])
 
                 # Calculate position size
                 position_size = self._calculate_position_size(
@@ -61,8 +60,7 @@ class PortfolioCalculator:
 
                 # Step 1: Stop loss adjustment (if MAE column available)
                 if mapping.mae_pct_col and mapping.mae_pct_col in df.columns:
-                    # Convert MAE from decimal to percentage form
-                    mae_pct = float(trade[mapping.mae_pct_col]) * 100.0
+                    mae_pct = float(trade[mapping.mae_pct_col])
                     if mae_pct > config.stop_pct:
                         stop_adjusted = -config.stop_pct
                     else:
@@ -173,16 +171,14 @@ class PortfolioCalculator:
             for _, trade in day_trades.iterrows():
                 trade_num += 1
                 config: StrategyConfig = trade["_config"]
-                # Convert from decimal form (0.07 = 7%) to percentage form (7.0 = 7%)
-                gain_pct = float(trade["_gain_pct"]) * 100.0
+                gain_pct = float(trade["_gain_pct"])
 
                 position_size = self._calculate_position_size(day_opening, config)
 
                 # Step 1: Stop loss adjustment (if MAE available)
                 mae_pct = trade["_mae_pct"]
                 if mae_pct is not None:
-                    # Convert MAE from decimal to percentage form
-                    mae_pct = float(mae_pct) * 100.0
+                    mae_pct = float(mae_pct)
                     if mae_pct > config.stop_pct:
                         stop_adjusted = -config.stop_pct
                     else:
