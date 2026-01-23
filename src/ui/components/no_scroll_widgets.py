@@ -21,34 +21,43 @@ class NoScrollComboBox(QComboBox):
         """
         super().__init__(parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self._apply_dark_theme()
-
-    def _apply_dark_theme(self) -> None:
-        """Apply dark theme to the combobox dropdown."""
-        # Set palette on the view
-        view = self.view()
-        if view:
-            palette = view.palette()
-            palette.setColor(QPalette.ColorRole.Text, QColor(Colors.TEXT_PRIMARY))
-            palette.setColor(QPalette.ColorRole.Base, QColor(Colors.BG_ELEVATED))
-            palette.setColor(QPalette.ColorRole.Window, QColor(Colors.BG_ELEVATED))
-            palette.setColor(QPalette.ColorRole.WindowText, QColor(Colors.TEXT_PRIMARY))
-            view.setPalette(palette)
 
     def addItem(self, text: str, userData: object = None) -> None:
-        """Add item with dark theme foreground color."""
+        """Add item with dark theme colors."""
         super().addItem(text, userData)
-        # Set foreground color on the newly added item
-        index = self.count() - 1
-        self.setItemData(index, QColor(Colors.TEXT_PRIMARY), Qt.ItemDataRole.ForegroundRole)
+        self._style_item(self.count() - 1)
 
     def addItems(self, texts: list[str]) -> None:
-        """Add items with dark theme foreground color."""
+        """Add items with dark theme colors."""
         start_index = self.count()
         super().addItems(texts)
-        # Set foreground color on all newly added items
         for i in range(start_index, self.count()):
-            self.setItemData(i, QColor(Colors.TEXT_PRIMARY), Qt.ItemDataRole.ForegroundRole)
+            self._style_item(i)
+
+    def _style_item(self, index: int) -> None:
+        """Apply dark theme colors to a specific item."""
+        self.setItemData(index, QColor(Colors.TEXT_PRIMARY), Qt.ItemDataRole.ForegroundRole)
+        self.setItemData(index, QColor(Colors.BG_ELEVATED), Qt.ItemDataRole.BackgroundRole)
+
+    def showPopup(self) -> None:
+        """Show popup with forced dark styling."""
+        # Force palette on popup right before showing
+        popup = self.view()
+        if popup:
+            popup.setAutoFillBackground(True)
+            palette = popup.palette()
+            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Base, QColor(Colors.BG_ELEVATED))
+            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Text, QColor(Colors.TEXT_PRIMARY))
+            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Window, QColor(Colors.BG_ELEVATED))
+            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.WindowText, QColor(Colors.TEXT_PRIMARY))
+            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.AlternateBase, QColor(Colors.BG_ELEVATED))
+            popup.setPalette(palette)
+
+            # Force re-style items
+            for i in range(self.count()):
+                self._style_item(i)
+
+        super().showPopup()
 
     def wheelEvent(self, event: QWheelEvent | None) -> None:
         """Ignore wheel events unless widget has focus.

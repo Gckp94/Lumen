@@ -334,39 +334,25 @@ class StrategyTableWidget(QTableWidget):
         Args:
             row: Row index.
         """
-        from PyQt6.QtGui import QColor, QPalette
+        from PyQt6.QtGui import QAction, QColor, QPalette
 
         from src.ui.constants import Colors
 
         menu = QMenu(self)
-        # Apply dark theme via palette
+        menu.setAutoFillBackground(True)
+
+        # Apply dark theme via palette with All color group
         palette = menu.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(Colors.BG_ELEVATED))
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(Colors.TEXT_PRIMARY))
-        palette.setColor(QPalette.ColorRole.Base, QColor(Colors.BG_ELEVATED))
-        palette.setColor(QPalette.ColorRole.Text, QColor(Colors.TEXT_PRIMARY))
-        palette.setColor(QPalette.ColorRole.Button, QColor(Colors.BG_ELEVATED))
-        palette.setColor(QPalette.ColorRole.ButtonText, QColor(Colors.TEXT_PRIMARY))
-        palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 255, 212, 40))
-        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(Colors.TEXT_PRIMARY))
+        for group in [QPalette.ColorGroup.All, QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive]:
+            palette.setColor(group, QPalette.ColorRole.Window, QColor(Colors.BG_ELEVATED))
+            palette.setColor(group, QPalette.ColorRole.WindowText, QColor(Colors.TEXT_PRIMARY))
+            palette.setColor(group, QPalette.ColorRole.Base, QColor(Colors.BG_ELEVATED))
+            palette.setColor(group, QPalette.ColorRole.Text, QColor(Colors.TEXT_PRIMARY))
+            palette.setColor(group, QPalette.ColorRole.Button, QColor(Colors.BG_ELEVATED))
+            palette.setColor(group, QPalette.ColorRole.ButtonText, QColor(Colors.TEXT_PRIMARY))
+            palette.setColor(group, QPalette.ColorRole.Highlight, QColor(0, 255, 212, 40))
+            palette.setColor(group, QPalette.ColorRole.HighlightedText, QColor(Colors.TEXT_PRIMARY))
         menu.setPalette(palette)
-        # Also apply stylesheet
-        menu.setStyleSheet(f"""
-            QMenu {{
-                background-color: {Colors.BG_ELEVATED};
-                color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BG_BORDER};
-            }}
-            QMenu::item {{
-                padding: 8px 24px;
-                color: {Colors.TEXT_PRIMARY};
-                background-color: transparent;
-            }}
-            QMenu::item:selected {{
-                background-color: rgba(0, 255, 212, 0.15);
-                color: {Colors.TEXT_PRIMARY};
-            }}
-        """)
 
         # Add Load Data action
         load_action = menu.addAction("Load Data")
