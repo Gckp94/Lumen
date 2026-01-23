@@ -334,21 +334,33 @@ class StrategyTableWidget(QTableWidget):
         Args:
             row: Row index.
         """
+        from PyQt6.QtGui import QColor, QPalette
+
         from src.ui.constants import Colors
 
         menu = QMenu(self)
-        # Apply dark theme styling directly to menu
+        # Apply dark theme via palette
+        palette = menu.palette()
+        palette.setColor(QPalette.ColorRole.Window, QColor(Colors.BG_ELEVATED))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(Colors.TEXT_PRIMARY))
+        palette.setColor(QPalette.ColorRole.Base, QColor(Colors.BG_ELEVATED))
+        palette.setColor(QPalette.ColorRole.Text, QColor(Colors.TEXT_PRIMARY))
+        palette.setColor(QPalette.ColorRole.Button, QColor(Colors.BG_ELEVATED))
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor(Colors.TEXT_PRIMARY))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 255, 212, 40))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(Colors.TEXT_PRIMARY))
+        menu.setPalette(palette)
+        # Also apply stylesheet
         menu.setStyleSheet(f"""
             QMenu {{
                 background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
                 border: 1px solid {Colors.BG_BORDER};
-                border-radius: 4px;
-                padding: 4px 0;
             }}
             QMenu::item {{
                 padding: 8px 24px;
                 color: {Colors.TEXT_PRIMARY};
+                background-color: transparent;
             }}
             QMenu::item:selected {{
                 background-color: rgba(0, 255, 212, 0.15);

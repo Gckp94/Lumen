@@ -21,31 +21,34 @@ class NoScrollComboBox(QComboBox):
         """
         super().__init__(parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        # Apply dark theme stylesheet to combobox and its dropdown
-        self.setStyleSheet(f"""
-            QComboBox QAbstractItemView {{
-                background-color: {Colors.BG_ELEVATED};
-                color: {Colors.TEXT_PRIMARY};
-                selection-background-color: rgba(0, 255, 212, 0.15);
-                selection-color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BG_BORDER};
-                outline: none;
-            }}
-            QComboBox QAbstractItemView::item {{
-                color: {Colors.TEXT_PRIMARY};
-                background-color: {Colors.BG_ELEVATED};
-                padding: 6px 12px;
-                min-height: 24px;
-            }}
-            QComboBox QAbstractItemView::item:hover {{
-                background-color: {Colors.BG_BORDER};
-                color: {Colors.TEXT_PRIMARY};
-            }}
-            QComboBox QAbstractItemView::item:selected {{
-                background-color: rgba(0, 255, 212, 0.15);
-                color: {Colors.TEXT_PRIMARY};
-            }}
-        """)
+        self._apply_dark_theme()
+
+    def _apply_dark_theme(self) -> None:
+        """Apply dark theme to the combobox dropdown."""
+        # Set palette on the view
+        view = self.view()
+        if view:
+            palette = view.palette()
+            palette.setColor(QPalette.ColorRole.Text, QColor(Colors.TEXT_PRIMARY))
+            palette.setColor(QPalette.ColorRole.Base, QColor(Colors.BG_ELEVATED))
+            palette.setColor(QPalette.ColorRole.Window, QColor(Colors.BG_ELEVATED))
+            palette.setColor(QPalette.ColorRole.WindowText, QColor(Colors.TEXT_PRIMARY))
+            view.setPalette(palette)
+
+    def addItem(self, text: str, userData: object = None) -> None:
+        """Add item with dark theme foreground color."""
+        super().addItem(text, userData)
+        # Set foreground color on the newly added item
+        index = self.count() - 1
+        self.setItemData(index, QColor(Colors.TEXT_PRIMARY), Qt.ItemDataRole.ForegroundRole)
+
+    def addItems(self, texts: list[str]) -> None:
+        """Add items with dark theme foreground color."""
+        start_index = self.count()
+        super().addItems(texts)
+        # Set foreground color on all newly added items
+        for i in range(start_index, self.count()):
+            self.setItemData(i, QColor(Colors.TEXT_PRIMARY), Qt.ItemDataRole.ForegroundRole)
 
     def wheelEvent(self, event: QWheelEvent | None) -> None:
         """Ignore wheel events unless widget has focus.
