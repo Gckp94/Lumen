@@ -30,14 +30,14 @@ class StrategyTableWidget(QTableWidget):
     # Column definitions: (header, width)
     COLUMNS = [
         ("Name", 120),
-        ("File", 80),
-        ("BL", 35),
-        ("CND", 40),
-        ("Stop%", 85),
-        ("Efficiency", 90),
-        ("Size Type", 100),
-        ("Size Value", 100),
-        ("Max Compound", 115),
+        ("File", 40),
+        ("BL", 53),
+        ("CND", 60),
+        ("Stop%", 170),
+        ("Efficiency", 180),
+        ("Size Type", 200),
+        ("Size Value", 150),
+        ("Max Compound", 173),
         ("Menu", 40),
     ]
 
