@@ -22,6 +22,27 @@ def breakdown_tab(qtbot):
     return tab
 
 
+class TestPortfolioBreakdownTabSignalIntegration:
+    """Tests for signal integration with Portfolio Overview."""
+
+    def test_on_portfolio_data_changed_updates_data(self, app, breakdown_tab):
+        """Verify signal handler stores incoming data."""
+        import pandas as pd
+
+        baseline_df = pd.DataFrame({
+            "date": pd.to_datetime(["2024-01-01", "2024-02-01"]),
+            "pnl": [100.0, 200.0],
+            "equity": [10100.0, 10300.0],
+            "peak": [10100.0, 10300.0],
+            "drawdown": [0.0, 0.0],
+        })
+
+        breakdown_tab.on_portfolio_data_changed({"baseline": baseline_df})
+
+        assert breakdown_tab._baseline_data is not None
+        assert len(breakdown_tab._baseline_data) == 2
+
+
 class TestPortfolioBreakdownTabStructure:
     """Tests for tab structure."""
 
