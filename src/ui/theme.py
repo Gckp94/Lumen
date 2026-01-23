@@ -459,6 +459,14 @@ QGroupBox::title {{
     background-color: {Colors.BG_SURFACE};
     padding: 0 8px;
 }}
+
+/* ========================================
+   Dialogs
+   ======================================== */
+
+QDialog {{
+    background-color: {Colors.BG_BASE};
+}}
 """
 
 
