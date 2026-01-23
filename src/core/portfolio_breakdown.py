@@ -107,6 +107,53 @@ class PortfolioBreakdownCalculator:
             "dd_duration_days": dd_duration_days,
         }
 
+    def calculate_monthly(
+        self, equity_df: pd.DataFrame, year: int
+    ) -> dict[int, dict[str, float]]:
+        """Calculate metrics for each month in the given year.
+
+        Args:
+            equity_df: DataFrame with columns: date, pnl, equity, peak, drawdown
+            year: Year to filter data for
+
+        Returns:
+            Dict mapping month (1-12) to metrics dict.
+        """
+        if equity_df.empty:
+            return {}
+
+        df = equity_df.copy()
+        df["_date"] = pd.to_datetime(df["date"])
+        df["_year"] = df["_date"].dt.year
+        df["_month"] = df["_date"].dt.month
+
+        # Filter to requested year
+        year_df = df[df["_year"] == year]
+        if year_df.empty:
+            return {}
+
+        results: dict[int, dict[str, float]] = {}
+
+        for month, month_df in year_df.groupby("_month", sort=True):
+            results[int(month)] = self._calculate_period_metrics(month_df)
+
+        return results
+
+    def get_available_years(self, equity_df: pd.DataFrame) -> list[int]:
+        """Get sorted list of years present in the equity data.
+
+        Args:
+            equity_df: DataFrame with date column.
+
+        Returns:
+            Sorted list of unique years.
+        """
+        if equity_df.empty:
+            return []
+
+        years = pd.to_datetime(equity_df["date"]).dt.year.unique()
+        return sorted(int(y) for y in years)
+
     def _calculate_dd_duration(
         self, equity: list | pd.Series, peak: list | pd.Series
     ) -> int:
