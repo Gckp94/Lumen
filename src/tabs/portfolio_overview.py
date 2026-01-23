@@ -319,3 +319,14 @@ class PortfolioOverviewTab(QWidget):
 
         # Save configuration
         self._config_manager.save(strategies, self._account_start_spin.value())
+
+    def is_data_loaded(self, strategy_name: str) -> bool:
+        """Check if data is loaded for a strategy.
+
+        Args:
+            strategy_name: Name of the strategy to check.
+
+        Returns:
+            True if data is loaded, False otherwise.
+        """
+        return strategy_name in self._strategy_data and self._strategy_data[strategy_name] is not None

@@ -90,3 +90,20 @@ class TestPortfolioOverviewTab:
 
         # Charts should have data
         assert len(tab._charts._data) > 0
+
+    def test_is_data_loaded_returns_false_for_unloaded_strategy(self, app, qtbot, mock_app_state, isolated_config_manager):
+        """Verify is_data_loaded returns False when strategy data not loaded."""
+        tab = PortfolioOverviewTab(mock_app_state, config_manager=isolated_config_manager)
+        qtbot.addWidget(tab)
+
+        assert tab.is_data_loaded("NonExistent") is False
+
+    def test_is_data_loaded_returns_true_for_loaded_strategy(self, app, qtbot, mock_app_state, isolated_config_manager):
+        """Verify is_data_loaded returns True when strategy data is loaded."""
+        import pandas as pd
+        tab = PortfolioOverviewTab(mock_app_state, config_manager=isolated_config_manager)
+        qtbot.addWidget(tab)
+
+        tab._strategy_data["TestStrategy"] = pd.DataFrame({"col": [1]})
+
+        assert tab.is_data_loaded("TestStrategy") is True
