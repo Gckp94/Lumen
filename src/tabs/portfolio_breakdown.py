@@ -23,6 +23,12 @@ from src.ui.constants import Colors, Fonts, Spacing
 
 logger = logging.getLogger(__name__)
 
+# Month abbreviations for chart labels
+MONTH_ABBREV = {
+    1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
+    7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec",
+}
+
 # Chart metric definitions: (key, title, is_percentage, is_currency)
 CHART_METRICS = [
     ("total_gain_pct", "Total Gain %", True, False),
@@ -364,13 +370,19 @@ class PortfolioBreakdownTab(QWidget):
             else:
                 combined_metrics = self._calculator.calculate_yearly(self._combined_data)
 
+        # Helper to format period label
+        def format_period(period: int) -> str:
+            if is_monthly:
+                return MONTH_ABBREV.get(period, str(period))
+            return str(period)
+
         # Update each chart
         for metric_key, title, is_pct, is_currency in CHART_METRICS:
             # Baseline chart
             baseline_chart = charts.get(f"{metric_key}_baseline")
             if baseline_chart:
                 data = [
-                    (str(period), metrics.get(metric_key, 0))
+                    (format_period(period), metrics.get(metric_key, 0))
                     for period, metrics in sorted(baseline_metrics.items())
                 ]
                 baseline_chart.set_data(data, is_percentage=is_pct, is_currency=is_currency)
@@ -379,7 +391,7 @@ class PortfolioBreakdownTab(QWidget):
             combined_chart = charts.get(f"{metric_key}_combined")
             if combined_chart:
                 data = [
-                    (str(period), metrics.get(metric_key, 0))
+                    (format_period(period), metrics.get(metric_key, 0))
                     for period, metrics in sorted(combined_metrics.items())
                 ]
                 combined_chart.set_data(data, is_percentage=is_pct, is_currency=is_currency)
