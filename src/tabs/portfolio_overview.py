@@ -9,7 +9,7 @@ import logging
 from typing import Optional
 
 import pandas as pd
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -47,6 +47,9 @@ class PortfolioOverviewTab(QWidget):
         _strategy_data: Dictionary mapping strategy names to loaded DataFrames.
         _recalc_timer: Timer for debounced recalculation.
     """
+
+    # Signal emitted when portfolio data changes (for Portfolio Breakdown tab)
+    portfolio_data_changed = pyqtSignal(dict)  # {"baseline": df, "combined": df}
 
     def __init__(self, app_state: AppState, parent: Optional[QWidget] = None) -> None:
         """Initialize the Portfolio Overview tab.
@@ -303,6 +306,9 @@ class PortfolioOverviewTab(QWidget):
         # Update charts
         self._charts.set_data(chart_data)
         logger.debug(f"Recalculated {len(chart_data)} equity curves")
+
+        # Emit signal for other tabs (Portfolio Breakdown)
+        self.portfolio_data_changed.emit(chart_data)
 
         # Save configuration
         self._config_manager.save(strategies, self._account_start_spin.value())

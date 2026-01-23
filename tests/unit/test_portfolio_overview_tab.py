@@ -90,3 +90,24 @@ class TestPortfolioOverviewTab:
 
         # Charts should have data
         assert len(tab._charts._data) > 0
+
+    def test_portfolio_data_changed_signal_exists(self, app, qtbot, mock_app_state):
+        """Verify portfolio_data_changed signal is defined."""
+        tab = PortfolioOverviewTab(mock_app_state)
+        qtbot.addWidget(tab)
+        # Signal should be accessible
+        assert hasattr(tab, "portfolio_data_changed")
+
+    def test_portfolio_data_changed_signal_emitted_on_recalculate(
+        self, app, qtbot, mock_app_state
+    ):
+        """Verify signal emits when recalculation happens."""
+        tab = PortfolioOverviewTab(mock_app_state)
+        qtbot.addWidget(tab)
+
+        # Track emitted signals
+        emitted = []
+        tab.portfolio_data_changed.connect(lambda data: emitted.append(data))
+
+        tab._recalculate()
+        assert len(emitted) == 1
