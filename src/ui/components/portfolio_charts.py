@@ -12,12 +12,13 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg  # type: ignore[import-untyped]
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QPointF
 from PyQt6.QtWidgets import (
     QCheckBox,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
