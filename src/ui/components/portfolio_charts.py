@@ -516,3 +516,122 @@ class PortfolioChartsWidget(QWidget):
             if name in self._drawdown_curves:
                 drawdown_pct = self._calculate_drawdown_pct(df)
                 self._drawdown_curves[name].setData(x=x_data, y=drawdown_pct)
+
+    def _setup_tooltips(self) -> None:
+        """Set up mouse move handlers for tooltip display."""
+        self._equity_plot.scene().sigMouseMoved.connect(
+            lambda pos: self._on_mouse_moved(pos, self._equity_plot, "equity")
+        )
+        self._drawdown_plot.scene().sigMouseMoved.connect(
+            lambda pos: self._on_mouse_moved(pos, self._drawdown_plot, "drawdown")
+        )
+
+    def _on_mouse_moved(
+        self, pos: QPointF, plot_widget: pg.PlotWidget, chart_type: str
+    ) -> None:
+        """Handle mouse move for tooltip display.
+
+        Args:
+            pos: Mouse position in scene coordinates.
+            plot_widget: The plot widget being hovered.
+            chart_type: Either "equity" or "drawdown".
+        """
+        if not self._data:
+            QToolTip.hideText()
+            return
+
+        if not plot_widget.sceneBoundingRect().contains(pos):
+            QToolTip.hideText()
+            return
+
+        try:
+            mouse_point = plot_widget.plotItem.vb.mapSceneToView(pos)
+            x_val = mouse_point.x()
+
+            tooltip_text = self._get_tooltip_text(x_val, chart_type)
+            if tooltip_text:
+                global_pos = plot_widget.mapToGlobal(
+                    plot_widget.mapFromScene(pos)
+                )
+                QToolTip.showText(global_pos, tooltip_text)
+            else:
+                QToolTip.hideText()
+        except Exception as e:
+            logger.debug("Error in mouse move handler: %s", e)
+            QToolTip.hideText()
+
+    def _get_tooltip_text(self, x_val: float, chart_type: str) -> str | None:
+        """Get tooltip text for the given X position.
+
+        Args:
+            x_val: X-axis value (trade number or timestamp).
+            chart_type: Either "equity" or "drawdown".
+
+        Returns:
+            Formatted tooltip string, or None if no data at position.
+        """
+        tooltip_lines = []
+
+        for name, df in self._data.items():
+            # Skip hidden series
+            if not self._series_visibility.get(name, True):
+                continue
+
+            if df.empty:
+                continue
+
+            # Find the closest data point
+            if self._axis_mode == AxisMode.DATE and "date" in df.columns:
+                # X is timestamp, find closest date
+                try:
+                    dates = pd.to_datetime(df["date"], errors="coerce")
+                    timestamps = (dates.astype(np.int64) // 10**9).to_numpy()
+                    idx = np.abs(timestamps - x_val).argmin()
+                except Exception:
+                    continue
+            else:
+                # X is trade number
+                trade_nums = df["trade_num"].to_numpy()
+                if x_val < trade_nums.min() - 0.5 or x_val > trade_nums.max() + 0.5:
+                    continue
+                idx = np.abs(trade_nums - x_val).argmin()
+
+            if idx < 0 or idx >= len(df):
+                continue
+
+            row = df.iloc[idx]
+
+            # Format date
+            date_str = ""
+            if "date" in df.columns:
+                try:
+                    date_val = pd.to_datetime(row["date"])
+                    date_str = date_val.strftime("%Y-%m-%d")
+                except Exception:
+                    date_str = str(row.get("date", ""))
+
+            # Format values
+            trade_num = int(row.get("trade_num", idx))
+            equity = row.get("equity", 0)
+
+            if chart_type == "equity":
+                value_str = f"${equity:,.0f}"
+            else:
+                # Drawdown percentage
+                peak = row.get("peak", 0)
+                drawdown = row.get("drawdown", 0)
+                if peak > 0:
+                    dd_pct = (drawdown / peak) * 100
+                else:
+                    dd_pct = 0
+                value_str = f"{dd_pct:.1f}%"
+
+            line = f"{name}: Trade #{trade_num}"
+            if date_str:
+                line += f" ({date_str})"
+            line += f" - {value_str}"
+            tooltip_lines.append(line)
+
+        if tooltip_lines:
+            return "\n".join(tooltip_lines)
+        return None
