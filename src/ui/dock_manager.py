@@ -36,6 +36,8 @@ class DockManager(ads.CDockManager):
         self.setConfigFlag(ads.CDockManager.eConfigFlag.FloatingContainerHasWidgetTitle, True)
         self.setConfigFlag(ads.CDockManager.eConfigFlag.FloatingContainerHasWidgetIcon, True)
         self.setConfigFlag(ads.CDockManager.eConfigFlag.AllTabsHaveCloseButton, False)
+        # Disable double-click to undock (prevents accidental undocking)
+        self.setConfigFlag(ads.CDockManager.eConfigFlag.DoubleClickUndocksWidget, False)
 
         # Apply dock-specific styling
         self._apply_styling()

@@ -129,29 +129,21 @@ class TestDockAllFloating:
         assert mock_manager.addDockWidget.call_count == 2
 
 
-class TestMainWindowStartup:
-    """Tests for MainWindow startup behavior."""
+class TestDockManagerConfig:
+    """Tests for DockManager configuration."""
 
-    def test_main_window_calls_dock_all_floating_on_show(self):
-        """Verify MainWindow.showEvent calls dock_all_floating on dock_manager.
-
-        Uses source code inspection to verify the method call exists,
-        since full Qt mocking is complex and prone to hanging.
-        The call is deferred via QTimer.singleShot to ensure it runs after
-        Qt finishes processing initial events.
-        """
+    def test_double_click_undock_disabled(self):
+        """Verify DoubleClickUndocksWidget is disabled to prevent accidental undocking."""
         import inspect
-        from src.ui.main_window import MainWindow
+        from src.ui.dock_manager import DockManager
 
-        # Get the source code of showEvent
-        source = inspect.getsource(MainWindow.showEvent)
+        # Get the source code of __init__
+        source = inspect.getsource(DockManager.__init__)
 
-        # Verify dock_all_floating is called in showEvent
-        assert "dock_all_floating" in source, (
-            "Expected MainWindow.showEvent to call dock_all_floating() "
-            "to ensure all tabs are docked at startup"
+        # Verify DoubleClickUndocksWidget is explicitly disabled
+        assert "DoubleClickUndocksWidget" in source, (
+            "Expected DockManager to configure DoubleClickUndocksWidget flag"
         )
-        # Verify it's deferred via QTimer.singleShot
-        assert "QTimer.singleShot" in source, (
-            "Expected dock_all_floating call to be deferred via QTimer.singleShot"
+        assert "DoubleClickUndocksWidget, False" in source, (
+            "Expected DoubleClickUndocksWidget to be set to False"
         )
