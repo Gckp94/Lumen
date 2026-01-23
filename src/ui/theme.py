@@ -467,6 +467,32 @@ QGroupBox::title {{
 QDialog {{
     background-color: {Colors.BG_BASE};
 }}
+
+/* ========================================
+   Menus
+   ======================================== */
+
+QMenu {{
+    background-color: {Colors.BG_ELEVATED};
+    color: {Colors.TEXT_PRIMARY};
+    border: 1px solid {Colors.BG_BORDER};
+    border-radius: 4px;
+    padding: 4px 0;
+}}
+
+QMenu::item {{
+    padding: 8px 24px;
+}}
+
+QMenu::item:selected {{
+    background-color: rgba(0, 255, 212, 0.15);
+}}
+
+QMenu::separator {{
+    height: 1px;
+    background-color: {Colors.BG_BORDER};
+    margin: 4px 8px;
+}}
 """
 
 
