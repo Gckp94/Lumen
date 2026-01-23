@@ -30,15 +30,15 @@ class StrategyTableWidget(QTableWidget):
     # Column definitions: (header, width)
     COLUMNS = [
         ("Name", 120),
-        ("File", 100),
-        ("BL", 40),
-        ("CND", 45),
-        ("Stop%", 100),
-        ("Efficiency", 100),
-        ("Size Type", 120),
-        ("Size Value", 120),
-        ("Max Compound", 130),
-        ("Menu", 45),
+        ("File", 80),
+        ("BL", 35),
+        ("CND", 40),
+        ("Stop%", 85),
+        ("Efficiency", 90),
+        ("Size Type", 100),
+        ("Size Value", 100),
+        ("Max Compound", 115),
+        ("Menu", 40),
     ]
 
     # Column indices
@@ -80,12 +80,11 @@ class StrategyTableWidget(QTableWidget):
         self.setColumnCount(len(self.COLUMNS))
         self.setHorizontalHeaderLabels([col[0] for col in self.COLUMNS])
 
-        # Set column widths and enable interactive resizing
+        # Set column widths
         header = self.horizontalHeader()
         if header:
-            # Allow user to drag and resize individual columns
-            header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-            header.setStretchLastSection(False)
+            # File column stretches to fill remaining space
+            header.setSectionResizeMode(self.COL_FILE, QHeaderView.ResizeMode.Stretch)
 
         for i, (_, width) in enumerate(self.COLUMNS):
             self.setColumnWidth(i, width)
