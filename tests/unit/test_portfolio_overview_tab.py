@@ -214,3 +214,23 @@ class TestPortfolioOverviewTab:
         tab._strategy_table.load_data_requested.emit("Test")
 
         assert tab.is_data_loaded("Test") is True
+
+    def test_load_saved_config_does_not_load_data_files(self, app, qtbot, mock_app_state, tmp_path):
+        """Verify startup loads configs but not data files (lazy loading)."""
+        from src.core.portfolio_config_manager import PortfolioConfigManager
+        from src.core.portfolio_models import StrategyConfig, PortfolioColumnMapping
+
+        config_manager = PortfolioConfigManager(tmp_path / "config.json")
+        config = StrategyConfig(
+            name="TestStrategy",
+            file_path="/nonexistent/file.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+        )
+        config_manager.save([config], 100_000)
+
+        # Should NOT fail even though file doesn't exist
+        tab = PortfolioOverviewTab(mock_app_state, config_manager=config_manager)
+        qtbot.addWidget(tab)
+
+        assert tab._strategy_table.rowCount() == 1
+        assert tab.is_data_loaded("TestStrategy") is False

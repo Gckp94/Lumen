@@ -193,29 +193,21 @@ class PortfolioOverviewTab(QWidget):
         self._account_start_spin.valueChanged.connect(self._schedule_recalculation)
 
     def _load_saved_config(self) -> None:
-        """Load saved strategies on startup."""
+        """Load saved strategy configs on startup (data loading is deferred).
+
+        Configs are added to the table but data files are not loaded.
+        Users must manually load data via the row menu "Load Data" action.
+        """
         strategies, account_start = self._config_manager.load()
         self._account_start_spin.setValue(account_start)
 
         for config in strategies:
-            # Try to reload the data file
-            try:
-                if config.file_path.endswith(".csv"):
-                    df = pd.read_csv(config.file_path)
-                else:
-                    # Use stored sheet_name for Excel files
-                    from src.core.file_loader import FileLoader
-                    loader = FileLoader()
-                    df = loader.load(Path(config.file_path), config.sheet_name)
-                self._strategy_data[config.name] = df
-                self._strategy_table.add_strategy(config)
-            except Exception as e:
-                logger.warning(f"Could not load file for {config.name}: {e}")
-                # Still add strategy but data will be missing
-                self._strategy_table.add_strategy(config)
+            # Add config to table without loading data
+            self._strategy_table.add_strategy(config)
+            # Mark as unloaded visually
+            self._update_row_loaded_state(config.name, loaded=False)
 
-        if strategies:
-            self._schedule_recalculation()
+        # No recalculation on startup - user must load data first
 
     def _on_add_strategy(self) -> None:
         """Handle Add Strategy button click."""
