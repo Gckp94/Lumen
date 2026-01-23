@@ -76,13 +76,22 @@ class PortfolioConfigManager:
             gain_pct_col=data["column_mapping"]["gain_pct_col"],
             mae_pct_col=data["column_mapping"].get("mae_pct_col"),
         )
+
+        # Migrate old efficiency format (decimal) to new format (percentage points)
+        # Old format: 0.05 = 5%, New format: 5.0 = 5%
+        efficiency = data.get("efficiency", 5.0)
+        if efficiency < 1.0:
+            # Old decimal format, convert to percentage points
+            efficiency = efficiency * 100.0
+            logger.info(f"Migrated efficiency from {data.get('efficiency')} to {efficiency}")
+
         return StrategyConfig(
             name=data["name"],
             file_path=data["file_path"],
             column_mapping=mapping,
             sheet_name=data.get("sheet_name"),
             stop_pct=data.get("stop_pct", 2.0),
-            efficiency=data.get("efficiency", 1.0),
+            efficiency=efficiency,
             size_type=PositionSizeType(data.get("size_type", "custom_pct")),
             size_value=data.get("size_value", 10.0),
             max_compound=data.get("max_compound"),

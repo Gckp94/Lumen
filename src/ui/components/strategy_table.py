@@ -151,13 +151,13 @@ class StrategyTableWidget(QTableWidget):
         )
         self.setCellWidget(row, self.COL_STOP, stop_spin)
 
-        # Efficiency spinbox (displays as percentage, stores as decimal)
+        # Efficiency spinbox (stored and displayed as percentage points)
         eff_spin = NoScrollDoubleSpinBox()
         eff_spin.setRange(0.0, 200.0)
         eff_spin.setDecimals(1)
-        eff_spin.setSingleStep(5.0)
+        eff_spin.setSingleStep(0.5)
         eff_spin.setSuffix("%")
-        eff_spin.setValue(config.efficiency * 100.0)  # Convert decimal to percentage
+        eff_spin.setValue(config.efficiency)  # Already in percentage points
         eff_spin.valueChanged.connect(
             lambda val, r=row: self._on_efficiency_changed(r, val)
         )
@@ -319,11 +319,10 @@ class StrategyTableWidget(QTableWidget):
 
         Args:
             row: Row index.
-            value: New efficiency percentage (0-200).
+            value: New efficiency percentage points (0-200).
         """
-        # Convert percentage to decimal multiplier for storage
-        decimal_value = value / 100.0
-        self._strategies[row] = replace(self._strategies[row], efficiency=decimal_value)
+        # Store directly as percentage points
+        self._strategies[row] = replace(self._strategies[row], efficiency=value)
         self.strategy_changed.emit()
 
     def _on_size_type_changed(self, row: int, text: str) -> None:
