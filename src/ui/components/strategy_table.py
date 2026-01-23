@@ -205,11 +205,13 @@ class StrategyTableWidget(QTableWidget):
         )
         self.setCellWidget(row, self.COL_SIZE_VALUE, size_spin)
 
-        # Max Compound spinbox (optional - None means no limit)
+        # Max Compound spinbox (optional - 0 means no limit)
         max_spin = NoScrollDoubleSpinBox()
         max_spin.setRange(0.0, 1000000.0)
-        max_spin.setDecimals(2)
+        max_spin.setDecimals(0)
+        max_spin.setPrefix("$")
         max_spin.setSpecialValueText("None")
+        max_spin.setSingleStep(1000.0)
         max_spin.setValue(config.max_compound if config.max_compound else 0.0)
         max_spin.valueChanged.connect(
             lambda val, r=row: self._on_max_compound_changed(r, val)

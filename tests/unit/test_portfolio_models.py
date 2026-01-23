@@ -20,10 +20,10 @@ class TestStrategyConfig:
         )
         assert config.name == "Test Strategy"
         assert config.stop_pct == 2.0  # default
-        assert config.efficiency == 1.0  # default
+        assert config.efficiency == 0.05  # default 5%
         assert config.size_type == PositionSizeType.CUSTOM_PCT
         assert config.size_value == 10.0  # default 10%
-        assert config.max_compound is None
+        assert config.max_compound == 50000.0  # default $50,000
         assert config.is_baseline is False
         assert config.is_candidate is False
 
