@@ -22,9 +22,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pyqtgraph import DateAxisItem
-
-from src.ui.components.abbreviated_axis import AbbreviatedAxisItem
+from src.ui.components.abbreviated_axis import AbbreviatedAxisItem, FormattedDateAxisItem
 from src.ui.components.axis_mode_toggle import AxisMode, AxisModeToggle
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
 
@@ -477,8 +475,8 @@ class PortfolioChartsWidget(QWidget):
             plot_item = plot_widget.getPlotItem()
 
             if self._axis_mode == AxisMode.DATE:
-                # Switch to date axis
-                date_axis = DateAxisItem(orientation="bottom")
+                # Switch to date axis with proper date formatting
+                date_axis = FormattedDateAxisItem(orientation="bottom")
                 date_axis.setPen(axis_pen)
                 date_axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
                 plot_item.setAxisItems({"bottom": date_axis})

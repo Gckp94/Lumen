@@ -52,8 +52,7 @@ class PortfolioCalculator:
             for _, trade in day_trades.iterrows():
                 trade_num += 1
                 # Convert from decimal form (0.07) to percentage form (7.0)
-                raw_gain = float(trade[mapping.gain_pct_col])
-                gain_pct = raw_gain * 100.0
+                gain_pct = float(trade[mapping.gain_pct_col]) * 100.0
 
                 # Calculate position size
                 position_size = self._calculate_position_size(
@@ -78,15 +77,6 @@ class PortfolioCalculator:
                 adjusted_gain = stop_adjusted - config.efficiency
 
                 pnl = position_size * (adjusted_gain / 100.0)
-
-                # DEBUG: Log first 5 trades to understand calculation
-                if trade_num <= 5:
-                    mae_info = f", mae={mae_pct}%" if mapping.mae_pct_col and mapping.mae_pct_col in df.columns else ""
-                    logger.info(
-                        f"Trade {trade_num}: raw_gain={raw_gain}, gain_pct={gain_pct}%{mae_info}, "
-                        f"stop_adjusted={stop_adjusted}%, efficiency={config.efficiency}%, "
-                        f"adjusted_gain={adjusted_gain}%, position={position_size}, pnl={pnl}"
-                    )
 
                 account_value += pnl
                 peak = max(peak, account_value)
