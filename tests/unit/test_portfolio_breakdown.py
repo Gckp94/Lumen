@@ -75,6 +75,22 @@ class TestPortfolioBreakdownCalculatorYearly:
         # 2024: 1 win (200), 1 loss (-30) = 50%
         assert result[2024]["win_rate_pct"] == pytest.approx(50.0, rel=0.01)
 
+    def test_calculate_yearly_account_growth_cumulative(
+        self, calculator: PortfolioBreakdownCalculator, sample_equity_df: pd.DataFrame
+    ) -> None:
+        """Verify account growth % is cumulative from starting capital.
+
+        Account growth shows what % the account is of the original capital.
+        e.g., 200% means account doubled, 400% means account quadrupled.
+        """
+        result = calculator.calculate_yearly(sample_equity_df)
+
+        # Starting capital = 10000 (default)
+        # 2023 ends at equity 10200 → 10200 / 10000 * 100 = 102%
+        assert result[2023]["account_growth_pct"] == pytest.approx(102.0, rel=0.01)
+        # 2024 ends at equity 10370 → 10370 / 10000 * 100 = 103.7%
+        assert result[2024]["account_growth_pct"] == pytest.approx(103.7, rel=0.01)
+
     def test_calculate_yearly_empty_df(
         self, calculator: PortfolioBreakdownCalculator
     ) -> None:

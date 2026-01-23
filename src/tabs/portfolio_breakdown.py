@@ -309,6 +309,22 @@ class PortfolioBreakdownTab(QWidget):
         """Handle year selection change."""
         self._refresh_monthly_charts()
 
+    def _infer_starting_capital(self) -> float:
+        """Infer starting capital from portfolio data.
+
+        Returns:
+            Starting capital (equity before first trade), or 0 if not available.
+        """
+        # Try baseline first, then combined
+        for df in (self._baseline_data, self._combined_data):
+            if df is not None and not df.empty and "equity" in df.columns and "pnl" in df.columns:
+                # Sort by date to get chronologically first trade
+                sorted_df = df.sort_values("date")
+                first_equity = sorted_df["equity"].iloc[0]
+                first_pnl = sorted_df["pnl"].iloc[0]
+                return first_equity - first_pnl
+        return 0.0
+
     def on_portfolio_data_changed(self, data: dict[str, pd.DataFrame]) -> None:
         """Handle portfolio data update from Portfolio Overview.
 
@@ -317,6 +333,11 @@ class PortfolioBreakdownTab(QWidget):
         """
         self._baseline_data = data.get("baseline")
         self._combined_data = data.get("combined")
+
+        # Infer starting capital from first trade (equity - pnl = starting value)
+        starting_capital = self._infer_starting_capital()
+        if starting_capital > 0:
+            self._calculator._starting_capital = starting_capital
 
         # Update available years
         years = set()

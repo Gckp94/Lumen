@@ -35,7 +35,7 @@ class PortfolioBreakdownCalculator:
             Dict mapping year to metrics dict with keys:
             - total_gain_pct: Sum of PnL as % of period start equity
             - total_gain_dollars: Sum of PnL in dollars
-            - account_growth_pct: (end - start) / start * 100
+            - account_growth_pct: Cumulative growth from starting capital (e.g., 400% = 4x)
             - max_dd_pct: Maximum drawdown as % of peak
             - max_dd_dollars: Maximum drawdown in dollars
             - win_rate_pct: Winning trades / total trades * 100
@@ -51,15 +51,20 @@ class PortfolioBreakdownCalculator:
         results: dict[int, dict[str, float]] = {}
 
         for year, year_df in df.groupby("_year", sort=True):
-            results[int(year)] = self._calculate_period_metrics(year_df)
+            results[int(year)] = self._calculate_period_metrics(
+                year_df, self._starting_capital
+            )
 
         return results
 
-    def _calculate_period_metrics(self, df: pd.DataFrame) -> dict[str, float]:
+    def _calculate_period_metrics(
+        self, df: pd.DataFrame, starting_capital: float
+    ) -> dict[str, float]:
         """Calculate metrics for a single period.
 
         Args:
             df: DataFrame for the period.
+            starting_capital: Original account starting capital for cumulative growth.
 
         Returns:
             Dict with all 8 metrics.
@@ -73,12 +78,14 @@ class PortfolioBreakdownCalculator:
         period_start = equity_values[0] - pnl_values[0]
         period_end = equity_values[-1]
 
-        # Total gain
+        # Total gain (for this period only)
         total_gain_dollars = float(pnl_values.sum())
         total_gain_pct = (total_gain_dollars / period_start * 100) if period_start > 0 else 0.0
 
-        # Account growth
-        account_growth_pct = ((period_end - period_start) / period_start * 100) if period_start > 0 else 0.0
+        # Account growth (cumulative from original starting capital)
+        # Shows what % the account is of the original capital
+        # e.g., 200% means account doubled, 400% means account quadrupled
+        account_growth_pct = (period_end / starting_capital * 100) if starting_capital > 0 else 0.0
 
         # Max drawdown
         max_dd_dollars = float(drawdown_values.min()) if len(drawdown_values) > 0 else 0.0
@@ -135,7 +142,9 @@ class PortfolioBreakdownCalculator:
         results: dict[int, dict[str, float]] = {}
 
         for month, month_df in year_df.groupby("_month", sort=True):
-            results[int(month)] = self._calculate_period_metrics(month_df)
+            results[int(month)] = self._calculate_period_metrics(
+                month_df, self._starting_capital
+            )
 
         return results
 
