@@ -82,10 +82,10 @@ class PortfolioBreakdownCalculator:
         total_gain_dollars = float(pnl_values.sum())
         total_gain_pct = (total_gain_dollars / period_start * 100) if period_start > 0 else 0.0
 
-        # Account growth (cumulative from original starting capital)
-        # Shows what % the account is of the original capital
-        # e.g., 200% means account doubled, 400% means account quadrupled
-        account_growth_pct = (period_end / starting_capital * 100) if starting_capital > 0 else 0.0
+        # Account growth (cumulative growth from reference capital)
+        # Shows the % gain/loss from the reference point
+        # e.g., 100% means account doubled, -50% means lost half
+        account_growth_pct = ((period_end - starting_capital) / starting_capital * 100) if starting_capital > 0 else 0.0
 
         # Max drawdown
         max_dd_dollars = float(drawdown_values.min()) if len(drawdown_values) > 0 else 0.0
@@ -135,15 +135,20 @@ class PortfolioBreakdownCalculator:
         df["_month"] = df["_date"].dt.month
 
         # Filter to requested year
-        year_df = df[df["_year"] == year]
+        year_df = df[df["_year"] == year].sort_values("_date")
         if year_df.empty:
             return {}
+
+        # Calculate start-of-year equity (equity before first trade of the year)
+        # This is used for monthly account_growth_pct to show growth within the year
+        first_row = year_df.iloc[0]
+        start_of_year_equity = first_row["equity"] - first_row["pnl"]
 
         results: dict[int, dict[str, float]] = {}
 
         for month, month_df in year_df.groupby("_month", sort=True):
             results[int(month)] = self._calculate_period_metrics(
-                month_df, self._starting_capital
+                month_df, start_of_year_equity
             )
 
         return results

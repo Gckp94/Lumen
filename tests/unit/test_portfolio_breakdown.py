@@ -80,16 +80,16 @@ class TestPortfolioBreakdownCalculatorYearly:
     ) -> None:
         """Verify account growth % is cumulative from starting capital.
 
-        Account growth shows what % the account is of the original capital.
-        e.g., 200% means account doubled, 400% means account quadrupled.
+        Account growth shows the % gain/loss from the original capital.
+        e.g., 100% means account doubled, -50% means lost half.
         """
         result = calculator.calculate_yearly(sample_equity_df)
 
         # Starting capital = 10000 (default)
-        # 2023 ends at equity 10200 → 10200 / 10000 * 100 = 102%
-        assert result[2023]["account_growth_pct"] == pytest.approx(102.0, rel=0.01)
-        # 2024 ends at equity 10370 → 10370 / 10000 * 100 = 103.7%
-        assert result[2024]["account_growth_pct"] == pytest.approx(103.7, rel=0.01)
+        # 2023 ends at equity 10200 → (10200 - 10000) / 10000 * 100 = 2%
+        assert result[2023]["account_growth_pct"] == pytest.approx(2.0, rel=0.01)
+        # 2024 ends at equity 10370 → (10370 - 10000) / 10000 * 100 = 3.7%
+        assert result[2024]["account_growth_pct"] == pytest.approx(3.7, rel=0.01)
 
     def test_calculate_yearly_empty_df(
         self, calculator: PortfolioBreakdownCalculator
@@ -152,6 +152,23 @@ class TestPortfolioBreakdownCalculatorMonthly:
         result = calculator.calculate_monthly(sample_equity_df, year=2023)
 
         assert result == {}
+
+    def test_calculate_monthly_account_growth_uses_start_of_year(
+        self, calculator: PortfolioBreakdownCalculator, sample_equity_df: pd.DataFrame
+    ) -> None:
+        """Verify account growth % uses start-of-year equity, not original capital.
+
+        Monthly account_growth_pct shows growth relative to the start of that year,
+        not the original account starting capital.
+        """
+        result = calculator.calculate_monthly(sample_equity_df, year=2024)
+
+        # Start of year equity = first trade's equity - pnl = 10100 - 100 = 10000
+        # March ends at equity 10320 → (10320 - 10000) / 10000 * 100 = 3.2%
+        assert result[3]["account_growth_pct"] == pytest.approx(3.2, rel=0.01)
+
+        # January ends at equity 10150 → (10150 - 10000) / 10000 * 100 = 1.5%
+        assert result[1]["account_growth_pct"] == pytest.approx(1.5, rel=0.01)
 
 
 class TestPortfolioBreakdownCalculatorAvailableYears:
