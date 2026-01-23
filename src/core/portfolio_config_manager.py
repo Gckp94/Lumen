@@ -58,7 +58,7 @@ class PortfolioConfigManager:
             "column_mapping": {
                 "date_col": config.column_mapping.date_col,
                 "gain_pct_col": config.column_mapping.gain_pct_col,
-                "win_loss_col": config.column_mapping.win_loss_col,
+                "mae_pct_col": config.column_mapping.mae_pct_col,
             },
             "sheet_name": config.sheet_name,
             "stop_pct": config.stop_pct,
@@ -74,7 +74,7 @@ class PortfolioConfigManager:
         mapping = PortfolioColumnMapping(
             date_col=data["column_mapping"]["date_col"],
             gain_pct_col=data["column_mapping"]["gain_pct_col"],
-            win_loss_col=data["column_mapping"]["win_loss_col"],
+            mae_pct_col=data["column_mapping"].get("mae_pct_col"),
         )
         return StrategyConfig(
             name=data["name"],

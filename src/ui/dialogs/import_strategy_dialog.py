@@ -32,6 +32,7 @@ class ImportStrategyDialog(QDialog):
     """Dialog for importing a strategy file and mapping columns."""
 
     PLACEHOLDER = "-- Select Column --"
+    PLACEHOLDER_OPTIONAL = "-- None (Optional) --"
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -77,14 +78,17 @@ class ImportStrategyDialog(QDialog):
 
         self._date_combo = QComboBox()
         self._gain_combo = QComboBox()
-        self._wl_combo = QComboBox()
+        self._mae_combo = QComboBox()
 
-        for combo in [self._date_combo, self._gain_combo, self._wl_combo]:
+        for combo in [self._date_combo, self._gain_combo]:
             combo.addItem(self.PLACEHOLDER)
+
+        # MAE is optional, so use optional placeholder
+        self._mae_combo.addItem(self.PLACEHOLDER_OPTIONAL)
 
         mapping_layout.addRow("Date Column:", self._date_combo)
         mapping_layout.addRow("Gain % Column:", self._gain_combo)
-        mapping_layout.addRow("Win/Loss Column:", self._wl_combo)
+        mapping_layout.addRow("MAE % Column (Optional):", self._mae_combo)
         layout.addWidget(mapping_group)
 
         # Preview table
@@ -119,7 +123,7 @@ class ImportStrategyDialog(QDialog):
         self._import_btn.clicked.connect(self.accept)
         self._sheet_selector.currentTextChanged.connect(self._on_sheet_changed)
 
-        for combo in [self._date_combo, self._gain_combo, self._wl_combo]:
+        for combo in [self._date_combo, self._gain_combo]:
             combo.currentTextChanged.connect(self._validate_mapping)
 
     def _on_browse(self):
@@ -176,10 +180,15 @@ class ImportStrategyDialog(QDialog):
         self._preview_df = df
         columns = list(df.columns)
 
-        for combo in [self._date_combo, self._gain_combo, self._wl_combo]:
+        for combo in [self._date_combo, self._gain_combo]:
             combo.clear()
             combo.addItem(self.PLACEHOLDER)
             combo.addItems(columns)
+
+        # MAE combo has optional placeholder first
+        self._mae_combo.clear()
+        self._mae_combo.addItem(self.PLACEHOLDER_OPTIONAL)
+        self._mae_combo.addItems(columns)
 
         preview = df.head(5)
         self._preview_table.setRowCount(len(preview))
@@ -196,20 +205,20 @@ class ImportStrategyDialog(QDialog):
         self._validate_mapping()
 
     def _validate_mapping(self):
-        """Enable import button only when all columns are mapped."""
+        """Enable import button only when required columns are mapped."""
         all_mapped = (
             self._date_combo.currentText() != self.PLACEHOLDER
             and self._gain_combo.currentText() != self.PLACEHOLDER
-            and self._wl_combo.currentText() != self.PLACEHOLDER
         )
         self._import_btn.setEnabled(all_mapped)
 
     def get_column_mapping(self) -> PortfolioColumnMapping:
         """Get the selected column mapping."""
+        mae_col = self._mae_combo.currentText()
         return PortfolioColumnMapping(
             date_col=self._date_combo.currentText(),
             gain_pct_col=self._gain_combo.currentText(),
-            win_loss_col=self._wl_combo.currentText(),
+            mae_pct_col=mae_col if mae_col != self.PLACEHOLDER_OPTIONAL else None,
         )
 
     def get_strategy_name(self) -> str:

@@ -76,12 +76,11 @@ class TestPortfolioOverviewTab:
         config = StrategyConfig(
             name="Test",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
         )
         tab._strategy_data["Test"] = pd.DataFrame({
             "date": pd.to_datetime(["2024-01-01"]),
             "gain_pct": [5.0],
-            "wl": ["W"],
         })
         tab._strategy_table.add_strategy(config)
 
@@ -120,7 +119,7 @@ class TestPortfolioOverviewTab:
         config = StrategyConfig(
             name="Test",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain"),
         )
         tab._strategy_table.add_strategy(config)
         tab._update_row_loaded_state("Test", loaded=False)
@@ -140,7 +139,7 @@ class TestPortfolioOverviewTab:
         config = StrategyConfig(
             name="Test",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain"),
         )
         tab._strategy_table.add_strategy(config)
         tab._update_row_loaded_state("Test", loaded=True)
@@ -163,7 +162,7 @@ class TestPortfolioOverviewTab:
         config = StrategyConfig(
             name="Test",
             file_path=str(csv_path),
-            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain"),
         )
         tab._strategy_table.add_strategy(config)
 
@@ -182,7 +181,7 @@ class TestPortfolioOverviewTab:
         config = StrategyConfig(
             name="Test",
             file_path="/nonexistent/file.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain"),
         )
         tab._strategy_table.add_strategy(config)
 
@@ -206,7 +205,7 @@ class TestPortfolioOverviewTab:
         config = StrategyConfig(
             name="Test",
             file_path=str(csv_path),
-            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain"),
         )
         tab._strategy_table.add_strategy(config)
 
@@ -224,7 +223,7 @@ class TestPortfolioOverviewTab:
         config = StrategyConfig(
             name="TestStrategy",
             file_path="/nonexistent/file.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain"),
         )
         config_manager.save([config], 100_000)
 

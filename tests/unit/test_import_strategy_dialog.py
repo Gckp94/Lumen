@@ -39,7 +39,6 @@ class TestImportStrategyDialog:
         df = pd.DataFrame({
             "trade_date": ["2024-01-01"],
             "return_pct": [5.0],
-            "outcome": ["W"],
         })
         dialog = ImportStrategyDialog()
         qtbot.addWidget(dialog)
@@ -47,12 +46,10 @@ class TestImportStrategyDialog:
 
         dialog._date_combo.setCurrentText("trade_date")
         dialog._gain_combo.setCurrentText("return_pct")
-        dialog._wl_combo.setCurrentText("outcome")
 
         mapping = dialog.get_column_mapping()
         assert mapping.date_col == "trade_date"
         assert mapping.gain_pct_col == "return_pct"
-        assert mapping.win_loss_col == "outcome"
 
     def test_import_button_disabled_until_all_mapped(self, app, qtbot):
         dialog = ImportStrategyDialog()
@@ -63,12 +60,10 @@ class TestImportStrategyDialog:
         df = pd.DataFrame({
             "date": ["2024-01-01"],
             "gain": [5.0],
-            "wl": ["W"],
         })
         dialog.set_preview_data(df)
         dialog._date_combo.setCurrentText("date")
         dialog._gain_combo.setCurrentText("gain")
-        dialog._wl_combo.setCurrentText("wl")
 
         assert dialog._import_btn.isEnabled()
 
@@ -110,6 +105,62 @@ class TestImportStrategyDialogSheetSelection:
         dialog = ImportStrategyDialog()
         qtbot.addWidget(dialog)
         assert dialog.get_selected_sheet() is None
+
+
+class TestImportStrategyDialogMaeColumn:
+    def test_dialog_has_mae_combo(self, app, qtbot):
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        assert hasattr(dialog, "_mae_combo")
+
+    def test_mae_combo_has_optional_placeholder(self, app, qtbot):
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        df = pd.DataFrame({
+            "date": ["2024-01-01"],
+            "gain": [5.0],
+            "wl": ["W"],
+            "mae": [2.0],
+        })
+        dialog.set_preview_data(df)
+
+        items = [dialog._mae_combo.itemText(i) for i in range(dialog._mae_combo.count())]
+        assert dialog.PLACEHOLDER_OPTIONAL in items
+        assert "mae" in items
+
+    def test_get_column_mapping_returns_mae_when_selected(self, app, qtbot):
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        df = pd.DataFrame({
+            "date": ["2024-01-01"],
+            "gain": [5.0],
+            "mae": [2.0],
+        })
+        dialog.set_preview_data(df)
+
+        dialog._date_combo.setCurrentText("date")
+        dialog._gain_combo.setCurrentText("gain")
+        dialog._mae_combo.setCurrentText("mae")
+
+        mapping = dialog.get_column_mapping()
+        assert mapping.mae_pct_col == "mae"
+
+    def test_get_column_mapping_returns_none_when_optional_placeholder(self, app, qtbot):
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        df = pd.DataFrame({
+            "date": ["2024-01-01"],
+            "gain": [5.0],
+            "mae": [2.0],
+        })
+        dialog.set_preview_data(df)
+
+        dialog._date_combo.setCurrentText("date")
+        dialog._gain_combo.setCurrentText("gain")
+        dialog._mae_combo.setCurrentText(dialog.PLACEHOLDER_OPTIONAL)
+
+        mapping = dialog.get_column_mapping()
+        assert mapping.mae_pct_col is None
 
 
 class TestImportStrategyDialogExcelSheetSelection:

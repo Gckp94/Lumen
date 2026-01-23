@@ -15,7 +15,6 @@ class TestStrategyConfig:
             column_mapping=PortfolioColumnMapping(
                 date_col="date",
                 gain_pct_col="gain_pct",
-                win_loss_col="wl",
             ),
         )
         assert config.name == "Test Strategy"
@@ -36,11 +35,19 @@ class TestStrategyConfig:
         mapping = PortfolioColumnMapping(
             date_col="trade_date",
             gain_pct_col="return_pct",
-            win_loss_col="outcome",
         )
         assert mapping.date_col == "trade_date"
         assert mapping.gain_pct_col == "return_pct"
-        assert mapping.win_loss_col == "outcome"
+
+
+class TestPortfolioColumnMappingMae:
+    def test_mae_pct_col_defaults_to_none(self):
+        mapping = PortfolioColumnMapping("date", "gain")
+        assert mapping.mae_pct_col is None
+
+    def test_mae_pct_col_can_be_set(self):
+        mapping = PortfolioColumnMapping("date", "gain", mae_pct_col="mae")
+        assert mapping.mae_pct_col == "mae"
 
 
 class TestStrategyConfigSheetName:
@@ -51,7 +58,6 @@ class TestStrategyConfigSheetName:
             column_mapping=PortfolioColumnMapping(
                 date_col="date",
                 gain_pct_col="gain",
-                win_loss_col="wl",
             ),
         )
         assert config.sheet_name is None
@@ -63,7 +69,6 @@ class TestStrategyConfigSheetName:
             column_mapping=PortfolioColumnMapping(
                 date_col="date",
                 gain_pct_col="gain",
-                win_loss_col="wl",
             ),
             sheet_name="Sheet2",
         )

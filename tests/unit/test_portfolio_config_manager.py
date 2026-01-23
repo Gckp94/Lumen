@@ -15,7 +15,7 @@ class TestPortfolioConfigManager:
             StrategyConfig(
                 name="Strategy A",
                 file_path="/path/to/a.csv",
-                column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+                column_mapping=PortfolioColumnMapping("date", "gain"),
                 is_baseline=True,
                 size_value=15.0,
             ),
@@ -59,7 +59,6 @@ class TestPortfolioConfigManagerSheetName:
             column_mapping=PortfolioColumnMapping(
                 date_col="date",
                 gain_pct_col="gain",
-                win_loss_col="wl",
             ),
             sheet_name="Sheet2",
         )
@@ -80,7 +79,6 @@ class TestPortfolioConfigManagerSheetName:
                 "column_mapping": {
                     "date_col": "date",
                     "gain_pct_col": "gain",
-                    "win_loss_col": "wl",
                 },
                 "sheet_name": "Sheet2",
             }],
@@ -103,7 +101,6 @@ class TestPortfolioConfigManagerSheetName:
                 "column_mapping": {
                     "date_col": "date",
                     "gain_pct_col": "gain",
-                    "win_loss_col": "wl",
                 },
             }],
         }
@@ -114,6 +111,71 @@ class TestPortfolioConfigManagerSheetName:
         strategies, _ = manager.load()
 
         assert strategies[0].sheet_name is None
+
+
+class TestPortfolioConfigManagerMaePctCol:
+    def test_saves_mae_pct_col(self, tmp_path):
+        config_path = tmp_path / "test_config.json"
+        manager = PortfolioConfigManager(config_path)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.csv",
+            column_mapping=PortfolioColumnMapping(
+                date_col="date",
+                gain_pct_col="gain",
+                mae_pct_col="mae",
+            ),
+        )
+        manager.save([config], 100_000)
+
+        with open(config_path) as f:
+            data = json.load(f)
+
+        assert data["strategies"][0]["column_mapping"]["mae_pct_col"] == "mae"
+
+    def test_loads_mae_pct_col(self, tmp_path):
+        config_path = tmp_path / "test_config.json"
+        data = {
+            "account_start": 100_000,
+            "strategies": [{
+                "name": "Test",
+                "file_path": "/path/to/file.csv",
+                "column_mapping": {
+                    "date_col": "date",
+                    "gain_pct_col": "gain",
+                    "mae_pct_col": "mae_column",
+                },
+            }],
+        }
+        with open(config_path, "w") as f:
+            json.dump(data, f)
+
+        manager = PortfolioConfigManager(config_path)
+        strategies, _ = manager.load()
+
+        assert strategies[0].column_mapping.mae_pct_col == "mae_column"
+
+    def test_backward_compat_loads_none_when_mae_missing(self, tmp_path):
+        config_path = tmp_path / "test_config.json"
+        data = {
+            "account_start": 100_000,
+            "strategies": [{
+                "name": "Test",
+                "file_path": "/path/to/file.csv",
+                "column_mapping": {
+                    "date_col": "date",
+                    "gain_pct_col": "gain",
+                },
+            }],
+        }
+        with open(config_path, "w") as f:
+            json.dump(data, f)
+
+        manager = PortfolioConfigManager(config_path)
+        strategies, _ = manager.load()
+
+        assert strategies[0].column_mapping.mae_pct_col is None
 
 
 def test_portfolio_overview_accepts_config_manager(tmp_path):

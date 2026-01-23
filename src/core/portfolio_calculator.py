@@ -32,7 +32,7 @@ class PortfolioCalculator:
             DataFrame with columns: date, trade_num, pnl, equity, peak, drawdown
         """
         if trades_df.empty:
-            return pd.DataFrame(columns=["date", "trade_num", "pnl", "equity", "peak", "drawdown"])
+            return pd.DataFrame(columns=["date", "trade_num", "pnl", "equity", "peak", "drawdown", "win"])
 
         mapping = config.column_mapping
         df = trades_df.copy()
@@ -58,8 +58,20 @@ class PortfolioCalculator:
                     day_opening, config
                 )
 
-                # Apply efficiency and stop adjustment
-                adjusted_gain = gain_pct * config.efficiency
+                # Step 1: Stop loss adjustment (if MAE column available)
+                if mapping.mae_pct_col and mapping.mae_pct_col in df.columns:
+                    mae_pct = float(trade[mapping.mae_pct_col])
+                    if mae_pct > config.stop_pct:
+                        stop_adjusted = -config.stop_pct
+                    else:
+                        stop_adjusted = gain_pct
+                else:
+                    stop_adjusted = gain_pct
+
+                # Step 2: Efficiency adjustment (subtract, convert from decimal)
+                efficiency_pct = config.efficiency * 100.0
+                adjusted_gain = stop_adjusted - efficiency_pct
+
                 pnl = position_size * (adjusted_gain / 100.0)
 
                 account_value += pnl
@@ -73,6 +85,7 @@ class PortfolioCalculator:
                     "equity": account_value,
                     "peak": peak,
                     "drawdown": drawdown,
+                    "win": adjusted_gain > 0,  # Derived from adjusted gain
                 })
 
         return pd.DataFrame(results)
@@ -117,7 +130,7 @@ class PortfolioCalculator:
         """
         if not strategies:
             return pd.DataFrame(
-                columns=["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown"]
+                columns=["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown", "win"]
             )
 
         all_trades = []
@@ -130,7 +143,12 @@ class PortfolioCalculator:
             df["_gain_pct"] = df[mapping.gain_pct_col]
             df["_date"] = pd.to_datetime(df[mapping.date_col], dayfirst=True)
             df["_config"] = [config] * len(df)
-            all_trades.append(df[["_date", "_gain_pct", "_strategy_name", "_config"]])
+            # Include MAE if available
+            if mapping.mae_pct_col and mapping.mae_pct_col in df.columns:
+                df["_mae_pct"] = df[mapping.mae_pct_col]
+            else:
+                df["_mae_pct"] = None
+            all_trades.append(df[["_date", "_gain_pct", "_mae_pct", "_strategy_name", "_config"]])
 
         if not all_trades:
             return pd.DataFrame(
@@ -155,7 +173,22 @@ class PortfolioCalculator:
                 gain_pct = float(trade["_gain_pct"])
 
                 position_size = self._calculate_position_size(day_opening, config)
-                adjusted_gain = gain_pct * config.efficiency
+
+                # Step 1: Stop loss adjustment (if MAE available)
+                mae_pct = trade["_mae_pct"]
+                if mae_pct is not None:
+                    mae_pct = float(mae_pct)
+                    if mae_pct > config.stop_pct:
+                        stop_adjusted = -config.stop_pct
+                    else:
+                        stop_adjusted = gain_pct
+                else:
+                    stop_adjusted = gain_pct
+
+                # Step 2: Efficiency adjustment (subtract, convert from decimal)
+                efficiency_pct = config.efficiency * 100.0
+                adjusted_gain = stop_adjusted - efficiency_pct
+
                 pnl = position_size * (adjusted_gain / 100.0)
 
                 account_value += pnl
@@ -170,6 +203,7 @@ class PortfolioCalculator:
                     "equity": account_value,
                     "peak": peak,
                     "drawdown": drawdown,
+                    "win": adjusted_gain > 0,  # Derived from adjusted gain
                 })
 
         return pd.DataFrame(results)

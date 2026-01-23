@@ -25,11 +25,11 @@ class TestPortfolioCalculatorSingleStrategy:
         return StrategyConfig(
             name="Test",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.CUSTOM_PCT,
             size_value=10.0,  # 10% of account
             stop_pct=2.0,
-            efficiency=1.0,
+            efficiency=0.0,  # 0% efficiency loss (no deduction)
         )
 
     def test_calculate_single_strategy_equity(self, sample_trades, strategy_config):
@@ -39,6 +39,7 @@ class TestPortfolioCalculatorSingleStrategy:
         assert "equity" in result.columns
         assert "drawdown" in result.columns
         assert "date" in result.columns
+        assert "win" in result.columns
         assert len(result) == 5
 
     def test_daily_compounding(self, sample_trades, strategy_config):
@@ -71,11 +72,11 @@ class TestPortfolioCalculatorSingleStrategy:
         config = StrategyConfig(
             name="FlatDollar",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.FLAT_DOLLAR,
             size_value=5_000,  # Fixed $5k position
             stop_pct=2.0,
-            efficiency=1.0,
+            efficiency=0.0,  # 0% efficiency loss
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_single_strategy(sample_trades, config)
@@ -88,12 +89,12 @@ class TestPortfolioCalculatorSingleStrategy:
         config = StrategyConfig(
             name="FlatDollarCapped",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.FLAT_DOLLAR,
             size_value=10_000,  # $10k position
             max_compound=5_000,  # But capped at $5k
             stop_pct=2.0,
-            efficiency=1.0,
+            efficiency=0.0,  # 0% efficiency loss
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_single_strategy(sample_trades, config)
@@ -106,11 +107,11 @@ class TestPortfolioCalculatorSingleStrategy:
         config = StrategyConfig(
             name="FracKelly",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.FRAC_KELLY,
             size_value=25.0,  # 25% (quarter kelly simplified as percentage)
             stop_pct=2.0,
-            efficiency=1.0,
+            efficiency=0.0,  # 0% efficiency loss
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_single_strategy(sample_trades, config)
@@ -118,35 +119,35 @@ class TestPortfolioCalculatorSingleStrategy:
         # Day 1: 5% gain on 25% of 100k = 5% on $25k = $1250 gain
         assert result.iloc[0]["equity"] == pytest.approx(101_250, rel=0.01)
 
-    def test_efficiency_multiplier(self, sample_trades):
-        """Efficiency multiplies the gain_pct."""
+    def test_efficiency_subtraction(self, sample_trades):
+        """Efficiency is subtracted from gain_pct (not multiplied)."""
         config = StrategyConfig(
             name="Efficiency",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.CUSTOM_PCT,
             size_value=10.0,  # 10% position
             stop_pct=2.0,
-            efficiency=0.5,  # 50% efficiency
+            efficiency=0.02,  # 2% efficiency cost (subtracted as 2%)
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_single_strategy(sample_trades, config)
 
-        # Day 1: 5% gain * 0.5 efficiency = 2.5% effective gain
+        # Day 1: 5% gain - 2% efficiency = 3% effective gain
         # Position: 10% of 100k = $10k
-        # PnL: 2.5% of $10k = $250
-        assert result.iloc[0]["equity"] == pytest.approx(100_250, rel=0.01)
+        # PnL: 3% of $10k = $300
+        assert result.iloc[0]["equity"] == pytest.approx(100_300, rel=0.01)
 
     def test_empty_dataframe_returns_empty_with_columns(self):
         """Empty DataFrame returns empty DataFrame with correct columns."""
         config = StrategyConfig(
             name="Empty",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.CUSTOM_PCT,
             size_value=10.0,
             stop_pct=2.0,
-            efficiency=1.0,
+            efficiency=0.0,  # 0% efficiency loss
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         empty_df = pd.DataFrame(columns=["date", "gain_pct", "wl"])
@@ -159,6 +160,7 @@ class TestPortfolioCalculatorSingleStrategy:
         assert "equity" in result.columns
         assert "peak" in result.columns
         assert "drawdown" in result.columns
+        assert "win" in result.columns
 
     def test_calculate_single_strategy_handles_ddmmyyyy_dates(self):
         """Test that DD/MM/YYYY date format is parsed correctly without warnings."""
@@ -176,7 +178,7 @@ class TestPortfolioCalculatorSingleStrategy:
         config = StrategyConfig(
             name="Test",
             file_path="/test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
         )
 
         # Should not raise warnings about dayfirst
@@ -193,6 +195,111 @@ class TestPortfolioCalculatorSingleStrategy:
 
         assert len(result) == 3
         assert result["trade_num"].tolist() == [1, 2, 3]
+
+
+class TestPortfolioCalculatorStopLossAndEfficiency:
+    """Tests for correct stop loss and efficiency behavior."""
+
+    def test_efficiency_is_subtracted_not_multiplied(self):
+        """Efficiency should be subtracted from gain, not multiplied."""
+        # gain=10%, MAE=2% (below stop=8%), efficiency=5%
+        # Expected: adjusted = 10% - 5% = 5%, pnl = $10k * 5% = $500
+        trades = pd.DataFrame({
+            "date": ["2024-01-01"],
+            "gain_pct": [10.0],
+            "wl": ["W"],
+            "mae": [2.0],  # Below stop of 8%
+        })
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", mae_pct_col="mae"),
+            size_type=PositionSizeType.FLAT_DOLLAR,
+            size_value=10_000,
+            stop_pct=8.0,
+            efficiency=0.05,  # 5%
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_single_strategy(trades, config)
+
+        # adjusted = 10% - 5% = 5%, pnl = $10k * 5% = $500
+        assert result.iloc[0]["pnl"] == pytest.approx(500.0, rel=0.01)
+        assert result.iloc[0]["equity"] == pytest.approx(100_500.0, rel=0.01)
+
+    def test_stop_loss_triggered_when_mae_exceeds_stop(self):
+        """When MAE > stop, gain should be replaced with -stop."""
+        # gain=-5%, MAE=12% (above stop=8%), efficiency=5%
+        # Expected: adjusted = -8% - 5% = -13%, pnl = $10k * -13% = -$1300
+        trades = pd.DataFrame({
+            "date": ["2024-01-01"],
+            "gain_pct": [-5.0],
+            "wl": ["L"],
+            "mae": [12.0],  # Above stop of 8%
+        })
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", mae_pct_col="mae"),
+            size_type=PositionSizeType.FLAT_DOLLAR,
+            size_value=10_000,
+            stop_pct=8.0,
+            efficiency=0.05,  # 5%
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_single_strategy(trades, config)
+
+        # stop adjusted = -8%, then -8% - 5% = -13%
+        # pnl = $10k * -13% = -$1300
+        assert result.iloc[0]["pnl"] == pytest.approx(-1300.0, rel=0.01)
+        assert result.iloc[0]["equity"] == pytest.approx(98_700.0, rel=0.01)
+
+    def test_no_mae_column_skips_stop_adjustment(self):
+        """When no MAE column, just subtract efficiency from gain."""
+        trades = pd.DataFrame({
+            "date": ["2024-01-01"],
+            "gain_pct": [10.0],
+        })
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),  # No mae_pct_col
+            size_type=PositionSizeType.FLAT_DOLLAR,
+            size_value=10_000,
+            stop_pct=8.0,
+            efficiency=0.05,  # 5%
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_single_strategy(trades, config)
+
+        # No stop adjustment, just: 10% - 5% = 5%
+        # pnl = $10k * 5% = $500
+        assert result.iloc[0]["pnl"] == pytest.approx(500.0, rel=0.01)
+        assert result.iloc[0]["equity"] == pytest.approx(100_500.0, rel=0.01)
+
+    def test_win_derived_from_adjusted_gain(self):
+        """Win/loss should be derived from adjusted gain, not raw gain."""
+        # Trade 1: raw gain=+3%, efficiency=5% -> adjusted=-2% -> LOSS
+        # Trade 2: raw gain=+10%, efficiency=5% -> adjusted=+5% -> WIN
+        trades = pd.DataFrame({
+            "date": ["2024-01-01", "2024-01-02"],
+            "gain_pct": [3.0, 10.0],  # Both positive raw gains
+        })
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
+            size_type=PositionSizeType.FLAT_DOLLAR,
+            size_value=10_000,
+            stop_pct=8.0,
+            efficiency=0.05,  # 5% = efficiency cost that makes 3% into -2%
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_single_strategy(trades, config)
+
+        # Trade 1: 3% - 5% = -2% adjusted -> LOSS (win=False)
+        assert result.iloc[0]["win"] == False
+        # Trade 2: 10% - 5% = +5% adjusted -> WIN (win=True)
+        assert result.iloc[1]["win"] == True
 
 
 class TestPortfolioCalculatorMultiStrategy:
@@ -217,7 +324,7 @@ class TestPortfolioCalculatorMultiStrategy:
         return StrategyConfig(
             name="Strategy A",
             file_path="a.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.CUSTOM_PCT,
             size_value=10.0,
         )
@@ -227,7 +334,7 @@ class TestPortfolioCalculatorMultiStrategy:
         return StrategyConfig(
             name="Strategy B",
             file_path="b.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.CUSTOM_PCT,
             size_value=5.0,
         )
@@ -253,7 +360,52 @@ class TestPortfolioCalculatorMultiStrategy:
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_portfolio(strategies=[])
         assert len(result) == 0
-        assert list(result.columns) == ["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown"]
+        assert list(result.columns) == ["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown", "win"]
+
+    def test_portfolio_applies_stop_loss_and_efficiency(self):
+        """Portfolio calculation should apply stop loss and efficiency subtraction."""
+        # Strategy A: MAE below stop, gain=10%
+        trades_a = pd.DataFrame({
+            "date": ["2024-01-01"],
+            "gain_pct": [10.0],
+            "wl": ["W"],
+            "mae": [2.0],  # Below stop
+        })
+        config_a = StrategyConfig(
+            name="A",
+            file_path="a.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", mae_pct_col="mae"),
+            size_type=PositionSizeType.FLAT_DOLLAR,
+            size_value=10_000,
+            stop_pct=8.0,
+            efficiency=0.05,  # 5%
+        )
+
+        # Strategy B: MAE above stop, gain=-3%
+        trades_b = pd.DataFrame({
+            "date": ["2024-01-02"],
+            "gain_pct": [-3.0],
+            "wl": ["L"],
+            "mae": [12.0],  # Above stop
+        })
+        config_b = StrategyConfig(
+            name="B",
+            file_path="b.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", mae_pct_col="mae"),
+            size_type=PositionSizeType.FLAT_DOLLAR,
+            size_value=10_000,
+            stop_pct=8.0,
+            efficiency=0.05,  # 5%
+        )
+
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_portfolio([(trades_a, config_a), (trades_b, config_b)])
+
+        # Trade A: 10% - 5% = 5%, pnl = $10k * 5% = $500
+        assert result.iloc[0]["pnl"] == pytest.approx(500.0, rel=0.01)
+
+        # Trade B: stop triggered -> -8% - 5% = -13%, pnl = $10k * -13% = -$1300
+        assert result.iloc[1]["pnl"] == pytest.approx(-1300.0, rel=0.01)
 
     def test_calculate_portfolio_handles_ddmmyyyy_dates(self):
         """Test that DD/MM/YYYY date format is parsed correctly without warnings."""
@@ -271,7 +423,7 @@ class TestPortfolioCalculatorMultiStrategy:
         config = StrategyConfig(
             name="Test",
             file_path="/test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
         )
 
         # Should not raise warnings about dayfirst
