@@ -52,8 +52,13 @@ class EquityCalculator:
 
         try:
             # Sort by date if date column provided (ensures chronological equity curve)
+            # Convert to datetime first to ensure correct chronological sorting
+            # (string dates like DD/MM/YYYY don't sort correctly as strings)
             if date_col is not None and date_col in df.columns:
-                df = df.sort_values(date_col).reset_index(drop=True)
+                df = df.copy()
+                df["_sort_date"] = pd.to_datetime(df[date_col], dayfirst=True, errors="coerce")
+                df = df.sort_values("_sort_date").reset_index(drop=True)
+                df = df.drop(columns=["_sort_date"])
 
             gains: np.ndarray = df[gain_col].to_numpy(dtype=float)
 
@@ -251,8 +256,13 @@ class EquityCalculator:
 
         try:
             # Sort by date if date column provided (ensures chronological equity curve)
+            # Convert to datetime first to ensure correct chronological sorting
+            # (string dates like DD/MM/YYYY don't sort correctly as strings)
             if date_col is not None and date_col in df.columns:
-                df = df.sort_values(date_col).reset_index(drop=True)
+                df = df.copy()
+                df["_sort_date"] = pd.to_datetime(df[date_col], dayfirst=True, errors="coerce")
+                df = df.sort_values("_sort_date").reset_index(drop=True)
+                df = df.drop(columns=["_sort_date"])
 
             gains: np.ndarray = df[gain_col].to_numpy(dtype=float)
             n_trades = len(gains)

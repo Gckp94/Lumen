@@ -662,8 +662,8 @@ class EquityChart(QWidget):
     def _replot_curves(self) -> None:
         """Replot all curves using current axis mode's X values.
 
-        In DATE mode, aggregates to one point per day (end-of-day equity).
-        Data must be pre-sorted by date for correct results.
+        In DATE mode, uses timestamps directly (no aggregation).
+        Data is pre-sorted by date in EquityCalculator.
         """
         # Check if we should use timestamps (DATE mode with available timestamps)
         use_timestamps = (
@@ -675,21 +675,10 @@ class EquityChart(QWidget):
         # Replot baseline curve
         if self._baseline_equity is not None:
             if use_timestamps and self._baseline_timestamps is not None:
-                # Aggregate to daily: get last equity value for each unique date
-                # Data is pre-sorted by date, so last occurrence = end of day
-                unique_ts, first_idx = np.unique(
-                    self._baseline_timestamps, return_index=True
-                )
-                # Get last index for each day (next day's first - 1, or end of array)
-                last_idx = np.concatenate([first_idx[1:] - 1, [len(self._baseline_timestamps) - 1]])
-
-                x_data = self._baseline_timestamps[last_idx]
-                y_equity = self._baseline_equity[last_idx]
-                y_peak = (
-                    self._baseline_peak[last_idx]
-                    if self._baseline_peak is not None
-                    else None
-                )
+                # Use timestamps directly - data is pre-sorted by EquityCalculator
+                x_data = self._baseline_timestamps
+                y_equity = self._baseline_equity
+                y_peak = self._baseline_peak
             else:
                 x_data = self._baseline_trade_nums
                 y_equity = self._baseline_equity
@@ -705,14 +694,8 @@ class EquityChart(QWidget):
         # Replot filtered curve
         if self._filtered_equity is not None:
             if use_timestamps and self._filtered_timestamps is not None:
-                # Aggregate to daily: get last equity value for each unique date
-                unique_ts, first_idx = np.unique(
-                    self._filtered_timestamps, return_index=True
-                )
-                last_idx = np.concatenate([first_idx[1:] - 1, [len(self._filtered_timestamps) - 1]])
-
-                x_data = self._filtered_timestamps[last_idx]
-                y_equity = self._filtered_equity[last_idx]
+                x_data = self._filtered_timestamps
+                y_equity = self._filtered_equity
             else:
                 x_data = self._filtered_trade_nums
                 y_equity = self._filtered_equity

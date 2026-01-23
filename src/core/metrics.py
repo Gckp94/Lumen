@@ -89,13 +89,18 @@ class MetricsCalculator:
 
         # Sort chronologically if date/time columns provided (required for accurate streaks
         # and correct equity curve display in DATE mode)
+        # Convert to datetime first to ensure correct chronological sorting
+        # (string dates like DD/MM/YYYY don't sort correctly as strings)
         if date_col and date_col in df.columns:
+            df = df.copy()
+            df["_sort_date"] = pd.to_datetime(df[date_col], dayfirst=True, errors="coerce")
             if time_col and time_col in df.columns:
-                df = df.sort_values([date_col, time_col]).reset_index(drop=True)
+                df = df.sort_values(["_sort_date", time_col]).reset_index(drop=True)
                 logger.debug("Sorted DataFrame by %s, %s", date_col, time_col)
             else:
-                df = df.sort_values([date_col]).reset_index(drop=True)
+                df = df.sort_values(["_sort_date"]).reset_index(drop=True)
                 logger.debug("Sorted DataFrame by %s", date_col)
+            df = df.drop(columns=["_sort_date"])
 
         if len(df) == 0:
             logger.debug("Empty DataFrame, returning empty metrics")
@@ -387,7 +392,12 @@ class MetricsCalculator:
             # Use stop_adjusted_kelly for position sizing if available, otherwise raw kelly
             kelly_for_equity = stop_adjusted_kelly if stop_adjusted_kelly is not None else kelly
             kelly_result = equity_calculator.calculate_kelly_metrics(
-                kelly_equity_df, "_adjusted_gains_for_equity", start_capital, fractional_kelly_pct, kelly_for_equity, date_col=date_col
+                kelly_equity_df,
+                "_adjusted_gains_for_equity",
+                start_capital,
+                fractional_kelly_pct,
+                kelly_for_equity,
+                date_col=date_col,
             )
             pnl_val = kelly_result["pnl"]
             if isinstance(pnl_val, (int, float)):
