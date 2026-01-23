@@ -2,6 +2,7 @@
 
 import logging
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -82,8 +83,10 @@ class PortfolioBreakdownCalculator:
         # Max drawdown
         max_dd_dollars = float(drawdown_values.min()) if len(drawdown_values) > 0 else 0.0
         # Calculate DD% at each point relative to peak at that point
-        dd_pct_at_each = (drawdown_values / peak_values * 100) if len(peak_values) > 0 else [0.0]
-        max_dd_pct = float(min(dd_pct_at_each)) if len(dd_pct_at_each) > 0 else 0.0
+        # Guard against division by zero when peak_values contains zeros
+        with np.errstate(divide='ignore', invalid='ignore'):
+            dd_pct_at_each = np.where(peak_values != 0, drawdown_values / peak_values * 100, 0.0)
+        max_dd_pct = float(np.min(dd_pct_at_each)) if len(dd_pct_at_each) > 0 else 0.0
 
         # Win rate
         trade_count = len(df)
