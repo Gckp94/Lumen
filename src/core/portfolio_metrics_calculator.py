@@ -105,3 +105,76 @@ class PortfolioMetricsCalculator:
 
         cagr = (ending_value / beginning_value) ** (1 / years) - 1
         return cagr * 100  # Convert to percentage
+
+    def _calculate_daily_returns(self, equity_curve: pd.DataFrame) -> pd.Series:
+        """Calculate daily returns from equity curve.
+
+        Args:
+            equity_curve: DataFrame with 'equity' column.
+
+        Returns:
+            Series of daily returns as decimals.
+        """
+        equities = equity_curve["equity"].astype(float)
+        # Prepend starting capital for first return calculation
+        with_start = pd.concat([pd.Series([self.starting_capital]), equities])
+        returns = with_start.pct_change().dropna()
+        return returns.reset_index(drop=True)
+
+    def calculate_sharpe_ratio(
+        self, equity_curve: pd.DataFrame, rf_rate: float = 0.0
+    ) -> float | None:
+        """Calculate annualized Sharpe ratio.
+
+        Sharpe = (Mean Return - Risk Free Rate) / Std Dev of Returns
+        Annualized = Daily Sharpe * sqrt(252)
+
+        Args:
+            equity_curve: DataFrame with 'equity' column.
+            rf_rate: Annual risk-free rate (default 0).
+
+        Returns:
+            Annualized Sharpe ratio, or None if insufficient data.
+        """
+        returns = self._calculate_daily_returns(equity_curve)
+        if len(returns) < 2:
+            return None
+
+        daily_rf = rf_rate / 252
+        excess_returns = returns - daily_rf
+
+        std = excess_returns.std()
+        if std == 0:
+            return None
+
+        daily_sharpe = excess_returns.mean() / std
+        return float(daily_sharpe * np.sqrt(252))
+
+    def calculate_sortino_ratio(
+        self, equity_curve: pd.DataFrame, target: float = 0.0
+    ) -> float | None:
+        """Calculate annualized Sortino ratio.
+
+        Sortino = (Mean Return - Target) / Downside Deviation
+        Downside deviation only considers returns below target.
+
+        Args:
+            equity_curve: DataFrame with 'equity' column.
+            target: Target return (default 0).
+
+        Returns:
+            Annualized Sortino ratio, or None if insufficient data.
+        """
+        returns = self._calculate_daily_returns(equity_curve)
+        if len(returns) < 2:
+            return None
+
+        # Calculate downside deviation (only negative deviations from target)
+        downside = np.minimum(returns - target, 0)
+        downside_std = np.sqrt(np.mean(downside**2))
+
+        if downside_std == 0:
+            return None
+
+        daily_sortino = (returns.mean() - target) / downside_std
+        return float(daily_sortino * np.sqrt(252))

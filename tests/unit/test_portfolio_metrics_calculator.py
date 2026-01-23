@@ -44,3 +44,64 @@ class TestPortfolioMetricsCalculator:
         """CAGR for 50% return over 1 year should be ~50%."""
         cagr = calculator.calculate_cagr(sample_equity_curve)
         assert cagr == pytest.approx(50.0, rel=0.05)  # 50% +/- 5%
+
+    def test_calculate_sharpe_ratio(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Sharpe ratio calculation with known returns."""
+        # Create equity curve with consistent daily returns
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(252)]
+        # 0.1% daily return = ~25% annual, low volatility
+        daily_return = 0.001
+        equities = [100_000 * (1 + daily_return) ** i for i in range(252)]
+        pnls = np.diff(equities, prepend=100_000)
+        peaks = np.maximum.accumulate(equities)
+        drawdowns = np.array(equities) - peaks
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 253),
+            "pnl": pnls,
+            "equity": equities,
+            "peak": peaks,
+            "drawdown": drawdowns,
+            "win": [True] * 252,
+        })
+
+        sharpe = calculator.calculate_sharpe_ratio(df)
+        # With consistent positive returns and low vol, Sharpe should be high
+        assert sharpe is not None
+        assert sharpe > 2.0  # High Sharpe for consistent returns
+
+    def test_calculate_sortino_ratio(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Sortino ratio penalizes only downside volatility."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(100)]
+        # Alternating returns: +2%, -1%, creating positive skew
+        returns = [0.02 if i % 2 == 0 else -0.01 for i in range(100)]
+        equities = [100_000]
+        for r in returns:
+            equities.append(equities[-1] * (1 + r))
+        equities = equities[1:]  # Remove starting capital
+        pnls = np.diff([100_000] + equities)
+        peaks = np.maximum.accumulate(equities)
+        drawdowns = np.array(equities) - peaks
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 101),
+            "pnl": pnls,
+            "equity": equities,
+            "peak": peaks,
+            "drawdown": drawdowns,
+            "win": [r > 0 for r in returns],
+        })
+
+        sortino = calculator.calculate_sortino_ratio(df)
+        sharpe = calculator.calculate_sharpe_ratio(df)
+
+        assert sortino is not None
+        assert sharpe is not None
+        # Sortino should be higher than Sharpe for positive skew
+        assert sortino > sharpe
