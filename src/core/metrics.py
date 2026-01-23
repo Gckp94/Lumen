@@ -87,10 +87,15 @@ class MetricsCalculator:
         """
         start = time.perf_counter()
 
-        # Sort chronologically if date/time columns provided (required for accurate streaks)
-        if date_col and time_col and date_col in df.columns and time_col in df.columns:
-            df = df.sort_values([date_col, time_col]).reset_index(drop=True)
-            logger.debug("Sorted DataFrame by %s, %s for streak calculation", date_col, time_col)
+        # Sort chronologically if date/time columns provided (required for accurate streaks
+        # and correct equity curve display in DATE mode)
+        if date_col and date_col in df.columns:
+            if time_col and time_col in df.columns:
+                df = df.sort_values([date_col, time_col]).reset_index(drop=True)
+                logger.debug("Sorted DataFrame by %s, %s", date_col, time_col)
+            else:
+                df = df.sort_values([date_col]).reset_index(drop=True)
+                logger.debug("Sorted DataFrame by %s", date_col)
 
         if len(df) == 0:
             logger.debug("Empty DataFrame, returning empty metrics")
