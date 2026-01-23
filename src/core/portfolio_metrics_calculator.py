@@ -355,3 +355,73 @@ class PortfolioMetricsCalculator:
             cvar = float(tail_returns.mean() * 100)
 
         return var, cvar
+
+    def calculate_period_metrics(
+        self, equity_curve: pd.DataFrame, period: str
+    ) -> PeriodMetrics | None:
+        """Calculate metrics for a specific time period.
+
+        Args:
+            equity_curve: DataFrame with date, pnl, equity columns.
+            period: "daily", "weekly", or "monthly".
+
+        Returns:
+            PeriodMetrics dataclass, or None if insufficient data.
+        """
+        if equity_curve.empty or "pnl" not in equity_curve.columns:
+            return None
+
+        df = equity_curve.copy()
+        df["date"] = pd.to_datetime(df["date"])
+
+        # Group by period
+        if period == "daily":
+            df["period"] = df["date"].dt.date
+        elif period == "weekly":
+            df["period"] = df["date"].dt.isocalendar().week.astype(str) + "-" + df["date"].dt.year.astype(str)
+        elif period == "monthly":
+            df["period"] = df["date"].dt.to_period("M")
+        else:
+            return None
+
+        # Aggregate PnL by period and calculate return %
+        period_data = df.groupby("period").agg({
+            "pnl": "sum",
+            "equity": "first",  # Starting equity for the period
+        }).reset_index()
+
+        # Calculate period return % based on starting equity
+        # Use equity from start of period (before PnL)
+        period_data["start_equity"] = period_data["equity"] - period_data["pnl"]
+        period_data["return_pct"] = (period_data["pnl"] / period_data["start_equity"]) * 100
+
+        returns = period_data["return_pct"]
+
+        if len(returns) == 0:
+            return None
+
+        green_returns = returns[returns > 0]
+        red_returns = returns[returns < 0]
+
+        # Calculate metrics
+        avg_green = float(green_returns.mean()) if len(green_returns) > 0 else None
+        avg_red = float(red_returns.mean()) if len(red_returns) > 0 else None
+        win_pct = float(len(green_returns) / len(returns) * 100) if len(returns) > 0 else None
+
+        # R:R ratio
+        if avg_green is not None and avg_red is not None and avg_red != 0:
+            rr_ratio = abs(avg_green / avg_red)
+        else:
+            rr_ratio = None
+
+        max_win = float(returns.max()) if len(returns) > 0 else None
+        max_loss = float(returns.min()) if len(returns) > 0 else None
+
+        return PeriodMetrics(
+            avg_green_pct=avg_green,
+            avg_red_pct=avg_red,
+            win_pct=win_pct,
+            rr_ratio=rr_ratio,
+            max_win_pct=max_win,
+            max_loss_pct=max_loss,
+        )

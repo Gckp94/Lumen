@@ -270,3 +270,93 @@ class TestPortfolioMetricsCalculator:
         assert cvar_95 is not None
         # CVaR should be worse (more negative) than VaR
         assert cvar_95 < var_95
+
+    def test_calculate_period_metrics_daily(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Daily period metrics aggregation."""
+        # Create 20 trading days with multiple trades per day
+        dates = []
+        for d in range(20):
+            dates.extend([date(2024, 1, 2) + timedelta(days=d)] * 3)
+
+        # Create returns that aggregate to known daily values
+        pnls = []
+        for d in range(20):
+            if d % 2 == 0:  # Even days: green days
+                pnls.extend([500, 300, 200])  # +$1000 total
+            else:  # Odd days: red days
+                pnls.extend([-200, -300, -100])  # -$600 total
+
+        equities = list(np.cumsum([100_000] + pnls))[1:]
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 61),
+            "pnl": pnls,
+            "equity": equities,
+            "peak": np.maximum.accumulate(equities),
+            "drawdown": [0] * 60,
+            "win": [p > 0 for p in pnls],
+        })
+
+        daily = calculator.calculate_period_metrics(df, "daily")
+
+        assert daily is not None
+        assert daily.win_pct == pytest.approx(50.0, rel=0.01)  # 10 green, 10 red
+        assert daily.avg_green_pct is not None
+        assert daily.avg_green_pct > 0
+        assert daily.avg_red_pct is not None
+        assert daily.avg_red_pct < 0
+
+    def test_calculate_period_metrics_weekly(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Weekly period metrics with ISO week aggregation."""
+        # Create 4 weeks of data
+        dates = [date(2024, 1, 1) + timedelta(days=i) for i in range(28)]
+        np.random.seed(42)
+        pnls = np.random.normal(100, 500, 28)
+        equities = list(np.cumsum([100_000] + list(pnls)))[1:]
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 29),
+            "pnl": pnls,
+            "equity": equities,
+            "peak": np.maximum.accumulate(equities),
+            "drawdown": [0] * 28,
+            "win": [p > 0 for p in pnls],
+        })
+
+        weekly = calculator.calculate_period_metrics(df, "weekly")
+
+        assert weekly is not None
+        assert weekly.win_pct is not None
+        assert 0 <= weekly.win_pct <= 100
+
+    def test_calculate_period_metrics_monthly(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Monthly period metrics aggregation."""
+        # Create 3 months of data
+        dates = [date(2024, 1, 1) + timedelta(days=i) for i in range(90)]
+        np.random.seed(42)
+        pnls = np.random.normal(200, 1000, 90)
+        equities = list(np.cumsum([100_000] + list(pnls)))[1:]
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 91),
+            "pnl": pnls,
+            "equity": equities,
+            "peak": np.maximum.accumulate(equities),
+            "drawdown": [0] * 90,
+            "win": [p > 0 for p in pnls],
+        })
+
+        monthly = calculator.calculate_period_metrics(df, "monthly")
+
+        assert monthly is not None
+        assert monthly.max_win_pct is not None
+        assert monthly.max_loss_pct is not None
