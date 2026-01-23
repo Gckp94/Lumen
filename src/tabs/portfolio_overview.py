@@ -236,6 +236,9 @@ class PortfolioOverviewTab(QWidget):
                 # Add to table
                 self._strategy_table.add_strategy(config)
 
+                # Mark as loaded (data was imported via dialog)
+                self._update_row_loaded_state(strategy_name, loaded=True)
+
                 # Trigger recalculation
                 self._schedule_recalculation()
 
