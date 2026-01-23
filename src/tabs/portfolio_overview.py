@@ -346,3 +346,36 @@ class PortfolioOverviewTab(QWidget):
                 color = Colors.TEXT_PRIMARY if loaded else Colors.TEXT_DISABLED
                 name_item.setForeground(QBrush(QColor(color)))
                 break
+
+    def load_strategy_data(self, strategy_name: str) -> bool:
+        """Load data file for a specific strategy.
+
+        Args:
+            strategy_name: Name of the strategy to load data for.
+
+        Returns:
+            True if data was loaded successfully, False otherwise.
+        """
+        strategies = self._strategy_table.get_strategies()
+        config = next((s for s in strategies if s.name == strategy_name), None)
+        if config is None:
+            logger.warning(f"Strategy not found: {strategy_name}")
+            return False
+
+        try:
+            if config.file_path.endswith(".csv"):
+                df = pd.read_csv(config.file_path)
+            else:
+                from src.core.file_loader import FileLoader
+                loader = FileLoader()
+                df = loader.load(Path(config.file_path), config.sheet_name)
+
+            self._strategy_data[strategy_name] = df
+            self._update_row_loaded_state(strategy_name, loaded=True)
+            self._schedule_recalculation()
+            logger.info(f"Loaded data for strategy: {strategy_name}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to load data for {strategy_name}: {e}")
+            return False

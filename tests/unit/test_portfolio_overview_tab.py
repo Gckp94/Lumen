@@ -147,3 +147,46 @@ class TestPortfolioOverviewTab:
 
         name_item = tab._strategy_table.item(0, 0)
         assert name_item.foreground().color() == QColor(Colors.TEXT_PRIMARY)
+
+    def test_load_strategy_data_loads_csv_file(self, app, qtbot, mock_app_state, isolated_config_manager, tmp_path):
+        """Verify load_strategy_data loads CSV and updates state."""
+        import pandas as pd
+        from src.core.portfolio_models import StrategyConfig, PortfolioColumnMapping
+
+        csv_path = tmp_path / "test.csv"
+        df = pd.DataFrame({"date": ["2024-01-01"], "gain": [5.0], "wl": ["W"]})
+        df.to_csv(csv_path, index=False)
+
+        tab = PortfolioOverviewTab(mock_app_state, config_manager=isolated_config_manager)
+        qtbot.addWidget(tab)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path=str(csv_path),
+            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+        )
+        tab._strategy_table.add_strategy(config)
+
+        success = tab.load_strategy_data("Test")
+
+        assert success is True
+        assert tab.is_data_loaded("Test") is True
+
+    def test_load_strategy_data_returns_false_for_missing_file(self, app, qtbot, mock_app_state, isolated_config_manager):
+        """Verify load_strategy_data returns False when file doesn't exist."""
+        from src.core.portfolio_models import StrategyConfig, PortfolioColumnMapping
+
+        tab = PortfolioOverviewTab(mock_app_state, config_manager=isolated_config_manager)
+        qtbot.addWidget(tab)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="/nonexistent/file.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+        )
+        tab._strategy_table.add_strategy(config)
+
+        success = tab.load_strategy_data("Test")
+
+        assert success is False
+        assert tab.is_data_loaded("Test") is False
