@@ -36,6 +36,7 @@ class EquityCalculator:
             gain_col: Column name containing gain percentages (e.g., 5.0 = 5%)
             stake: Fixed stake amount in dollars
             start_capital: Starting capital in dollars (default 0.0 for backward compatibility)
+            date_col: Optional date column - if provided, data is sorted by date first
 
         Returns:
             DataFrame with columns: trade_num, pnl, equity, peak, drawdown
@@ -50,6 +51,10 @@ class EquityCalculator:
             raise EquityCalculationError(f"Column '{gain_col}' not found in DataFrame")
 
         try:
+            # Sort by date if date column provided (ensures chronological equity curve)
+            if date_col is not None and date_col in df.columns:
+                df = df.sort_values(date_col).reset_index(drop=True)
+
             gains: np.ndarray = df[gain_col].to_numpy(dtype=float)
 
             # Calculate PnL for each trade
@@ -228,6 +233,7 @@ class EquityCalculator:
             start_capital: Starting capital in dollars
             kelly_fraction: Kelly fraction as percentage (e.g., 25 = 25% of Kelly)
             kelly_pct: Base Kelly percentage from core metrics (e.g., 12.5 = 12.5%)
+            date_col: Optional date column - if provided, data is sorted by date first
 
         Returns:
             DataFrame with columns: trade_num, pnl, equity, peak, drawdown, position_size
@@ -244,6 +250,10 @@ class EquityCalculator:
             raise EquityCalculationError(f"Column '{gain_col}' not found in DataFrame")
 
         try:
+            # Sort by date if date column provided (ensures chronological equity curve)
+            if date_col is not None and date_col in df.columns:
+                df = df.sort_values(date_col).reset_index(drop=True)
+
             gains: np.ndarray = df[gain_col].to_numpy(dtype=float)
             n_trades = len(gains)
 
