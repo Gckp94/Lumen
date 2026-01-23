@@ -33,11 +33,11 @@ class StrategyTableWidget(QTableWidget):
         ("File", 150),
         ("BL", 40),
         ("CND", 40),
-        ("Stop%", 70),
-        ("Efficiency", 80),
-        ("Size Type", 100),
-        ("Size Value", 80),
-        ("Max Compound", 100),
+        ("Stop%", 90),
+        ("Efficiency", 95),
+        ("Size Type", 110),
+        ("Size Value", 110),
+        ("Max Compound", 120),
         ("Menu", 40),
     ]
 
