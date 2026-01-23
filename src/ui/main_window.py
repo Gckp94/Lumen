@@ -46,6 +46,9 @@ class MainWindow(QMainWindow):
         # Set Data Input as the default active tab
         self.dock_manager.set_active_dock("Data Input")
 
+        # Ensure all tabs are docked (fixes intermittent auto-undocking on startup)
+        self.dock_manager.dock_all_floating()
+
         logger.debug("MainWindow initialized with dockable tabs")
 
     def _setup_docks(self) -> None:

@@ -127,3 +127,25 @@ class TestDockAllFloating:
 
         # Verify addDockWidget was called twice
         assert mock_manager.addDockWidget.call_count == 2
+
+
+class TestMainWindowStartup:
+    """Tests for MainWindow startup behavior."""
+
+    def test_main_window_calls_dock_all_floating(self):
+        """Verify MainWindow.__init__ calls dock_all_floating on dock_manager.
+
+        Uses source code inspection to verify the method call exists,
+        since full Qt mocking is complex and prone to hanging.
+        """
+        import inspect
+        from src.ui.main_window import MainWindow
+
+        # Get the source code of __init__
+        source = inspect.getsource(MainWindow.__init__)
+
+        # Verify dock_all_floating is called in __init__
+        assert "dock_all_floating" in source, (
+            "Expected MainWindow.__init__ to call self.dock_manager.dock_all_floating() "
+            "to ensure all tabs are docked at startup"
+        )
