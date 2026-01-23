@@ -177,3 +177,48 @@ class TestStrategyTableWidget:
         qtbot.addWidget(table)
 
         assert hasattr(table, 'load_data_requested')
+
+    def test_efficiency_spinbox_displays_percentage(self, app, qtbot):
+        """Efficiency spinbox should display values as percentage with % suffix."""
+        table = StrategyTableWidget()
+        qtbot.addWidget(table)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            efficiency=1.0,  # 100% efficiency stored as decimal
+        )
+        table.add_strategy(config)
+
+        # Get the efficiency spinbox
+        eff_spin = table.cellWidget(0, table.COL_EFFICIENCY)
+
+        # Should display 100 (percentage) not 1.0 (decimal)
+        assert eff_spin.value() == 100.0
+        # Should have % suffix
+        assert eff_spin.suffix() == "%"
+        # Range should be 0-200
+        assert eff_spin.minimum() == 0.0
+        assert eff_spin.maximum() == 200.0
+
+    def test_efficiency_spinbox_change_updates_strategy_as_decimal(self, app, qtbot):
+        """Changing efficiency percentage should store as decimal multiplier."""
+        table = StrategyTableWidget()
+        qtbot.addWidget(table)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            efficiency=1.0,
+        )
+        table.add_strategy(config)
+
+        # Get the efficiency spinbox and change value to 50%
+        eff_spin = table.cellWidget(0, table.COL_EFFICIENCY)
+        eff_spin.setValue(50.0)  # 50%
+
+        # Strategy should store 0.5 (decimal multiplier)
+        strategies = table.get_strategies()
+        assert strategies[0].efficiency == 0.5

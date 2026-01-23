@@ -94,6 +94,8 @@ class StrategyTableWidget(QTableWidget):
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setAlternatingRowColors(True)
         self.verticalHeader().setVisible(False)
+        # Set row height to 1.5x default (default ~30px, so 45px)
+        self.verticalHeader().setDefaultSectionSize(45)
 
     def add_strategy(self, config: StrategyConfig) -> None:
         """Add a strategy to the table.
@@ -149,12 +151,13 @@ class StrategyTableWidget(QTableWidget):
         )
         self.setCellWidget(row, self.COL_STOP, stop_spin)
 
-        # Efficiency spinbox
+        # Efficiency spinbox (displays as percentage, stores as decimal)
         eff_spin = NoScrollDoubleSpinBox()
-        eff_spin.setRange(0.0, 2.0)
-        eff_spin.setDecimals(2)
-        eff_spin.setSingleStep(0.1)
-        eff_spin.setValue(config.efficiency)
+        eff_spin.setRange(0.0, 200.0)
+        eff_spin.setDecimals(1)
+        eff_spin.setSingleStep(5.0)
+        eff_spin.setSuffix("%")
+        eff_spin.setValue(config.efficiency * 100.0)  # Convert decimal to percentage
         eff_spin.valueChanged.connect(
             lambda val, r=row: self._on_efficiency_changed(r, val)
         )
@@ -162,6 +165,29 @@ class StrategyTableWidget(QTableWidget):
 
         # Size Type combo
         size_combo = NoScrollComboBox()
+        size_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #1E1E2C;
+                color: #F4F4F8;
+                border: 1px solid #2A2A3A;
+                border-radius: 4px;
+                padding: 4px 8px;
+            }
+            QComboBox:hover {
+                border-color: #00FFD4;
+            }
+            QComboBox::drop-down {
+                border: none;
+                padding-right: 8px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #1E1E2C;
+                color: #F4F4F8;
+                border: 1px solid #2A2A3A;
+                selection-background-color: #2A2A3A;
+                selection-color: #F4F4F8;
+            }
+        """)
         size_combo.addItems(list(self.SIZE_TYPE_DISPLAY.values()))
         size_combo.setCurrentText(self.SIZE_TYPE_DISPLAY[config.size_type])
         size_combo.currentTextChanged.connect(
@@ -291,9 +317,11 @@ class StrategyTableWidget(QTableWidget):
 
         Args:
             row: Row index.
-            value: New efficiency value.
+            value: New efficiency percentage (0-200).
         """
-        self._strategies[row] = replace(self._strategies[row], efficiency=value)
+        # Convert percentage to decimal multiplier for storage
+        decimal_value = value / 100.0
+        self._strategies[row] = replace(self._strategies[row], efficiency=decimal_value)
         self.strategy_changed.emit()
 
     def _on_size_type_changed(self, row: int, text: str) -> None:
