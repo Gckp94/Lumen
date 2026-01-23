@@ -303,6 +303,72 @@ QToolTip {{
     border: 1px solid {Colors.BG_BORDER};
     padding: {Spacing.XS}px;
 }}
+
+/* ========================================
+   Table Widgets
+   ======================================== */
+
+/* Base Table Styling */
+QTableWidget, QTableView {{
+    background-color: {Colors.BG_SURFACE};
+    alternate-background-color: {Colors.BG_ELEVATED};
+    color: {Colors.TEXT_PRIMARY};
+    gridline-color: {Colors.BG_BORDER};
+    border: 1px solid {Colors.BG_BORDER};
+    border-radius: 4px;
+    selection-background-color: rgba(0, 255, 212, 0.15);
+    selection-color: {Colors.TEXT_PRIMARY};
+}}
+
+QTableWidget::item, QTableView::item {{
+    padding: 6px 8px;
+    border: none;
+}}
+
+QTableWidget::item:selected, QTableView::item:selected {{
+    background-color: rgba(0, 255, 212, 0.15);
+    color: {Colors.TEXT_PRIMARY};
+}}
+
+QTableWidget::item:hover, QTableView::item:hover {{
+    background-color: rgba(0, 255, 212, 0.08);
+}}
+
+/* Table Header Styling */
+QHeaderView {{
+    background-color: transparent;
+}}
+
+QHeaderView::section {{
+    background-color: {Colors.BG_BASE};
+    color: {Colors.TEXT_SECONDARY};
+    padding: 8px 12px;
+    border: none;
+    border-bottom: 1px solid {Colors.BG_BORDER};
+    border-right: 1px solid {Colors.BG_BORDER};
+    font-family: "{Fonts.UI}";
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}}
+
+QHeaderView::section:last {{
+    border-right: none;
+}}
+
+QHeaderView::section:hover {{
+    background-color: {Colors.BG_ELEVATED};
+    color: {Colors.TEXT_PRIMARY};
+}}
+
+/* Corner button (top-left of tables with both headers) */
+QTableCornerButton::section {{
+    background-color: {Colors.BG_BASE};
+    border: none;
+    border-bottom: 1px solid {Colors.BG_BORDER};
+    border-right: 1px solid {Colors.BG_BORDER};
+}}
 """
 
 
