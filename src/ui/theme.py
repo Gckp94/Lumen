@@ -276,6 +276,7 @@ QComboBox {{
     color: {Colors.TEXT_PRIMARY};
     border: 1px solid {Colors.BG_BORDER};
     padding: {Spacing.SM}px;
+    padding-right: 24px;
     border-radius: 4px;
 }}
 
@@ -284,16 +285,41 @@ QComboBox:hover {{
 }}
 
 QComboBox::drop-down {{
-    border: none;
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
     width: 20px;
+    border: none;
+    border-left: 1px solid {Colors.BG_BORDER};
+}}
+
+QComboBox::down-arrow {{
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid {Colors.TEXT_SECONDARY};
+}}
+
+QComboBox::down-arrow:hover {{
+    border-top-color: {Colors.TEXT_PRIMARY};
 }}
 
 QComboBox QAbstractItemView {{
     background-color: {Colors.BG_ELEVATED};
     color: {Colors.TEXT_PRIMARY};
     border: 1px solid {Colors.BG_BORDER};
-    selection-background-color: {Colors.BG_BORDER};
+    selection-background-color: rgba(0, 255, 212, 0.15);
     selection-color: {Colors.TEXT_PRIMARY};
+    outline: none;
+}}
+
+QComboBox QAbstractItemView::item {{
+    padding: 6px 12px;
+    color: {Colors.TEXT_PRIMARY};
+}}
+
+QComboBox QAbstractItemView::item:selected {{
+    background-color: rgba(0, 255, 212, 0.15);
 }}
 
 /* Tool Tips */
@@ -426,13 +452,27 @@ QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {{
 }}
 
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
-    width: 8px;
-    height: 8px;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 6px solid {Colors.TEXT_SECONDARY};
+}}
+
+QSpinBox::up-arrow:hover, QDoubleSpinBox::up-arrow:hover {{
+    border-bottom-color: {Colors.TEXT_PRIMARY};
 }}
 
 QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
-    width: 8px;
-    height: 8px;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid {Colors.TEXT_SECONDARY};
+}}
+
+QSpinBox::down-arrow:hover, QDoubleSpinBox::down-arrow:hover {{
+    border-top-color: {Colors.TEXT_PRIMARY};
 }}
 
 /* ========================================
