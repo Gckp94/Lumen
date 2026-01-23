@@ -190,3 +190,27 @@ class TestPortfolioOverviewTab:
 
         assert success is False
         assert tab.is_data_loaded("Test") is False
+
+    def test_load_data_signal_triggers_data_loading(self, app, qtbot, mock_app_state, isolated_config_manager, tmp_path):
+        """Verify Load Data signal triggers data loading."""
+        import pandas as pd
+        from src.core.portfolio_models import StrategyConfig, PortfolioColumnMapping
+
+        csv_path = tmp_path / "test.csv"
+        df = pd.DataFrame({"date": ["2024-01-01"], "gain": [5.0], "wl": ["W"]})
+        df.to_csv(csv_path, index=False)
+
+        tab = PortfolioOverviewTab(mock_app_state, config_manager=isolated_config_manager)
+        qtbot.addWidget(tab)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path=str(csv_path),
+            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+        )
+        tab._strategy_table.add_strategy(config)
+
+        # Emit signal (simulating menu click)
+        tab._strategy_table.load_data_requested.emit("Test")
+
+        assert tab.is_data_loaded("Test") is True

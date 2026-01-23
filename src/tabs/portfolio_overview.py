@@ -189,6 +189,7 @@ class PortfolioOverviewTab(QWidget):
         """Connect widget signals to handlers."""
         self._add_strategy_btn.clicked.connect(self._on_add_strategy)
         self._strategy_table.strategy_changed.connect(self._schedule_recalculation)
+        self._strategy_table.load_data_requested.connect(self.load_strategy_data)
         self._account_start_spin.valueChanged.connect(self._schedule_recalculation)
 
     def _load_saved_config(self) -> None:
