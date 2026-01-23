@@ -425,3 +425,58 @@ class PortfolioMetricsCalculator:
             max_win_pct=max_win,
             max_loss_pct=max_loss,
         )
+
+    def calculate_all_metrics(self, equity_curve: pd.DataFrame) -> PortfolioMetrics | None:
+        """Calculate all portfolio metrics.
+
+        Args:
+            equity_curve: DataFrame with date, trade_num, pnl, equity, peak, drawdown, win.
+
+        Returns:
+            PortfolioMetrics dataclass with all calculated values.
+        """
+        if equity_curve.empty:
+            return None
+
+        # Core statistics
+        cagr = self.calculate_cagr(equity_curve)
+        sharpe = self.calculate_sharpe_ratio(equity_curve)
+        sortino = self.calculate_sortino_ratio(equity_curve)
+        calmar = self.calculate_calmar_ratio(equity_curve)
+        win_rate = self.calculate_win_rate(equity_curve)
+        profit_factor = self.calculate_profit_factor(equity_curve)
+
+        # Drawdown metrics
+        max_dd_pct, max_dd_dollars = self.calculate_max_drawdown(equity_curve)
+        max_dd_duration, time_underwater = self.calculate_drawdown_duration(equity_curve)
+
+        # Statistical metrics
+        t_stat, p_value = self.calculate_t_statistic(equity_curve)
+
+        # VaR/CVaR
+        var_95, cvar_95 = self.calculate_var_cvar(equity_curve)
+
+        # Period metrics
+        daily = self.calculate_period_metrics(equity_curve, "daily")
+        weekly = self.calculate_period_metrics(equity_curve, "weekly")
+        monthly = self.calculate_period_metrics(equity_curve, "monthly")
+
+        return PortfolioMetrics(
+            cagr=cagr,
+            sharpe_ratio=sharpe,
+            sortino_ratio=sortino,
+            calmar_ratio=calmar,
+            win_rate=win_rate,
+            profit_factor=profit_factor,
+            max_drawdown_pct=max_dd_pct,
+            max_drawdown_dollars=max_dd_dollars,
+            max_dd_duration_days=max_dd_duration,
+            time_underwater_pct=time_underwater,
+            t_statistic=t_stat,
+            p_value=p_value,
+            daily=daily,
+            weekly=weekly,
+            monthly=monthly,
+            var_95=var_95,
+            cvar_95=cvar_95,
+        )

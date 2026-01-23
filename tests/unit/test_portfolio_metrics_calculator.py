@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from datetime import date, timedelta
 
-from src.core.portfolio_metrics_calculator import PortfolioMetricsCalculator
+from src.core.portfolio_metrics_calculator import PortfolioMetricsCalculator, PortfolioMetrics
 
 
 class TestPortfolioMetricsCalculator:
@@ -360,3 +360,22 @@ class TestPortfolioMetricsCalculator:
         assert monthly is not None
         assert monthly.max_win_pct is not None
         assert monthly.max_loss_pct is not None
+
+    def test_calculate_all_metrics(
+        self, calculator: PortfolioMetricsCalculator, sample_equity_curve: pd.DataFrame
+    ) -> None:
+        """Full metrics calculation returns PortfolioMetrics dataclass."""
+        metrics = calculator.calculate_all_metrics(sample_equity_curve)
+
+        assert metrics is not None
+        assert isinstance(metrics, PortfolioMetrics)
+
+        # Core metrics should be populated
+        assert metrics.cagr is not None
+        assert metrics.sharpe_ratio is not None
+        assert metrics.max_drawdown_pct is not None
+
+        # Period metrics should be populated
+        assert metrics.daily is not None
+        assert metrics.weekly is not None
+        assert metrics.monthly is not None
