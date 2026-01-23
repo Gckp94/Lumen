@@ -316,10 +316,41 @@ QComboBox QAbstractItemView {{
 QComboBox QAbstractItemView::item {{
     padding: 6px 12px;
     color: {Colors.TEXT_PRIMARY};
+    background-color: {Colors.BG_ELEVATED};
 }}
 
 QComboBox QAbstractItemView::item:selected {{
     background-color: rgba(0, 255, 212, 0.15);
+    color: {Colors.TEXT_PRIMARY};
+}}
+
+QComboBox QAbstractItemView::item:hover {{
+    background-color: {Colors.BG_BORDER};
+    color: {Colors.TEXT_PRIMARY};
+}}
+
+/* QListView used by QComboBox dropdown */
+QComboBox QListView {{
+    background-color: {Colors.BG_ELEVATED};
+    color: {Colors.TEXT_PRIMARY};
+    border: 1px solid {Colors.BG_BORDER};
+    outline: none;
+}}
+
+QComboBox QListView::item {{
+    padding: 6px 12px;
+    color: {Colors.TEXT_PRIMARY};
+    background-color: {Colors.BG_ELEVATED};
+}}
+
+QComboBox QListView::item:selected {{
+    background-color: rgba(0, 255, 212, 0.15);
+    color: {Colors.TEXT_PRIMARY};
+}}
+
+QComboBox QListView::item:hover {{
+    background-color: {Colors.BG_BORDER};
+    color: {Colors.TEXT_PRIMARY};
 }}
 
 /* Tool Tips */
