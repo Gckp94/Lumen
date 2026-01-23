@@ -21,10 +21,10 @@ class NoScrollComboBox(QComboBox):
         """
         super().__init__(parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self._apply_dark_palette()
 
-    def _apply_dark_palette(self) -> None:
-        """Apply dark theme palette to the dropdown view."""
+    def showPopup(self) -> None:
+        """Show popup with dark theme colors applied."""
+        # Apply palette right before showing to override native styling
         view = self.view()
         if view:
             palette = view.palette()
@@ -32,7 +32,24 @@ class NoScrollComboBox(QComboBox):
             palette.setColor(QPalette.ColorRole.Text, QColor(Colors.TEXT_PRIMARY))
             palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 255, 212, 40))
             palette.setColor(QPalette.ColorRole.HighlightedText, QColor(Colors.TEXT_PRIMARY))
+            palette.setColor(QPalette.ColorRole.Window, QColor(Colors.BG_ELEVATED))
+            palette.setColor(QPalette.ColorRole.WindowText, QColor(Colors.TEXT_PRIMARY))
             view.setPalette(palette)
+            # Also set stylesheet directly on view
+            view.setStyleSheet(f"""
+                QListView {{
+                    background-color: {Colors.BG_ELEVATED};
+                    color: {Colors.TEXT_PRIMARY};
+                }}
+                QListView::item {{
+                    color: {Colors.TEXT_PRIMARY};
+                    padding: 4px 8px;
+                }}
+                QListView::item:selected {{
+                    background-color: rgba(0, 255, 212, 0.15);
+                }}
+            """)
+        super().showPopup()
 
     def wheelEvent(self, event: QWheelEvent | None) -> None:
         """Ignore wheel events unless widget has focus.

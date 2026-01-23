@@ -83,10 +83,8 @@ class StrategyTableWidget(QTableWidget):
         # Set column widths and enable interactive resizing
         header = self.horizontalHeader()
         if header:
-            # Allow user to drag and resize all columns
+            # Allow user to drag and resize individual columns
             header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-            # File column stretches to fill remaining space
-            header.setSectionResizeMode(self.COL_FILE, QHeaderView.ResizeMode.Stretch)
             header.setStretchLastSection(False)
 
         for i, (_, width) in enumerate(self.COLUMNS):
