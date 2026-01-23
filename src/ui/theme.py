@@ -434,6 +434,31 @@ QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
     width: 8px;
     height: 8px;
 }}
+
+/* ========================================
+   Group Boxes
+   ======================================== */
+
+QGroupBox {{
+    background-color: {Colors.BG_SURFACE};
+    border: 1px solid {Colors.BG_BORDER};
+    border-radius: 6px;
+    margin-top: 12px;
+    padding: 16px;
+    padding-top: 24px;
+    font-family: "{Fonts.UI}";
+    font-weight: 500;
+}}
+
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 12px;
+    top: 4px;
+    color: {Colors.TEXT_SECONDARY};
+    background-color: {Colors.BG_SURFACE};
+    padding: 0 8px;
+}}
 """
 
 
