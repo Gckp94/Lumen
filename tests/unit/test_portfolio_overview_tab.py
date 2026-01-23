@@ -107,3 +107,43 @@ class TestPortfolioOverviewTab:
         tab._strategy_data["TestStrategy"] = pd.DataFrame({"col": [1]})
 
         assert tab.is_data_loaded("TestStrategy") is True
+
+    def test_update_row_loaded_state_dims_unloaded_rows(self, app, qtbot, mock_app_state, isolated_config_manager):
+        """Verify unloaded rows have dimmed name cell."""
+        from src.core.portfolio_models import StrategyConfig, PortfolioColumnMapping
+        from src.ui.constants import Colors
+        from PyQt6.QtGui import QColor
+
+        tab = PortfolioOverviewTab(mock_app_state, config_manager=isolated_config_manager)
+        qtbot.addWidget(tab)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+        )
+        tab._strategy_table.add_strategy(config)
+        tab._update_row_loaded_state("Test", loaded=False)
+
+        name_item = tab._strategy_table.item(0, 0)
+        assert name_item.foreground().color() == QColor(Colors.TEXT_DISABLED)
+
+    def test_update_row_loaded_state_normal_for_loaded_rows(self, app, qtbot, mock_app_state, isolated_config_manager):
+        """Verify loaded rows have normal name cell color."""
+        from src.core.portfolio_models import StrategyConfig, PortfolioColumnMapping
+        from src.ui.constants import Colors
+        from PyQt6.QtGui import QColor
+
+        tab = PortfolioOverviewTab(mock_app_state, config_manager=isolated_config_manager)
+        qtbot.addWidget(tab)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain", "wl"),
+        )
+        tab._strategy_table.add_strategy(config)
+        tab._update_row_loaded_state("Test", loaded=True)
+
+        name_item = tab._strategy_table.item(0, 0)
+        assert name_item.foreground().color() == QColor(Colors.TEXT_PRIMARY)

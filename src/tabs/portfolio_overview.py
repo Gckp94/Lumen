@@ -330,3 +330,19 @@ class PortfolioOverviewTab(QWidget):
             True if data is loaded, False otherwise.
         """
         return strategy_name in self._strategy_data and self._strategy_data[strategy_name] is not None
+
+    def _update_row_loaded_state(self, strategy_name: str, loaded: bool) -> None:
+        """Update visual state of a row based on data loaded status.
+
+        Args:
+            strategy_name: Name of the strategy.
+            loaded: Whether data is loaded for this strategy.
+        """
+        from PyQt6.QtGui import QBrush, QColor
+
+        for row in range(self._strategy_table.rowCount()):
+            name_item = self._strategy_table.item(row, self._strategy_table.COL_NAME)
+            if name_item and name_item.text() == strategy_name:
+                color = Colors.TEXT_PRIMARY if loaded else Colors.TEXT_DISABLED
+                name_item.setForeground(QBrush(QColor(color)))
+                break
