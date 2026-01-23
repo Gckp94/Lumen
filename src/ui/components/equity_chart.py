@@ -11,6 +11,7 @@ import logging
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg  # type: ignore[import-untyped]
+from pyqtgraph import DateAxisItem
 from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import (
@@ -615,8 +616,8 @@ class EquityChart(QWidget):
         )
 
         if self._axis_mode == AxisMode.DATE and has_timestamps:
-            # Switch to date axis
-            self._date_axis = DateAxisItem(orientation="bottom")
+            # Switch to date axis with proper date formatting
+            self._date_axis = FormattedDateAxisItem(orientation="bottom")
             self._date_axis.setPen(axis_pen)
             self._date_axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
             plot_item.setAxisItems({"bottom": self._date_axis})
