@@ -254,3 +254,36 @@ class TestPortfolioCalculatorMultiStrategy:
         result = calc.calculate_portfolio(strategies=[])
         assert len(result) == 0
         assert list(result.columns) == ["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown"]
+
+    def test_calculate_portfolio_handles_ddmmyyyy_dates(self):
+        """Test that DD/MM/YYYY date format is parsed correctly without warnings."""
+        import warnings
+
+        calculator = PortfolioCalculator(starting_capital=100_000)
+
+        # Date "13/01/2021" - day 13 can't be a month, must be DD/MM/YYYY
+        trades_df = pd.DataFrame({
+            "date": ["13/01/2021", "14/01/2021"],
+            "gain_pct": [1.0, 2.0],
+            "wl": ["W", "W"],
+        })
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="/test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+        )
+
+        # Should not raise warnings about dayfirst
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = calculator.calculate_portfolio([(trades_df, config)])
+
+            # Check no warnings about dayfirst were raised
+            dayfirst_warnings = [
+                warning for warning in w
+                if "dayfirst" in str(warning.message).lower()
+            ]
+            assert len(dayfirst_warnings) == 0, f"Got dayfirst warning: {dayfirst_warnings}"
+
+        assert len(result) == 2

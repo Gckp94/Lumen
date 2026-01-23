@@ -128,7 +128,7 @@ class PortfolioCalculator:
             mapping = config.column_mapping
             df["_strategy_name"] = config.name
             df["_gain_pct"] = df[mapping.gain_pct_col]
-            df["_date"] = pd.to_datetime(df[mapping.date_col])
+            df["_date"] = pd.to_datetime(df[mapping.date_col], dayfirst=True)
             df["_config"] = [config] * len(df)
             all_trades.append(df[["_date", "_gain_pct", "_strategy_name", "_config"]])
 
