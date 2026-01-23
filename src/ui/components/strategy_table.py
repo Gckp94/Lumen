@@ -334,7 +334,27 @@ class StrategyTableWidget(QTableWidget):
         Args:
             row: Row index.
         """
+        from src.ui.constants import Colors
+
         menu = QMenu(self)
+        # Apply dark theme styling directly to menu
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+                padding: 4px 0;
+            }}
+            QMenu::item {{
+                padding: 8px 24px;
+                color: {Colors.TEXT_PRIMARY};
+            }}
+            QMenu::item:selected {{
+                background-color: rgba(0, 255, 212, 0.15);
+                color: {Colors.TEXT_PRIMARY};
+            }}
+        """)
 
         # Add Load Data action
         load_action = menu.addAction("Load Data")
