@@ -345,8 +345,8 @@ class PortfolioChartsWidget(QWidget):
 
         if self._axis_mode == AxisMode.DATE and "date" in df.columns:
             try:
-                # Convert dates to timestamps
-                dates = pd.to_datetime(df["date"], errors="coerce")
+                # Convert dates to timestamps (dayfirst=True for DD/MM/YYYY format)
+                dates = pd.to_datetime(df["date"], dayfirst=True, errors="coerce")
                 if dates.notna().all():
                     return (dates.astype(np.int64) // 10**9).to_numpy()
             except Exception as e:
@@ -583,7 +583,7 @@ class PortfolioChartsWidget(QWidget):
             if self._axis_mode == AxisMode.DATE and "date" in df.columns:
                 # X is timestamp, find closest date
                 try:
-                    dates = pd.to_datetime(df["date"], errors="coerce")
+                    dates = pd.to_datetime(df["date"], dayfirst=True, errors="coerce")
                     timestamps = (dates.astype(np.int64) // 10**9).to_numpy()
                     idx = np.abs(timestamps - x_val).argmin()
                 except Exception:
@@ -604,7 +604,7 @@ class PortfolioChartsWidget(QWidget):
             date_str = ""
             if "date" in df.columns:
                 try:
-                    date_val = pd.to_datetime(row["date"])
+                    date_val = pd.to_datetime(row["date"], dayfirst=True)
                     date_str = date_val.strftime("%Y-%m-%d")
                 except Exception:
                     date_str = str(row.get("date", ""))
