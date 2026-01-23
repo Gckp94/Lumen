@@ -257,7 +257,7 @@ class PortfolioBreakdownTab(QWidget):
             row += 1
 
         layout.addLayout(grid)
-        layout.addStretch()
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         return view
 
