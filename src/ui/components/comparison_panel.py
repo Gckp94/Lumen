@@ -199,10 +199,7 @@ class ComparisonPanel(QFrame):
         layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
         layout.setSpacing(Spacing.SM)
 
-        # Header
-        header = QHBoxLayout()
-        header.setSpacing(Spacing.MD)
-
+        # Title row (separate from column headers)
         title_label = QLabel(self._title)
         title_label.setStyleSheet(f"""
             QLabel {{
@@ -214,10 +211,18 @@ class ComparisonPanel(QFrame):
                 letter-spacing: 1px;
             }}
         """)
-        title_label.setFixedWidth(140)
-        header.addWidget(title_label)
+        layout.addWidget(title_label)
 
-        # Column headers
+        # Column headers row
+        header = QHBoxLayout()
+        header.setSpacing(Spacing.MD)
+
+        # Spacer for metric label column
+        header_spacer = QLabel("")
+        header_spacer.setFixedWidth(140)
+        header.addWidget(header_spacer)
+
+        # Column headers (centered within their columns)
         baseline_header = QLabel("Baseline")
         baseline_header.setStyleSheet(f"""
             QLabel {{
@@ -227,7 +232,7 @@ class ComparisonPanel(QFrame):
                 font-weight: 600;
             }}
         """)
-        baseline_header.setAlignment(Qt.AlignmentFlag.AlignRight)
+        baseline_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         baseline_header.setFixedWidth(100)
         header.addWidget(baseline_header)
 
@@ -252,7 +257,7 @@ class ComparisonPanel(QFrame):
                 font-weight: 600;
             }}
         """)
-        combined_header.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        combined_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         combined_header.setFixedWidth(100)
         header.addWidget(combined_header)
 
