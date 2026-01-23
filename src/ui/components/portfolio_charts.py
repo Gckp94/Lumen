@@ -475,15 +475,16 @@ class PortfolioChartsWidget(QWidget):
             plot_item = plot_widget.getPlotItem()
 
             if self._axis_mode == AxisMode.DATE:
-                # Switch to date axis
+                # Switch to date axis with proper date format
                 date_axis = DateAxisItem(orientation="bottom")
                 date_axis.setPen(axis_pen)
                 date_axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
-                plot_item.setAxisItems({"bottom": date_axis})
-                plot_item.setLabel("bottom", "Date", **{
+                # Set date format to show dates not times
+                date_axis.setLabel(text="Date", **{
                     "font-family": Fonts.DATA,
                     "color": Colors.TEXT_SECONDARY,
                 })
+                plot_item.setAxisItems({"bottom": date_axis})
             else:
                 # Switch to numeric axis
                 numeric_axis = pg.AxisItem(orientation="bottom")
