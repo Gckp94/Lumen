@@ -576,6 +576,8 @@ def apply_theme(app: QApplication) -> None:
     Args:
         app: The QApplication instance to apply the theme to.
     """
+    # Use Fusion style to bypass native Windows theming for consistent dark theme
+    app.setStyle("Fusion")
     load_fonts(app)
     app.setStyleSheet(get_stylesheet())
     logger.info("Theme applied successfully")
