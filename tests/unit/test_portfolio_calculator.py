@@ -217,7 +217,7 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
             size_type=PositionSizeType.FLAT_DOLLAR,
             size_value=10_000,
             stop_pct=8.0,
-            efficiency=0.05,  # 5%
+            efficiency=5.0,  # 5% (stored as percentage points)
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_single_strategy(trades, config)
@@ -243,7 +243,7 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
             size_type=PositionSizeType.FLAT_DOLLAR,
             size_value=10_000,
             stop_pct=8.0,
-            efficiency=0.05,  # 5%
+            efficiency=5.0,  # 5% (stored as percentage points)
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_single_strategy(trades, config)
@@ -266,7 +266,7 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
             size_type=PositionSizeType.FLAT_DOLLAR,
             size_value=10_000,
             stop_pct=8.0,
-            efficiency=0.05,  # 5%
+            efficiency=5.0,  # 5% (stored as percentage points)
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_single_strategy(trades, config)
@@ -291,7 +291,7 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
             size_type=PositionSizeType.FLAT_DOLLAR,
             size_value=10_000,
             stop_pct=8.0,
-            efficiency=0.05,  # 5% = efficiency cost that makes 3% into -2%
+            efficiency=5.0,  # 5% (stored as percentage points) = efficiency cost that makes 3% into -2%
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_single_strategy(trades, config)
@@ -378,7 +378,7 @@ class TestPortfolioCalculatorMultiStrategy:
             size_type=PositionSizeType.FLAT_DOLLAR,
             size_value=10_000,
             stop_pct=8.0,
-            efficiency=0.05,  # 5%
+            efficiency=5.0,  # 5% (stored as percentage points)
         )
 
         # Strategy B: MAE above stop, gain=-3%
@@ -395,7 +395,7 @@ class TestPortfolioCalculatorMultiStrategy:
             size_type=PositionSizeType.FLAT_DOLLAR,
             size_value=10_000,
             stop_pct=8.0,
-            efficiency=0.05,  # 5%
+            efficiency=5.0,  # 5% (stored as percentage points)
         )
 
         calc = PortfolioCalculator(starting_capital=100_000)

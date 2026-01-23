@@ -19,7 +19,7 @@ class TestStrategyConfig:
         )
         assert config.name == "Test Strategy"
         assert config.stop_pct == 2.0  # default
-        assert config.efficiency == 0.05  # default 5%
+        assert config.efficiency == 5.0  # default 5% (stored as percentage points)
         assert config.size_type == PositionSizeType.CUSTOM_PCT
         assert config.size_value == 10.0  # default 10%
         assert config.max_compound == 50000.0  # default $50,000

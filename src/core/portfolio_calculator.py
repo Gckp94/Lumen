@@ -68,9 +68,10 @@ class PortfolioCalculator:
                 else:
                     stop_adjusted = gain_pct
 
-                # Step 2: Efficiency adjustment (subtract, convert from decimal)
-                efficiency_pct = config.efficiency * 100.0
-                adjusted_gain = stop_adjusted - efficiency_pct
+                # Step 2: Efficiency adjustment
+                # efficiency is stored as percentage (e.g., 5.0 = 5%)
+                # We subtract it directly from the gain percentage
+                adjusted_gain = stop_adjusted - config.efficiency
 
                 pnl = position_size * (adjusted_gain / 100.0)
 
@@ -185,9 +186,10 @@ class PortfolioCalculator:
                 else:
                     stop_adjusted = gain_pct
 
-                # Step 2: Efficiency adjustment (subtract, convert from decimal)
-                efficiency_pct = config.efficiency * 100.0
-                adjusted_gain = stop_adjusted - efficiency_pct
+                # Step 2: Efficiency adjustment
+                # efficiency is stored as percentage (e.g., 5.0 = 5%)
+                # We subtract it directly from the gain percentage
+                adjusted_gain = stop_adjusted - config.efficiency
 
                 pnl = position_size * (adjusted_gain / 100.0)
 

@@ -31,7 +31,7 @@ class StrategyConfig:
     column_mapping: PortfolioColumnMapping
     sheet_name: Optional[str] = None
     stop_pct: float = 2.0
-    efficiency: float = 0.05  # 5% default
+    efficiency: float = 5.0  # 5% default (stored as percentage points)
     size_type: PositionSizeType = PositionSizeType.CUSTOM_PCT
     size_value: float = 10.0  # 10% default
     max_compound: Optional[float] = 50000.0  # $50,000 default
