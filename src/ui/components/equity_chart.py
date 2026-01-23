@@ -681,13 +681,16 @@ class EquityChart(QWidget):
                     self._baseline_timestamps[::-1], return_index=True
                 )
                 last_indices = len(self._baseline_timestamps) - 1 - last_indices
-                # Sort indices to maintain chronological order
-                last_indices = np.sort(last_indices)
 
                 x_data = self._baseline_timestamps[last_indices]
                 y_equity = self._baseline_equity[last_indices]
+
+                # Sort by timestamp to ensure chronological order
+                sort_order = np.argsort(x_data)
+                x_data = x_data[sort_order]
+                y_equity = y_equity[sort_order]
                 y_peak = (
-                    self._baseline_peak[last_indices]
+                    self._baseline_peak[last_indices][sort_order]
                     if self._baseline_peak is not None
                     else None
                 )
@@ -711,11 +714,14 @@ class EquityChart(QWidget):
                     self._filtered_timestamps[::-1], return_index=True
                 )
                 last_indices = len(self._filtered_timestamps) - 1 - last_indices
-                # Sort indices to maintain chronological order
-                last_indices = np.sort(last_indices)
 
                 x_data = self._filtered_timestamps[last_indices]
                 y_equity = self._filtered_equity[last_indices]
+
+                # Sort by timestamp to ensure chronological order
+                sort_order = np.argsort(x_data)
+                x_data = x_data[sort_order]
+                y_equity = y_equity[sort_order]
             else:
                 x_data = self._filtered_trade_nums
                 y_equity = self._filtered_equity
