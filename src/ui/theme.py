@@ -369,6 +369,71 @@ QTableCornerButton::section {{
     border-bottom: 1px solid {Colors.BG_BORDER};
     border-right: 1px solid {Colors.BG_BORDER};
 }}
+
+/* ========================================
+   Spin Boxes
+   ======================================== */
+
+QSpinBox, QDoubleSpinBox {{
+    background-color: {Colors.BG_BASE};
+    color: {Colors.TEXT_PRIMARY};
+    border: 1px solid {Colors.BG_BORDER};
+    border-radius: 4px;
+    padding: 4px 8px;
+    padding-right: 20px;
+    font-family: "{Fonts.DATA}";
+    min-height: 24px;
+}}
+
+QSpinBox:focus, QDoubleSpinBox:focus {{
+    border-color: {Colors.SIGNAL_CYAN};
+}}
+
+QSpinBox:disabled, QDoubleSpinBox:disabled {{
+    color: {Colors.TEXT_DISABLED};
+    background-color: {Colors.BG_ELEVATED};
+}}
+
+/* Spin box buttons */
+QSpinBox::up-button, QDoubleSpinBox::up-button {{
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 18px;
+    border: none;
+    border-left: 1px solid {Colors.BG_BORDER};
+    border-top-right-radius: 4px;
+    background-color: {Colors.BG_ELEVATED};
+}}
+
+QSpinBox::down-button, QDoubleSpinBox::down-button {{
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 18px;
+    border: none;
+    border-left: 1px solid {Colors.BG_BORDER};
+    border-bottom-right-radius: 4px;
+    background-color: {Colors.BG_ELEVATED};
+}}
+
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
+    background-color: {Colors.BG_BORDER};
+}}
+
+QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed,
+QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {{
+    background-color: {Colors.BG_BASE};
+}}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
+    width: 8px;
+    height: 8px;
+}}
+
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
+    width: 8px;
+    height: 8px;
+}}
 """
 
 
