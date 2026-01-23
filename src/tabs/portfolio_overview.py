@@ -6,11 +6,10 @@ and visualizing multi-strategy portfolio performance.
 """
 
 import logging
-from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -48,6 +47,9 @@ class PortfolioOverviewTab(QWidget):
         _strategy_data: Dictionary mapping strategy names to loaded DataFrames.
         _recalc_timer: Timer for debounced recalculation.
     """
+
+    # Signal emitted when portfolio data changes (for Portfolio Breakdown tab)
+    portfolio_data_changed = pyqtSignal(dict)  # {"baseline": df, "combined": df}
 
     def __init__(
         self,
@@ -189,25 +191,29 @@ class PortfolioOverviewTab(QWidget):
         """Connect widget signals to handlers."""
         self._add_strategy_btn.clicked.connect(self._on_add_strategy)
         self._strategy_table.strategy_changed.connect(self._schedule_recalculation)
-        self._strategy_table.load_data_requested.connect(self.load_strategy_data)
         self._account_start_spin.valueChanged.connect(self._schedule_recalculation)
 
     def _load_saved_config(self) -> None:
-        """Load saved strategy configs on startup (data loading is deferred).
-
-        Configs are added to the table but data files are not loaded.
-        Users must manually load data via the row menu "Load Data" action.
-        """
+        """Load saved strategies on startup."""
         strategies, account_start = self._config_manager.load()
         self._account_start_spin.setValue(account_start)
 
         for config in strategies:
-            # Add config to table without loading data
-            self._strategy_table.add_strategy(config)
-            # Mark as unloaded visually
-            self._update_row_loaded_state(config.name, loaded=False)
+            # Try to reload the CSV data
+            try:
+                if config.file_path.endswith(".csv"):
+                    df = pd.read_csv(config.file_path)
+                else:
+                    df = pd.read_excel(config.file_path)
+                self._strategy_data[config.name] = df
+                self._strategy_table.add_strategy(config)
+            except Exception as e:
+                logger.warning(f"Could not load file for {config.name}: {e}")
+                # Still add strategy but data will be missing
+                self._strategy_table.add_strategy(config)
 
-        # No recalculation on startup - user must load data first
+        if strategies:
+            self._schedule_recalculation()
 
     def _on_add_strategy(self) -> None:
         """Handle Add Strategy button click."""
@@ -218,7 +224,6 @@ class PortfolioOverviewTab(QWidget):
             file_path = dialog.get_file_path()
             strategy_name = dialog.get_strategy_name()
             column_mapping = dialog.get_column_mapping()
-            sheet_name = dialog.get_selected_sheet()
             df = dialog.get_dataframe()
 
             if df is not None and file_path:
@@ -227,7 +232,6 @@ class PortfolioOverviewTab(QWidget):
                     name=strategy_name,
                     file_path=file_path,
                     column_mapping=column_mapping,
-                    sheet_name=sheet_name,
                 )
 
                 # Store the data
@@ -236,14 +240,10 @@ class PortfolioOverviewTab(QWidget):
                 # Add to table
                 self._strategy_table.add_strategy(config)
 
-                # Mark as loaded (data was imported via dialog)
-                self._update_row_loaded_state(strategy_name, loaded=True)
-
                 # Trigger recalculation
                 self._schedule_recalculation()
 
-                logger.info(f"Added strategy: {strategy_name} from {file_path}" +
-                           (f" sheet={sheet_name}" if sheet_name else ""))
+                logger.info(f"Added strategy: {strategy_name} from {file_path}")
 
     def _schedule_recalculation(self) -> None:
         """Schedule a recalculation with debouncing."""
@@ -313,65 +313,8 @@ class PortfolioOverviewTab(QWidget):
         self._charts.set_data(chart_data)
         logger.debug(f"Recalculated {len(chart_data)} equity curves")
 
+        # Emit signal for other tabs (Portfolio Breakdown)
+        self.portfolio_data_changed.emit(chart_data)
+
         # Save configuration
         self._config_manager.save(strategies, self._account_start_spin.value())
-
-    def is_data_loaded(self, strategy_name: str) -> bool:
-        """Check if data is loaded for a strategy.
-
-        Args:
-            strategy_name: Name of the strategy to check.
-
-        Returns:
-            True if data is loaded, False otherwise.
-        """
-        return strategy_name in self._strategy_data and self._strategy_data[strategy_name] is not None
-
-    def _update_row_loaded_state(self, strategy_name: str, loaded: bool) -> None:
-        """Update visual state of a row based on data loaded status.
-
-        Args:
-            strategy_name: Name of the strategy.
-            loaded: Whether data is loaded for this strategy.
-        """
-        from PyQt6.QtGui import QBrush, QColor
-
-        for row in range(self._strategy_table.rowCount()):
-            name_item = self._strategy_table.item(row, self._strategy_table.COL_NAME)
-            if name_item and name_item.text() == strategy_name:
-                color = Colors.TEXT_PRIMARY if loaded else Colors.TEXT_DISABLED
-                name_item.setForeground(QBrush(QColor(color)))
-                break
-
-    def load_strategy_data(self, strategy_name: str) -> bool:
-        """Load data file for a specific strategy.
-
-        Args:
-            strategy_name: Name of the strategy to load data for.
-
-        Returns:
-            True if data was loaded successfully, False otherwise.
-        """
-        strategies = self._strategy_table.get_strategies()
-        config = next((s for s in strategies if s.name == strategy_name), None)
-        if config is None:
-            logger.warning(f"Strategy not found: {strategy_name}")
-            return False
-
-        try:
-            if config.file_path.endswith(".csv"):
-                df = pd.read_csv(config.file_path)
-            else:
-                from src.core.file_loader import FileLoader
-                loader = FileLoader()
-                df = loader.load(Path(config.file_path), config.sheet_name)
-
-            self._strategy_data[strategy_name] = df
-            self._update_row_loaded_state(strategy_name, loaded=True)
-            self._schedule_recalculation()
-            logger.info(f"Loaded data for strategy: {strategy_name}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to load data for {strategy_name}: {e}")
-            return False
