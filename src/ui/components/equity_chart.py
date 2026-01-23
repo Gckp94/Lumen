@@ -660,7 +660,11 @@ class EquityChart(QWidget):
         self._plot_widget.autoRange()
 
     def _replot_curves(self) -> None:
-        """Replot all curves using current axis mode's X values."""
+        """Replot all curves using current axis mode's X values.
+
+        In DATE mode, aggregates data to daily totals using end-of-day equity values.
+        In TRADE mode, shows every individual trade.
+        """
         # Check if we should use timestamps (DATE mode with available timestamps)
         use_timestamps = (
             self._axis_mode == AxisMode.DATE
@@ -671,26 +675,53 @@ class EquityChart(QWidget):
         # Replot baseline curve
         if self._baseline_equity is not None:
             if use_timestamps and self._baseline_timestamps is not None:
-                x_data = self._baseline_timestamps
+                # Aggregate to daily totals - use last equity value per day
+                # np.unique returns first occurrence indices, we need last
+                _, last_indices = np.unique(
+                    self._baseline_timestamps[::-1], return_index=True
+                )
+                last_indices = len(self._baseline_timestamps) - 1 - last_indices
+                # Sort indices to maintain chronological order
+                last_indices = np.sort(last_indices)
+
+                x_data = self._baseline_timestamps[last_indices]
+                y_equity = self._baseline_equity[last_indices]
+                y_peak = (
+                    self._baseline_peak[last_indices]
+                    if self._baseline_peak is not None
+                    else None
+                )
             else:
                 x_data = self._baseline_trade_nums
+                y_equity = self._baseline_equity
+                y_peak = self._baseline_peak
 
             if x_data is not None:
-                self._baseline_curve.setData(x=x_data, y=self._baseline_equity)
-                if self._baseline_peak is not None:
-                    self._peak_curve.setData(x=x_data, y=self._baseline_peak)
+                self._baseline_curve.setData(x=x_data, y=y_equity)
+                if y_peak is not None:
+                    self._peak_curve.setData(x=x_data, y=y_peak)
                     # Refresh FillBetweenItem after curves have new data
                     self._drawdown_fill.setCurves(self._baseline_curve, self._peak_curve)
 
         # Replot filtered curve
         if self._filtered_equity is not None:
             if use_timestamps and self._filtered_timestamps is not None:
-                x_data = self._filtered_timestamps
+                # Aggregate to daily totals - use last equity value per day
+                _, last_indices = np.unique(
+                    self._filtered_timestamps[::-1], return_index=True
+                )
+                last_indices = len(self._filtered_timestamps) - 1 - last_indices
+                # Sort indices to maintain chronological order
+                last_indices = np.sort(last_indices)
+
+                x_data = self._filtered_timestamps[last_indices]
+                y_equity = self._filtered_equity[last_indices]
             else:
                 x_data = self._filtered_trade_nums
+                y_equity = self._filtered_equity
 
             if x_data is not None:
-                self._filtered_curve.setData(x=x_data, y=self._filtered_equity)
+                self._filtered_curve.setData(x=x_data, y=y_equity)
 
 
 class _ChartPanel(QWidget):
