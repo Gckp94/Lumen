@@ -165,3 +165,47 @@ class TestPortfolioMetricsCalculator:
         calmar = calculator.calculate_calmar_ratio(df)
         assert calmar is not None
         assert calmar > 1.5  # Should be around 2.0
+
+    def test_calculate_win_rate(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Win rate from PnL data."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(10)]
+        pnls = [100, -50, 200, -100, 150, -75, 300, -25, 100, 50]  # 6 wins, 4 losses
+        equities = list(np.cumsum([100_000] + pnls))[1:]
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 11),
+            "pnl": pnls,
+            "equity": equities,
+            "peak": np.maximum.accumulate(equities),
+            "drawdown": [0] * 10,
+            "win": [p > 0 for p in pnls],
+        })
+
+        win_rate = calculator.calculate_win_rate(df)
+        assert win_rate == pytest.approx(60.0, rel=0.01)  # 60%
+
+    def test_calculate_profit_factor(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Profit factor = gross profits / gross losses."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(6)]
+        # Profits: 100 + 200 + 300 = 600, Losses: 50 + 100 = 150
+        # PF = 600 / 150 = 4.0
+        pnls = [100, -50, 200, -100, 300, 50]
+        equities = list(np.cumsum([100_000] + pnls))[1:]
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 7),
+            "pnl": pnls,
+            "equity": equities,
+            "peak": np.maximum.accumulate(equities),
+            "drawdown": [0] * 6,
+            "win": [p > 0 for p in pnls],
+        })
+
+        pf = calculator.calculate_profit_factor(df)
+        assert pf == pytest.approx(4.33, rel=0.01)  # (100+200+300+50)/(50+100) = 650/150

@@ -260,3 +260,51 @@ class PortfolioMetricsCalculator:
             return None
 
         return cagr / max_dd_pct
+
+    def calculate_win_rate(self, equity_curve: pd.DataFrame) -> float | None:
+        """Calculate win rate percentage.
+
+        Args:
+            equity_curve: DataFrame with 'pnl' or 'win' column.
+
+        Returns:
+            Win rate as percentage (e.g., 65.0 for 65%), or None.
+        """
+        if equity_curve.empty:
+            return None
+
+        if "win" in equity_curve.columns:
+            wins = equity_curve["win"].sum()
+            total = len(equity_curve)
+        elif "pnl" in equity_curve.columns:
+            pnls = equity_curve["pnl"].astype(float)
+            wins = (pnls > 0).sum()
+            total = len(pnls)
+        else:
+            return None
+
+        if total == 0:
+            return None
+
+        return float(wins / total * 100)
+
+    def calculate_profit_factor(self, equity_curve: pd.DataFrame) -> float | None:
+        """Calculate profit factor (gross profits / gross losses).
+
+        Args:
+            equity_curve: DataFrame with 'pnl' column.
+
+        Returns:
+            Profit factor, or None if no losses.
+        """
+        if equity_curve.empty or "pnl" not in equity_curve.columns:
+            return None
+
+        pnls = equity_curve["pnl"].astype(float)
+        gross_profit = pnls[pnls > 0].sum()
+        gross_loss = abs(pnls[pnls < 0].sum())
+
+        if gross_loss == 0:
+            return float("inf") if gross_profit > 0 else None
+
+        return float(gross_profit / gross_loss)
