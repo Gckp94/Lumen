@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 )
 from pyqtgraph import DateAxisItem
 
+from src.ui.components.abbreviated_axis import AbbreviatedAxisItem
 from src.ui.components.axis_mode_toggle import AxisMode, AxisModeToggle
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
 
@@ -172,10 +173,16 @@ class PortfolioChartsWidget(QWidget):
         axis_pen = pg.mkPen(color=Colors.BG_BORDER)
         plot_item = plot_widget.getPlotItem()
 
-        for axis_name in ("left", "bottom"):
-            axis = plot_item.getAxis(axis_name)
-            axis.setPen(axis_pen)
-            axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
+        # Use AbbreviatedAxisItem for Y-axis to show K/M/B instead of scientific notation
+        abbreviated_y_axis = AbbreviatedAxisItem(orientation="left")
+        abbreviated_y_axis.setPen(axis_pen)
+        abbreviated_y_axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
+        plot_item.setAxisItems({"left": abbreviated_y_axis})
+
+        # Configure bottom axis
+        bottom_axis = plot_item.getAxis("bottom")
+        bottom_axis.setPen(axis_pen)
+        bottom_axis.setTextPen(pg.mkPen(color=Colors.TEXT_SECONDARY))
 
         # Set labels
         plot_item.setLabel("left", y_label, **{
