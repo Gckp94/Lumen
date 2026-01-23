@@ -448,10 +448,26 @@ class EquityChart(QWidget):
             )
 
             # Convert dates to timestamps if available
+            logger.info(
+                "EquityChart.set_baseline: dates param is_none=%s, len=%d",
+                dates is None,
+                len(dates) if dates is not None else 0,
+            )
             if dates is not None and len(dates) > 0:
+                logger.info(
+                    "EquityChart.set_baseline: dates[0]=%s, type=%s",
+                    dates[0],
+                    type(dates[0]).__name__,
+                )
                 try:
                     # Convert to pandas datetime first (handles strings, excel dates, etc)
-                    dt_series = pd.to_datetime(dates, errors='coerce')
+                    dt_series = pd.to_datetime(dates, dayfirst=True, errors='coerce')
+                    logger.info(
+                        "EquityChart.set_baseline: dt_series notna=%d/%d, first=%s",
+                        dt_series.notna().sum(),
+                        len(dt_series),
+                        dt_series[0] if len(dt_series) > 0 else None,
+                    )
 
                     # Check if conversion was successful (not all NaT)
                     if dt_series.notna().any():
@@ -523,7 +539,7 @@ class EquityChart(QWidget):
             if dates is not None and len(dates) > 0:
                 try:
                     # Convert to pandas datetime first (handles strings, excel dates, etc)
-                    dt_series = pd.to_datetime(dates, errors='coerce')
+                    dt_series = pd.to_datetime(dates, dayfirst=True, errors='coerce')
 
                     # Check if conversion was successful (not all NaT)
                     if dt_series.notna().any():
@@ -588,8 +604,8 @@ class EquityChart(QWidget):
         Args:
             mode: TRADES for trade number, DATE for calendar date.
         """
-        logger.debug(
-            "set_axis_mode called: mode=%s, has_timestamps=%s, timestamp_count=%d",
+        logger.info(
+            "EquityChart.set_axis_mode: mode=%s, has_timestamps=%s, timestamp_count=%d",
             mode,
             self._baseline_timestamps is not None,
             len(self._baseline_timestamps) if self._baseline_timestamps is not None else 0,
@@ -608,7 +624,7 @@ class EquityChart(QWidget):
             and len(self._baseline_timestamps) > 0
         )
 
-        logger.debug(
+        logger.info(
             "_update_axis_display: mode=%s, has_timestamps=%s, using_date_axis=%s",
             self._axis_mode,
             has_timestamps,
@@ -762,7 +778,11 @@ class _ChartPanel(QWidget):
         Args:
             mode: New axis mode.
         """
-        logger.debug("_ChartPanel._on_axis_mode_changed: mode=%s", mode)
+        logger.info(
+            "_ChartPanel._on_axis_mode_changed: mode=%s, chart._baseline_timestamps=%s",
+            mode,
+            "exists" if self.chart._baseline_timestamps is not None else "None",
+        )
         self.chart.set_axis_mode(mode)
 
     def set_baseline(self, equity_df: pd.DataFrame | None) -> None:
@@ -776,12 +796,22 @@ class _ChartPanel(QWidget):
             cols = list(equity_df.columns)
             has_date = "date" in cols
             has_peak = "peak" in cols
-            logger.debug(
+            logger.info(
                 "_ChartPanel.set_baseline: cols=%s, has_date=%s, has_peak=%s, rows=%d",
                 cols, has_date, has_peak, len(equity_df)
             )
             if has_date:
                 self._baseline_dates = equity_df["date"].values
+                logger.info(
+                    "_ChartPanel.set_baseline: extracted dates, type=%s, first_value=%s, len=%d",
+                    type(self._baseline_dates).__name__,
+                    self._baseline_dates[0] if len(self._baseline_dates) > 0 else None,
+                    len(self._baseline_dates),
+                )
+            else:
+                logger.info("_ChartPanel.set_baseline: NO 'date' column found in equity_df")
+        else:
+            logger.info("_ChartPanel.set_baseline: equity_df is None")
         self.chart.set_baseline(equity_df, self._baseline_dates)
 
     def set_filtered(self, equity_df: pd.DataFrame | None) -> None:
