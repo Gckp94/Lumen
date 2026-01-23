@@ -105,3 +105,63 @@ class TestPortfolioMetricsCalculator:
         assert sharpe is not None
         # Sortino should be higher than Sharpe for positive skew
         assert sortino > sharpe
+
+    def test_calculate_max_drawdown(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Max drawdown from peak to trough."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(10)]
+        # Peak at 150k, drops to 120k = 20% drawdown
+        equities = [100_000, 120_000, 150_000, 140_000, 130_000,
+                    120_000, 125_000, 130_000, 140_000, 145_000]
+        pnls = np.diff([100_000] + equities)
+        peaks = np.maximum.accumulate(equities)
+        drawdowns = np.array(equities) - peaks
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 11),
+            "pnl": pnls,
+            "equity": equities,
+            "peak": peaks,
+            "drawdown": drawdowns,
+            "win": [p > 0 for p in pnls],
+        })
+
+        max_dd_pct, max_dd_dollars = calculator.calculate_max_drawdown(df)
+
+        assert max_dd_pct == pytest.approx(20.0, rel=0.01)  # 20%
+        assert max_dd_dollars == pytest.approx(30_000, rel=0.01)  # $30k
+
+    def test_calculate_calmar_ratio(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Calmar = CAGR / |Max Drawdown|."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(365)]
+        # 20% return with 10% max drawdown = Calmar of 2.0
+        equities = list(np.linspace(100_000, 120_000, 365))
+        # Inject a 10% drawdown mid-way
+        peak_idx = 180
+        equities[peak_idx] = 115_000  # Peak
+        equities[peak_idx + 1] = 103_500  # 10% drop from peak
+        for i in range(peak_idx + 2, 365):
+            equities[i] = equities[i-1] * 1.0003  # Recover
+        equities[-1] = 120_000  # End at 20% gain
+
+        pnls = np.diff([100_000] + equities)
+        peaks = np.maximum.accumulate(equities)
+        drawdowns = np.array(equities) - peaks
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 366),
+            "pnl": pnls,
+            "equity": equities,
+            "peak": peaks,
+            "drawdown": drawdowns,
+            "win": [p > 0 for p in pnls],
+        })
+
+        calmar = calculator.calculate_calmar_ratio(df)
+        assert calmar is not None
+        assert calmar > 1.5  # Should be around 2.0

@@ -178,3 +178,85 @@ class PortfolioMetricsCalculator:
 
         daily_sortino = (returns.mean() - target) / downside_std
         return float(daily_sortino * np.sqrt(252))
+
+    def calculate_max_drawdown(
+        self, equity_curve: pd.DataFrame
+    ) -> tuple[float | None, float | None]:
+        """Calculate maximum drawdown in percentage and dollars.
+
+        Args:
+            equity_curve: DataFrame with 'equity' and 'peak' columns.
+
+        Returns:
+            Tuple of (max_dd_percent, max_dd_dollars), or (None, None) if no data.
+        """
+        if equity_curve.empty:
+            return None, None
+
+        equities = equity_curve["equity"].astype(float)
+        peaks = equity_curve["peak"].astype(float)
+
+        # Calculate drawdown at each point
+        dd_dollars = equities - peaks
+        dd_percent = (dd_dollars / peaks) * 100
+
+        # Find maximum drawdown (most negative)
+        max_dd_dollars = float(dd_dollars.min())
+        max_dd_pct = float(dd_percent.min())
+
+        return abs(max_dd_pct), abs(max_dd_dollars)
+
+    def calculate_drawdown_duration(
+        self, equity_curve: pd.DataFrame
+    ) -> tuple[int | None, float | None]:
+        """Calculate max drawdown duration and time underwater.
+
+        Args:
+            equity_curve: DataFrame with 'equity', 'peak', and 'date' columns.
+
+        Returns:
+            Tuple of (max_duration_days, time_underwater_pct).
+        """
+        if equity_curve.empty or len(equity_curve) < 2:
+            return None, None
+
+        equities = equity_curve["equity"].astype(float)
+        peaks = equity_curve["peak"].astype(float)
+
+        # Underwater when equity < peak
+        underwater = equities < peaks
+        time_underwater_pct = float(underwater.sum() / len(underwater) * 100)
+
+        # Calculate drawdown periods (consecutive underwater days)
+        periods = []
+        current_period = 0
+        for uw in underwater:
+            if uw:
+                current_period += 1
+            else:
+                if current_period > 0:
+                    periods.append(current_period)
+                current_period = 0
+        if current_period > 0:
+            periods.append(current_period)
+
+        max_duration = max(periods) if periods else 0
+
+        return max_duration, time_underwater_pct
+
+    def calculate_calmar_ratio(self, equity_curve: pd.DataFrame) -> float | None:
+        """Calculate Calmar ratio (CAGR / Max Drawdown).
+
+        Args:
+            equity_curve: DataFrame with equity data.
+
+        Returns:
+            Calmar ratio, or None if cannot be calculated.
+        """
+        cagr = self.calculate_cagr(equity_curve)
+        max_dd_pct, _ = self.calculate_max_drawdown(equity_curve)
+
+        if cagr is None or max_dd_pct is None or max_dd_pct == 0:
+            return None
+
+        return cagr / max_dd_pct
