@@ -209,3 +209,64 @@ class TestPortfolioMetricsCalculator:
 
         pf = calculator.calculate_profit_factor(df)
         assert pf == pytest.approx(4.33, rel=0.01)  # (100+200+300+50)/(50+100) = 650/150
+
+    def test_calculate_t_statistic(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """T-statistic tests if mean return differs from zero."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(100)]
+        # Consistent positive returns should have high t-stat
+        np.random.seed(0)  # Seed 0 gives clearly positive sample mean
+        returns = np.random.normal(0.001, 0.01, 100)  # Mean 0.1%, std 1%
+        equities = [100_000]
+        for r in returns:
+            equities.append(equities[-1] * (1 + r))
+        equities = equities[1:]
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 101),
+            "pnl": np.diff([100_000] + equities),
+            "equity": equities,
+            "peak": np.maximum.accumulate(equities),
+            "drawdown": [0] * 100,
+            "win": [True] * 100,
+        })
+
+        t_stat, p_value = calculator.calculate_t_statistic(df)
+        assert t_stat is not None
+        assert p_value is not None
+        # With mean > 0, t-stat should be positive
+        assert t_stat > 0
+
+    def test_calculate_var_cvar(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """VaR and CVaR at 95% confidence."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(100)]
+        np.random.seed(42)
+        # Returns with some tail events
+        returns = np.random.normal(0, 0.02, 100)
+        returns[10] = -0.10  # 10% loss event
+        returns[50] = -0.08  # 8% loss event
+
+        equities = [100_000]
+        for r in returns:
+            equities.append(equities[-1] * (1 + r))
+        equities = equities[1:]
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": range(1, 101),
+            "pnl": np.diff([100_000] + equities),
+            "equity": equities,
+            "peak": np.maximum.accumulate(equities),
+            "drawdown": [0] * 100,
+            "win": [r > 0 for r in returns],
+        })
+
+        var_95, cvar_95 = calculator.calculate_var_cvar(df)
+        assert var_95 is not None
+        assert cvar_95 is not None
+        # CVaR should be worse (more negative) than VaR
+        assert cvar_95 < var_95

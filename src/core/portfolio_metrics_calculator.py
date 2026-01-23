@@ -308,3 +308,50 @@ class PortfolioMetricsCalculator:
             return float("inf") if gross_profit > 0 else None
 
         return float(gross_profit / gross_loss)
+
+    def calculate_t_statistic(
+        self, equity_curve: pd.DataFrame
+    ) -> tuple[float | None, float | None]:
+        """Calculate t-statistic testing if mean return differs from zero.
+
+        Args:
+            equity_curve: DataFrame with equity data.
+
+        Returns:
+            Tuple of (t_statistic, p_value), or (None, None).
+        """
+        returns = self._calculate_daily_returns(equity_curve)
+        if len(returns) < 2:
+            return None, None
+
+        t_stat, p_value = stats.ttest_1samp(returns, 0)
+        return float(t_stat), float(p_value)
+
+    def calculate_var_cvar(
+        self, equity_curve: pd.DataFrame, confidence: float = 0.95
+    ) -> tuple[float | None, float | None]:
+        """Calculate Value at Risk and Conditional VaR (Expected Shortfall).
+
+        Args:
+            equity_curve: DataFrame with equity data.
+            confidence: Confidence level (default 0.95 for 95%).
+
+        Returns:
+            Tuple of (VaR, CVaR) as percentages, or (None, None).
+        """
+        returns = self._calculate_daily_returns(equity_curve)
+        if len(returns) < 2:
+            return None, None
+
+        # VaR is the quantile at (1 - confidence)
+        var = float(returns.quantile(1 - confidence) * 100)
+
+        # CVaR is mean of returns worse than VaR
+        threshold = returns.quantile(1 - confidence)
+        tail_returns = returns[returns <= threshold]
+        if len(tail_returns) == 0:
+            cvar = var
+        else:
+            cvar = float(tail_returns.mean() * 100)
+
+        return var, cvar
