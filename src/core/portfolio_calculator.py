@@ -39,7 +39,7 @@ class PortfolioCalculator:
         df = df.sort_values(mapping.date_col).reset_index(drop=True)
 
         # Group by date for daily compounding
-        df["_date"] = pd.to_datetime(df[mapping.date_col]).dt.date
+        df["_date"] = pd.to_datetime(df[mapping.date_col], dayfirst=True).dt.date
 
         results = []
         account_value = self.starting_capital

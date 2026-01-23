@@ -160,6 +160,40 @@ class TestPortfolioCalculatorSingleStrategy:
         assert "peak" in result.columns
         assert "drawdown" in result.columns
 
+    def test_calculate_single_strategy_handles_ddmmyyyy_dates(self):
+        """Test that DD/MM/YYYY date format is parsed correctly without warnings."""
+        import warnings
+
+        calculator = PortfolioCalculator(starting_capital=100_000)
+
+        # Date "13/01/2021" - day 13 can't be a month, must be DD/MM/YYYY
+        trades_df = pd.DataFrame({
+            "date": ["13/01/2021", "14/01/2021", "15/01/2021"],
+            "gain_pct": [1.0, -0.5, 2.0],
+            "wl": ["W", "L", "W"],
+        })
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="/test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+        )
+
+        # Should not raise warnings about dayfirst
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = calculator.calculate_single_strategy(trades_df, config)
+
+            # Check no warnings about dayfirst were raised
+            dayfirst_warnings = [
+                warning for warning in w
+                if "dayfirst" in str(warning.message).lower()
+            ]
+            assert len(dayfirst_warnings) == 0, f"Got dayfirst warning: {dayfirst_warnings}"
+
+        assert len(result) == 3
+        assert result["trade_num"].tolist() == [1, 2, 3]
+
 
 class TestPortfolioCalculatorMultiStrategy:
     @pytest.fixture
