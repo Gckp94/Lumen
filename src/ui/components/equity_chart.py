@@ -11,7 +11,6 @@ import logging
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg  # type: ignore[import-untyped]
-from pyqtgraph import DateAxisItem
 from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import (
@@ -21,8 +20,9 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from src.ui.components.abbreviated_axis import FormattedDateAxisItem
+from pyqtgraph import DateAxisItem
 
+from src.ui.components.abbreviated_axis import FormattedDateAxisItem
 from src.ui.components.axis_mode_toggle import AxisMode, AxisModeToggle
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
 
@@ -86,7 +86,7 @@ class EquityChart(QWidget):
 
         # Reference to axis items for swapping
         self._numeric_axis: pg.AxisItem | None = None
-        self._date_axis: DateAxisItem | None = None
+        self._date_axis: pg.AxisItem | None = None
 
         self._setup_ui()
         self._setup_pyqtgraph()
