@@ -18,6 +18,7 @@ from src.tabs.monte_carlo import MonteCarloTab
 from src.tabs.parameter_sensitivity import ParameterSensitivityTab
 from src.tabs.pnl_stats import PnLStatsTab
 from src.tabs.portfolio_breakdown import PortfolioBreakdownTab
+from src.tabs.portfolio_metrics import PortfolioMetricsTab
 from src.tabs.portfolio_overview import PortfolioOverviewTab
 from src.ui.dock_manager import DockManager
 
@@ -60,6 +61,13 @@ class MainWindow(QMainWindow):
             portfolio_breakdown.on_portfolio_data_changed
         )
 
+        portfolio_metrics = PortfolioMetricsTab()
+
+        # Connect Portfolio Overview signal to Portfolio Metrics handler
+        portfolio_overview.portfolio_data_changed.connect(
+            portfolio_metrics.on_portfolio_data_changed
+        )
+
         # Add tabs in workflow order, passing AppState where needed
         tabs = [
             ("Data Input", DataInputTab(self._app_state)),
@@ -72,6 +80,7 @@ class MainWindow(QMainWindow):
             ("Feature Insights", FeatureInsightsTab(self._app_state)),
             ("Portfolio Overview", portfolio_overview),
             ("Portfolio Breakdown", portfolio_breakdown),
+            ("Portfolio Metrics", portfolio_metrics),
         ]
 
         for title, widget in tabs:
