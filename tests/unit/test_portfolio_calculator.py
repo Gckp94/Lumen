@@ -208,7 +208,7 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
             "date": ["2024-01-01"],
             "gain_pct": [0.10],  # Decimal form: 0.10 = 10%
             "wl": ["W"],
-            "mae": [0.02],  # Decimal form: 0.02 = 2%, below stop of 8%
+            "mae": [2.0],  # Percentage form: 2.0 = 2%, below stop of 8%
         })
         config = StrategyConfig(
             name="Test",
@@ -234,7 +234,7 @@ class TestPortfolioCalculatorStopLossAndEfficiency:
             "date": ["2024-01-01"],
             "gain_pct": [-0.05],  # Decimal form: -0.05 = -5%
             "wl": ["L"],
-            "mae": [0.12],  # Decimal form: 0.12 = 12%, above stop of 8%
+            "mae": [12.0],  # Percentage form: 12.0 = 12%, above stop of 8%
         })
         config = StrategyConfig(
             name="Test",
@@ -369,7 +369,7 @@ class TestPortfolioCalculatorMultiStrategy:
             "date": ["2024-01-01"],
             "gain_pct": [0.10],  # Decimal form: 0.10 = 10%
             "wl": ["W"],
-            "mae": [0.02],  # Decimal form: 0.02 = 2%, below stop
+            "mae": [2.0],  # Percentage form: 2.0 = 2%, below stop
         })
         config_a = StrategyConfig(
             name="A",
@@ -386,7 +386,7 @@ class TestPortfolioCalculatorMultiStrategy:
             "date": ["2024-01-02"],
             "gain_pct": [-0.03],  # Decimal form: -0.03 = -3%
             "wl": ["L"],
-            "mae": [0.12],  # Decimal form: 0.12 = 12%, above stop
+            "mae": [12.0],  # Percentage form: 12.0 = 12%, above stop
         })
         config_b = StrategyConfig(
             name="B",

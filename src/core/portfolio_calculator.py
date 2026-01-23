@@ -52,7 +52,8 @@ class PortfolioCalculator:
             for _, trade in day_trades.iterrows():
                 trade_num += 1
                 # Convert from decimal form (0.07) to percentage form (7.0)
-                gain_pct = float(trade[mapping.gain_pct_col]) * 100.0
+                raw_gain = float(trade[mapping.gain_pct_col])
+                gain_pct = raw_gain * 100.0
 
                 # Calculate position size
                 position_size = self._calculate_position_size(
@@ -61,8 +62,9 @@ class PortfolioCalculator:
 
                 # Step 1: Stop loss adjustment (if MAE column available)
                 if mapping.mae_pct_col and mapping.mae_pct_col in df.columns:
-                    # Convert from decimal form to percentage form
-                    mae_pct = float(trade[mapping.mae_pct_col]) * 100.0
+                    # MAE is already in percentage form (e.g., 5.0 = 5%)
+                    # Do NOT multiply by 100 like gain_pct
+                    mae_pct = float(trade[mapping.mae_pct_col])
                     if mae_pct > config.stop_pct:
                         stop_adjusted = -config.stop_pct
                     else:
@@ -76,6 +78,15 @@ class PortfolioCalculator:
                 adjusted_gain = stop_adjusted - config.efficiency
 
                 pnl = position_size * (adjusted_gain / 100.0)
+
+                # DEBUG: Log first 5 trades to understand calculation
+                if trade_num <= 5:
+                    mae_info = f", mae={mae_pct}%" if mapping.mae_pct_col and mapping.mae_pct_col in df.columns else ""
+                    logger.info(
+                        f"Trade {trade_num}: raw_gain={raw_gain}, gain_pct={gain_pct}%{mae_info}, "
+                        f"stop_adjusted={stop_adjusted}%, efficiency={config.efficiency}%, "
+                        f"adjusted_gain={adjusted_gain}%, position={position_size}, pnl={pnl}"
+                    )
 
                 account_value += pnl
                 peak = max(peak, account_value)
@@ -181,8 +192,9 @@ class PortfolioCalculator:
                 # Step 1: Stop loss adjustment (if MAE available)
                 mae_pct = trade["_mae_pct"]
                 if mae_pct is not None:
-                    # Convert from decimal form to percentage form
-                    mae_pct = float(mae_pct) * 100.0
+                    # MAE is already in percentage form (e.g., 5.0 = 5%)
+                    # Do NOT multiply by 100 like gain_pct
+                    mae_pct = float(mae_pct)
                     if mae_pct > config.stop_pct:
                         stop_adjusted = -config.stop_pct
                     else:
