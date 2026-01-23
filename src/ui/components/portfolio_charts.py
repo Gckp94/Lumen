@@ -75,6 +75,7 @@ class PortfolioChartsWidget(QWidget):
         self._strategy_color_index = 0
 
         self._setup_ui()
+        self._setup_tooltips()
 
     def _setup_ui(self) -> None:
         """Set up the widget layout."""
