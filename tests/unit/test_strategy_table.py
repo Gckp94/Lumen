@@ -170,3 +170,10 @@ class TestStrategyTableWidget:
         assert strategies[0].stop_pct == 3.5
         assert strategies[0].efficiency == 0.8
         assert strategies[0].size_value == 15.0
+
+    def test_row_menu_has_load_data_requested_signal(self, app, qtbot):
+        """Verify load_data_requested signal exists on strategy table."""
+        table = StrategyTableWidget()
+        qtbot.addWidget(table)
+
+        assert hasattr(table, 'load_data_requested')

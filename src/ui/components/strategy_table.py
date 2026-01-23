@@ -63,6 +63,7 @@ class StrategyTableWidget(QTableWidget):
     SIZE_TYPE_FROM_DISPLAY = {v: k for k, v in SIZE_TYPE_DISPLAY.items()}
 
     strategy_changed = pyqtSignal()
+    load_data_requested = pyqtSignal(str)  # Emits strategy name
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         """Initialize the strategy table.
@@ -334,6 +335,14 @@ class StrategyTableWidget(QTableWidget):
             row: Row index.
         """
         menu = QMenu(self)
+
+        # Add Load Data action
+        load_action = menu.addAction("Load Data")
+        if load_action:
+            strategy_name = self._strategies[row].name
+            load_action.triggered.connect(lambda: self.load_data_requested.emit(strategy_name))
+
+        # Add Delete action
         delete_action = menu.addAction("Delete")
         if delete_action:
             delete_action.triggered.connect(lambda: self.remove_strategy(row))
