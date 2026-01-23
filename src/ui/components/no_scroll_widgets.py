@@ -21,43 +21,24 @@ class NoScrollComboBox(QComboBox):
         """
         super().__init__(parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-    def addItem(self, text: str, userData: object = None) -> None:
-        """Add item with dark theme colors."""
-        super().addItem(text, userData)
-        self._style_item(self.count() - 1)
-
-    def addItems(self, texts: list[str]) -> None:
-        """Add items with dark theme colors."""
-        start_index = self.count()
-        super().addItems(texts)
-        for i in range(start_index, self.count()):
-            self._style_item(i)
-
-    def _style_item(self, index: int) -> None:
-        """Apply dark theme colors to a specific item."""
-        self.setItemData(index, QColor(Colors.TEXT_PRIMARY), Qt.ItemDataRole.ForegroundRole)
-        self.setItemData(index, QColor(Colors.BG_ELEVATED), Qt.ItemDataRole.BackgroundRole)
-
-    def showPopup(self) -> None:
-        """Show popup with forced dark styling."""
-        # Force palette on popup right before showing
-        popup = self.view()
-        if popup:
-            popup.setAutoFillBackground(True)
-            palette = popup.palette()
-            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Base, QColor(Colors.BG_ELEVATED))
-            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Text, QColor(Colors.TEXT_PRIMARY))
-            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Window, QColor(Colors.BG_ELEVATED))
-            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.WindowText, QColor(Colors.TEXT_PRIMARY))
-            palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.AlternateBase, QColor(Colors.BG_ELEVATED))
-            popup.setPalette(palette)
-
-            # Force re-style items
-            for i in range(self.count()):
-                self._style_item(i)
-
-        super().showPopup()
+        # Simple direct stylesheet with hardcoded colors
+        self.view().setStyleSheet("""
+            QListView {
+                background-color: #1E1E2C;
+                color: #F4F4F8;
+            }
+            QListView::item {
+                background-color: #1E1E2C;
+                color: #F4F4F8;
+                padding: 6px;
+            }
+            QListView::item:hover {
+                background-color: #2A2A3A;
+            }
+            QListView::item:selected {
+                background-color: #2A2A3A;
+            }
+        """)
 
     def wheelEvent(self, event: QWheelEvent | None) -> None:
         """Ignore wheel events unless widget has focus.
