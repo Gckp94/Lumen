@@ -103,11 +103,11 @@ class PortfolioCalculator:
         if config.size_type == PositionSizeType.FLAT_DOLLAR:
             size = config.size_value
         elif config.size_type == PositionSizeType.CUSTOM_PCT:
+            # size_value is percentage (e.g., 10 = 10%)
             size = account_value * (config.size_value / 100.0)
         elif config.size_type == PositionSizeType.FRAC_KELLY:
-            # For frac kelly, size_value is the fraction (e.g., 0.25 for quarter kelly)
-            # Simplified: treat as percentage for now
-            size = account_value * (config.size_value / 100.0)
+            # size_value is decimal fraction (e.g., 0.25 = 25% of account)
+            size = account_value * config.size_value
         else:
             size = account_value * 0.10  # fallback 10%
 

@@ -103,13 +103,13 @@ class TestPortfolioCalculatorSingleStrategy:
         assert result.iloc[0]["equity"] == pytest.approx(100_250, rel=0.01)
 
     def test_frac_kelly_position_sizing(self, sample_trades):
-        """FRAC_KELLY uses size_value as percentage multiplier."""
+        """FRAC_KELLY uses size_value as decimal fraction (0.25 = 25%)."""
         config = StrategyConfig(
             name="FracKelly",
             file_path="test.csv",
             column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.FRAC_KELLY,
-            size_value=25.0,  # 25% (quarter kelly simplified as percentage)
+            size_value=0.25,  # 0.25 = 25% of account (quarter kelly)
             stop_pct=2.0,
             efficiency=0.0,  # 0% efficiency loss
         )
