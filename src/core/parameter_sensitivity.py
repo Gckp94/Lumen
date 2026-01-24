@@ -264,8 +264,12 @@ class ParameterSensitivityEngine:
         self._cancelled = False
         results: list[NeighborhoodResult] = []
 
-        # Calculate total steps for progress
-        num_filters = len(self._active_filters)
+        # Calculate total steps for progress (only count filters with complete bounds)
+        valid_filters = [
+            f for f in self._active_filters
+            if f.min_val is not None and f.max_val is not None
+        ]
+        num_filters = len(valid_filters)
         num_levels = len(config.perturbation_levels)
         perturbations_per_level = 4  # shift down, shift up, expand, contract
         total_steps = num_filters * (1 + num_levels * perturbations_per_level)
@@ -274,6 +278,10 @@ class ParameterSensitivityEngine:
         for filter_idx, test_filter in enumerate(self._active_filters):
             if self._cancelled:
                 break
+
+            # Skip filters with partial bounds - can't do neighborhood analysis
+            if test_filter.min_val is None or test_filter.max_val is None:
+                continue
 
             # Get other filters (keep fixed)
             other_filters = [f for i, f in enumerate(self._active_filters) if i != filter_idx]

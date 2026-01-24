@@ -173,6 +173,35 @@ class TestParameterSensitivityEngine:
         assert 0.10 in result.perturbations
         assert result.status in ("robust", "caution", "fragile")
 
+    def test_run_neighborhood_scan_with_partial_bounds(
+        self, sample_df, sample_column_mapping
+    ):
+        """Should skip filters with None min_val or max_val without crashing."""
+        # Create filters with partial bounds (min only, max only)
+        filters_with_partial = [
+            FilterCriteria(column="entry_time", operator="between", min_val=9.5, max_val=None),
+            FilterCriteria(column="gap_pct", operator="between", min_val=None, max_val=6.0),
+            FilterCriteria(column="entry_time", operator="between", min_val=10.0, max_val=12.0),
+        ]
+        engine = ParameterSensitivityEngine(
+            baseline_df=sample_df,
+            column_mapping=sample_column_mapping,
+            active_filters=filters_with_partial,
+        )
+        config = ParameterSensitivityConfig(
+            mode="neighborhood",
+            perturbation_levels=(0.05,),
+            metrics=("win_rate",),
+        )
+
+        # Should not crash, should only return result for the complete filter
+        results = engine.run_neighborhood_scan(config)
+
+        # Only the filter with both bounds should produce a result
+        assert len(results) == 1
+        assert results[0].filter_column == "entry_time"
+        assert "10.00 - 12.00" in results[0].filter_name
+
     def test_neighborhood_scan_with_progress(self, sample_df, sample_filters, sample_column_mapping):
         """Should call progress callback during scan."""
         engine = ParameterSensitivityEngine(
