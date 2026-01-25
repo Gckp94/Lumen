@@ -542,3 +542,43 @@ class TestPortfolioMetricsCalculator:
         # Tail correlation should be higher than overall correlation
         overall_corr = calculator.calculate_pearson_correlation(baseline_df, combined_df)
         assert tail_corr > overall_corr  # More correlated in bad times
+
+    def test_calculate_drawdown_correlation(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Drawdown correlation measures if strategies suffer simultaneously."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(100)]
+
+        # Create equity curves with correlated drawdowns
+        baseline_eq = [100_000, 105_000, 110_000, 108_000, 105_000,  # drawdown starts
+                       103_000, 100_000, 102_000, 105_000, 110_000]  # recovery
+        baseline_eq.extend([110_000 + i * 100 for i in range(90)])
+
+        combined_eq = [100_000, 103_000, 108_000, 106_000, 104_000,  # correlated DD
+                       101_000, 99_000, 101_000, 104_000, 108_000]
+        combined_eq.extend([108_000 + i * 80 for i in range(90)])
+
+        baseline_peaks = np.maximum.accumulate(baseline_eq)
+        combined_peaks = np.maximum.accumulate(combined_eq)
+
+        baseline_df = pd.DataFrame({
+            "date": dates,
+            "equity": baseline_eq,
+            "pnl": np.diff([100_000] + baseline_eq),
+            "peak": baseline_peaks,
+            "drawdown": np.array(baseline_eq) - baseline_peaks,
+            "win": [True] * 100,
+        })
+        combined_df = pd.DataFrame({
+            "date": dates,
+            "equity": combined_eq,
+            "pnl": np.diff([100_000] + combined_eq),
+            "peak": combined_peaks,
+            "drawdown": np.array(combined_eq) - combined_peaks,
+            "win": [True] * 100,
+        })
+
+        dd_corr = calculator.calculate_drawdown_correlation(baseline_df, combined_df)
+
+        assert dd_corr is not None
+        assert dd_corr > 0.5  # Should be positively correlated drawdowns

@@ -607,3 +607,43 @@ class PortfolioMetricsCalculator:
             return None  # Insufficient stress events
 
         return float(baseline_returns[bad_days].corr(combined_returns[bad_days]))
+
+    def _calculate_drawdown_series(self, equity_curve: pd.DataFrame) -> pd.Series:
+        """Calculate drawdown series from equity curve.
+
+        Args:
+            equity_curve: DataFrame with 'equity' column.
+
+        Returns:
+            Series of drawdown percentages (negative values).
+        """
+        equities = equity_curve["equity"].astype(float)
+        running_max = equities.cummax()
+        drawdown = (equities - running_max) / running_max
+        return drawdown
+
+    def calculate_drawdown_correlation(
+        self, baseline_df: pd.DataFrame, combined_df: pd.DataFrame
+    ) -> float | None:
+        """Calculate correlation between drawdown series.
+
+        Directly measures whether strategies suffer simultaneously.
+
+        Args:
+            baseline_df: Baseline equity curve.
+            combined_df: Combined equity curve.
+
+        Returns:
+            Drawdown correlation coefficient, or None if insufficient data.
+        """
+        baseline_dd = self._calculate_drawdown_series(baseline_df)
+        combined_dd = self._calculate_drawdown_series(combined_df)
+
+        min_len = min(len(baseline_dd), len(combined_dd))
+        if min_len < 10:
+            return None
+
+        baseline_dd = baseline_dd.iloc[:min_len].reset_index(drop=True)
+        combined_dd = combined_dd.iloc[:min_len].reset_index(drop=True)
+
+        return float(baseline_dd.corr(combined_dd))
