@@ -569,3 +569,41 @@ class PortfolioMetricsCalculator:
             float(rolling_corr.max()),
             rolling_corr,
         )
+
+    def calculate_tail_correlation(
+        self,
+        baseline_df: pd.DataFrame,
+        combined_df: pd.DataFrame,
+        threshold_std: float = 1.0,
+    ) -> float | None:
+        """Calculate correlation during stress periods (bad days).
+
+        Filters for days when baseline had large losses (beyond 1 std dev)
+        and calculates correlation only on those days.
+
+        Args:
+            baseline_df: Baseline equity curve.
+            combined_df: Combined equity curve.
+            threshold_std: Number of std devs below mean to define "bad days".
+
+        Returns:
+            Tail correlation coefficient, or None if insufficient data.
+        """
+        baseline_returns = self._calculate_daily_returns(baseline_df)
+        combined_returns = self._calculate_daily_returns(combined_df)
+
+        min_len = min(len(baseline_returns), len(combined_returns))
+        if min_len < 20:
+            return None
+
+        baseline_returns = baseline_returns.iloc[:min_len].reset_index(drop=True)
+        combined_returns = combined_returns.iloc[:min_len].reset_index(drop=True)
+
+        # Define threshold for "bad days"
+        threshold = baseline_returns.mean() - threshold_std * baseline_returns.std()
+        bad_days = baseline_returns < threshold
+
+        if bad_days.sum() < 10:
+            return None  # Insufficient stress events
+
+        return float(baseline_returns[bad_days].corr(combined_returns[bad_days]))

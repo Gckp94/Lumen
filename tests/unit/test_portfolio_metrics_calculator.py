@@ -501,3 +501,44 @@ class TestPortfolioMetricsCalculator:
         assert series is not None
         assert len(series) > 0
         assert min_val < max_val  # Should vary over time
+
+    def test_calculate_tail_correlation(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Tail correlation measures correlation during stress periods."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(200)]
+        np.random.seed(42)
+
+        # Normal days: low correlation. Bad days: high correlation (correlated losses)
+        base_returns = np.random.normal(0.001, 0.02, 200)
+        combined_returns = np.random.normal(0.001, 0.02, 200)
+
+        # Inject correlated bad days
+        bad_day_indices = [10, 50, 100, 150]
+        for idx in bad_day_indices:
+            base_returns[idx] = -0.05
+            combined_returns[idx] = -0.04  # Correlated loss
+
+        baseline_eq = [100_000]
+        combined_eq = [100_000]
+        for br, cr in zip(base_returns, combined_returns):
+            baseline_eq.append(baseline_eq[-1] * (1 + br))
+            combined_eq.append(combined_eq[-1] * (1 + cr))
+
+        baseline_df = pd.DataFrame({
+            "date": dates,
+            "equity": baseline_eq[1:],
+            "pnl": np.diff(baseline_eq),
+            "peak": np.maximum.accumulate(baseline_eq[1:]),
+            "drawdown": [0] * 200,
+            "win": [r > 0 for r in base_returns],
+        })
+        combined_df = baseline_df.copy()
+        combined_df["equity"] = combined_eq[1:]
+
+        tail_corr = calculator.calculate_tail_correlation(baseline_df, combined_df)
+
+        assert tail_corr is not None
+        # Tail correlation should be higher than overall correlation
+        overall_corr = calculator.calculate_pearson_correlation(baseline_df, combined_df)
+        assert tail_corr > overall_corr  # More correlated in bad times
