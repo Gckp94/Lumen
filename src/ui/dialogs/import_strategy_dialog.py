@@ -79,16 +79,19 @@ class ImportStrategyDialog(QDialog):
         self._date_combo = QComboBox()
         self._gain_combo = QComboBox()
         self._mae_combo = QComboBox()
+        self._ticker_combo = QComboBox()
 
         for combo in [self._date_combo, self._gain_combo]:
             combo.addItem(self.PLACEHOLDER)
 
-        # MAE is optional, so use optional placeholder
+        # MAE and Ticker are optional, so use optional placeholder
         self._mae_combo.addItem(self.PLACEHOLDER_OPTIONAL)
+        self._ticker_combo.addItem(self.PLACEHOLDER_OPTIONAL)
 
         mapping_layout.addRow("Date Column:", self._date_combo)
         mapping_layout.addRow("Gain % Column:", self._gain_combo)
         mapping_layout.addRow("MAE % Column (Optional):", self._mae_combo)
+        mapping_layout.addRow("Ticker Column (Optional):", self._ticker_combo)
         layout.addWidget(mapping_group)
 
         # Preview table
@@ -185,10 +188,14 @@ class ImportStrategyDialog(QDialog):
             combo.addItem(self.PLACEHOLDER)
             combo.addItems(columns)
 
-        # MAE combo has optional placeholder first
+        # MAE and Ticker combos have optional placeholder first
         self._mae_combo.clear()
         self._mae_combo.addItem(self.PLACEHOLDER_OPTIONAL)
         self._mae_combo.addItems(columns)
+
+        self._ticker_combo.clear()
+        self._ticker_combo.addItem(self.PLACEHOLDER_OPTIONAL)
+        self._ticker_combo.addItems(columns)
 
         preview = df.head(5)
         self._preview_table.setRowCount(len(preview))
@@ -215,10 +222,12 @@ class ImportStrategyDialog(QDialog):
     def get_column_mapping(self) -> PortfolioColumnMapping:
         """Get the selected column mapping."""
         mae_col = self._mae_combo.currentText()
+        ticker_col = self._ticker_combo.currentText()
         return PortfolioColumnMapping(
             date_col=self._date_combo.currentText(),
             gain_pct_col=self._gain_combo.currentText(),
             mae_pct_col=mae_col if mae_col != self.PLACEHOLDER_OPTIONAL else None,
+            ticker_col=ticker_col if ticker_col != self.PLACEHOLDER_OPTIONAL else None,
         )
 
     def get_strategy_name(self) -> str:

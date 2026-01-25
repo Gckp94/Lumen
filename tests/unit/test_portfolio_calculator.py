@@ -10,6 +10,40 @@ from src.core.portfolio_models import (
 )
 
 
+class TestPortfolioCalculator:
+    """Tests for basic functionality including ticker preservation."""
+
+    @pytest.fixture
+    def calculator(self) -> PortfolioCalculator:
+        return PortfolioCalculator(starting_capital=100_000)
+
+    def test_calculate_single_strategy_preserves_ticker(
+        self, calculator: PortfolioCalculator
+    ) -> None:
+        """Ticker column is preserved in output when present in input."""
+        from datetime import date
+
+        trades = pd.DataFrame({
+            "date": [date(2024, 1, 1), date(2024, 1, 2), date(2024, 1, 3)],
+            "gain_pct": [0.05, -0.02, 0.03],
+            "ticker": ["AAPL", "MSFT", "AAPL"],
+        })
+        config = StrategyConfig(
+            name="test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping(
+                date_col="date",
+                gain_pct_col="gain_pct",
+                ticker_col="ticker",
+            ),
+        )
+
+        result = calculator.calculate_single_strategy(trades, config)
+
+        assert "ticker" in result.columns
+        assert list(result["ticker"]) == ["AAPL", "MSFT", "AAPL"]
+
+
 class TestPortfolioCalculatorSingleStrategy:
     @pytest.fixture
     def sample_trades(self):
@@ -103,21 +137,30 @@ class TestPortfolioCalculatorSingleStrategy:
         assert result.iloc[0]["equity"] == pytest.approx(100_250, rel=0.01)
 
     def test_frac_kelly_position_sizing(self, sample_trades):
-        """FRAC_KELLY uses size_value as decimal fraction (0.25 = 25%)."""
+        """FRAC_KELLY uses size_value as fraction of calculated Kelly %.
+
+        Kelly is calculated from trade data:
+        - Winners: [5%, 3%, 4%], Losers: [-2%, -1%]
+        - Win rate = 60%, Avg win = 4%, Avg loss = 1.5%
+        - R:R = 4/1.5 = 2.67, Kelly = 0.60 - (0.40/2.67) = 45%
+        - Frac Kelly with 0.25 fraction = 45% * 0.25 = 11.25% position
+        """
         config = StrategyConfig(
             name="FracKelly",
             file_path="test.csv",
             column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             size_type=PositionSizeType.FRAC_KELLY,
-            size_value=0.25,  # 0.25 = 25% of account (quarter kelly)
+            size_value=0.25,  # 25% of Kelly % (quarter kelly)
             stop_pct=2.0,
             efficiency=0.0,  # 0% efficiency loss
         )
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_single_strategy(sample_trades, config)
 
-        # Day 1: 5% gain on 25% of 100k = 5% on $25k = $1250 gain
-        assert result.iloc[0]["equity"] == pytest.approx(101_250, rel=0.01)
+        # Kelly = 45%, fraction = 0.25, effective = 11.25%
+        # Position = 100k * 11.25% = $11,250
+        # Day 1: 5% gain on $11,250 = $562.50 gain
+        assert result.iloc[0]["equity"] == pytest.approx(100_562.50, rel=0.01)
 
     def test_efficiency_subtraction(self, sample_trades):
         """Efficiency is subtracted from gain_pct (not multiplied)."""

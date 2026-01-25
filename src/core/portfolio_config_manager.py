@@ -59,6 +59,7 @@ class PortfolioConfigManager:
                 "date_col": config.column_mapping.date_col,
                 "gain_pct_col": config.column_mapping.gain_pct_col,
                 "mae_pct_col": config.column_mapping.mae_pct_col,
+                "ticker_col": config.column_mapping.ticker_col,
             },
             "sheet_name": config.sheet_name,
             "stop_pct": config.stop_pct,
@@ -75,6 +76,7 @@ class PortfolioConfigManager:
             date_col=data["column_mapping"]["date_col"],
             gain_pct_col=data["column_mapping"]["gain_pct_col"],
             mae_pct_col=data["column_mapping"].get("mae_pct_col"),
+            ticker_col=data["column_mapping"].get("ticker_col"),
         )
 
         # Migrate old efficiency format (decimal) to new format (percentage points)

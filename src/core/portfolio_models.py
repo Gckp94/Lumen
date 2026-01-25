@@ -14,13 +14,14 @@ class PositionSizeType(Enum):
 @dataclass
 class PortfolioColumnMapping:
     """Maps CSV columns to required fields.
-    
+
     Note: Win/loss is derived from gain_pct (positive = win, negative = loss)
     after stop loss and efficiency adjustments are applied.
     """
     date_col: str
     gain_pct_col: str
     mae_pct_col: Optional[str] = None
+    ticker_col: Optional[str] = None  # Optional ticker column for overlap analysis
 
 
 @dataclass
