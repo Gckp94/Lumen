@@ -85,3 +85,58 @@ def test_breakdown_tab_empty_state(app):
     # Should not crash, charts should be empty
     assert tab._year_selector._years == []
     assert tab._yearly_charts["total_gain_pct"]._data == []
+
+
+def test_breakdown_tab_displays_baseline_on_initial_load(qtbot):
+    """Test that breakdown tab displays baseline data when no filters applied."""
+    from src.core.models import TradingMetrics
+
+    # Create sample trades DataFrame
+    sample_trades = pd.DataFrame(
+        {
+            "ticker": ["AAPL", "MSFT", "GOOGL", "AMZN"],
+            "date": pd.to_datetime(
+                [
+                    "2023-01-15",
+                    "2023-06-20",
+                    "2024-02-10",
+                    "2024-08-15",
+                ]
+            ),
+            "time": ["09:30", "10:00", "09:45", "14:30"],
+            "gain_pct": [5.0, -2.0, 3.5, 1.0],
+        }
+    )
+
+    state = AppState()
+    state.column_mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct=None,
+        win_loss=None,
+        win_loss_derived=True,
+        breakeven_is_win=False,
+    )
+    state.baseline_df = sample_trades
+    # filtered_df intentionally left as None
+
+    tab = BreakdownTab(state)
+    qtbot.addWidget(tab)
+
+    # Emit baseline_calculated signal (simulates data load completion)
+    metrics = TradingMetrics(
+        num_trades=len(sample_trades),
+        win_rate=50.0,
+        avg_winner=5.0,
+        avg_loser=-3.0,
+        rr_ratio=1.67,
+        ev=1.0,
+        kelly=5.0,
+    )
+    state.baseline_calculated.emit(metrics)
+
+    # Verify yearly charts have data
+    assert tab._yearly_charts["total_gain_pct"]._data, "Yearly gain chart should have data"
+    assert tab._yearly_charts["count"]._data, "Yearly count chart should have data"

@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.app_state import AppState
 from src.core.breakdown import BreakdownCalculator
-from src.core.models import AdjustmentParams, MetricsUserInputs
+from src.core.models import AdjustmentParams, MetricsUserInputs, TradingMetrics
 from src.ui.components.vertical_bar_chart import VerticalBarChart
 from src.ui.components.year_selector_tabs import YearSelectorTabs
 from src.ui.constants import Colors, Fonts, Spacing
@@ -252,6 +252,9 @@ class BreakdownTab(QWidget):
 
     def _connect_signals(self) -> None:
         """Connect to app_state and internal signals."""
+        # Connect to baseline for initial data display
+        self._app_state.baseline_calculated.connect(self._on_baseline_calculated)
+        # Connect to filtered data for when filters are applied
         self._app_state.filtered_data_updated.connect(self._on_filtered_data_updated)
         self._app_state.metrics_user_inputs_changed.connect(self._on_metrics_user_inputs_changed)
         self._app_state.adjustment_params_changed.connect(self._on_adjustment_params_changed)
@@ -263,6 +266,25 @@ class BreakdownTab(QWidget):
         """Populate charts if data already exists in state."""
         if self._app_state.filtered_df is not None and self._app_state.column_mapping:
             self._on_filtered_data_updated(self._app_state.filtered_df)
+
+    def _on_baseline_calculated(self, metrics: TradingMetrics) -> None:
+        """Handle baseline metrics calculated signal.
+
+        Displays baseline data in charts when no filters are applied.
+        This ensures charts show data immediately after file load.
+
+        Args:
+            metrics: Calculated baseline metrics (unused, we need the DataFrame).
+        """
+        # Only use baseline if no filtered data exists yet
+        if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
+            return
+
+        if self._app_state.baseline_df is None or not self._app_state.column_mapping:
+            return
+
+        # Use baseline_df for display
+        self._on_filtered_data_updated(self._app_state.baseline_df)
 
     def _on_filtered_data_updated(self, df: pd.DataFrame) -> None:
         """Handle filtered data update.
@@ -479,6 +501,10 @@ class BreakdownTab(QWidget):
 
     def cleanup(self) -> None:
         """Clean up resources before destruction."""
+        try:
+            self._app_state.baseline_calculated.disconnect(self._on_baseline_calculated)
+        except (TypeError, RuntimeError):
+            pass
         try:
             self._app_state.filtered_data_updated.disconnect(self._on_filtered_data_updated)
         except (TypeError, RuntimeError):
