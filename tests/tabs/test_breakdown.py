@@ -140,3 +140,32 @@ def test_breakdown_tab_displays_baseline_on_initial_load(qtbot):
     # Verify yearly charts have data
     assert tab._yearly_charts["total_gain_pct"]._data, "Yearly gain chart should have data"
     assert tab._yearly_charts["count"]._data, "Yearly count chart should have data"
+
+
+def test_breakdown_tab_update_charts_with_data(qtbot, sample_trades):
+    """Test the shared chart update method works correctly."""
+    from src.core.app_state import AppState
+    from src.core.models import ColumnMapping
+    from src.tabs.breakdown import BreakdownTab
+
+    state = AppState()
+    state.column_mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct=None,
+        win_loss=None,
+        win_loss_derived=True,
+        breakeven_is_win=False,
+    )
+    state.baseline_df = sample_trades
+
+    tab = BreakdownTab(state)
+    qtbot.addWidget(tab)
+
+    # Directly call the update method
+    tab._update_charts_with_data(sample_trades)
+
+    # Charts should now have data
+    assert len(tab._yearly_charts["total_gain_pct"]._data) > 0

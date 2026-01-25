@@ -286,6 +286,36 @@ class BreakdownTab(QWidget):
         # Use baseline_df for display
         self._on_filtered_data_updated(self._app_state.baseline_df)
 
+    def _update_charts_with_data(self, df: pd.DataFrame) -> None:
+        """Update all charts with the given DataFrame.
+
+        This is the shared logic used by both baseline and filtered data handlers.
+
+        Args:
+            df: DataFrame containing trade data to display.
+        """
+        if df is None or df.empty or not self._app_state.column_mapping:
+            self._clear_charts()
+            return
+
+        mapping = self._app_state.column_mapping
+        date_col = mapping.date
+        gain_col = mapping.gain_pct
+        win_loss_col = mapping.win_loss
+
+        # Update year selector with available years
+        years = self._calculator.get_available_years(df, date_col)
+        if self._year_selector:
+            self._year_selector.set_years(years)
+
+        # Update yearly charts
+        self._update_yearly_charts(df, date_col, gain_col, win_loss_col)
+
+        # Update monthly charts for selected year
+        selected_year = self._year_selector.selected_year() if self._year_selector else None
+        if selected_year:
+            self._update_monthly_charts(df, selected_year, date_col, gain_col, win_loss_col)
+
     def _on_filtered_data_updated(self, df: pd.DataFrame) -> None:
         """Handle filtered data update.
 
