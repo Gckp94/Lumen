@@ -201,3 +201,95 @@ def test_breakdown_tab_displays_filtered_data_when_filters_applied(qtbot, sample
 
     # Verify charts have data from filtered set
     assert tab._yearly_charts["count"]._data, "Count chart should have data"
+
+
+def test_breakdown_tab_initializes_from_baseline_when_no_filtered(qtbot, sample_trades):
+    """Test that initialization uses baseline_df when filtered_df is None."""
+    from src.core.app_state import AppState
+    from src.core.models import ColumnMapping
+    from src.tabs.breakdown import BreakdownTab
+
+    state = AppState()
+    state.column_mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct=None,
+        win_loss=None,
+        win_loss_derived=True,
+        breakeven_is_win=False,
+    )
+    state.baseline_df = sample_trades
+    state.filtered_df = None  # Explicitly None
+
+    tab = BreakdownTab(state)
+    qtbot.addWidget(tab)
+
+    # Should have initialized from baseline
+    assert tab._yearly_charts["total_gain_pct"]._data, "Should initialize from baseline"
+
+
+def test_breakdown_tab_year_change_uses_baseline_fallback(qtbot, sample_trades):
+    """Test that year change works with baseline data when no filters applied."""
+    from src.core.app_state import AppState
+    from src.core.models import ColumnMapping
+    from src.tabs.breakdown import BreakdownTab
+
+    state = AppState()
+    state.column_mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct=None,
+        win_loss=None,
+        win_loss_derived=True,
+        breakeven_is_win=False,
+    )
+    state.baseline_df = sample_trades
+    state.filtered_df = None
+
+    tab = BreakdownTab(state)
+    qtbot.addWidget(tab)
+
+    # Initialize charts first
+    tab._update_charts_with_data(sample_trades)
+
+    # Get a year from the data
+    years = pd.to_datetime(sample_trades["date"]).dt.year.unique()
+    if len(years) > 0:
+        # Trigger year change
+        tab._on_year_changed(years[0])
+        # Monthly charts should have data
+        assert tab._monthly_charts["count"]._data is not None
+
+
+def test_breakdown_tab_refresh_uses_baseline_fallback(qtbot, sample_trades):
+    """Test that refresh uses baseline when no filtered data."""
+    from src.core.app_state import AppState
+    from src.core.models import ColumnMapping
+    from src.tabs.breakdown import BreakdownTab
+
+    state = AppState()
+    state.column_mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct=None,
+        win_loss=None,
+        win_loss_derived=True,
+        breakeven_is_win=False,
+    )
+    state.baseline_df = sample_trades
+    state.filtered_df = None
+
+    tab = BreakdownTab(state)
+    qtbot.addWidget(tab)
+
+    # Call refresh
+    tab._refresh_charts()
+
+    # Charts should have data from baseline
+    assert tab._yearly_charts["total_gain_pct"]._data, "Refresh should use baseline"

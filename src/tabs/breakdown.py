@@ -263,9 +263,19 @@ class BreakdownTab(QWidget):
             self._year_selector.year_changed.connect(self._on_year_changed)
 
     def _initialize_from_state(self) -> None:
-        """Populate charts if data already exists in state."""
-        if self._app_state.filtered_df is not None and self._app_state.column_mapping:
-            self._on_filtered_data_updated(self._app_state.filtered_df)
+        """Populate charts if data already exists in state.
+
+        Uses filtered_df if available, otherwise falls back to baseline_df.
+        This ensures charts display data immediately when tab is opened.
+        """
+        if not self._app_state.column_mapping:
+            return
+
+        # Prefer filtered data if available, otherwise use baseline
+        if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
+            self._update_charts_with_data(self._app_state.filtered_df)
+        elif self._app_state.baseline_df is not None and not self._app_state.baseline_df.empty:
+            self._update_charts_with_data(self._app_state.baseline_df)
 
     def _on_baseline_calculated(self, metrics: TradingMetrics) -> None:
         """Handle baseline metrics calculated signal.
@@ -330,12 +340,20 @@ class BreakdownTab(QWidget):
         Args:
             year: Newly selected year.
         """
-        if self._app_state.filtered_df is None or not self._app_state.column_mapping:
+        if not self._app_state.column_mapping:
+            return
+
+        # Use filtered_df if available, otherwise baseline_df
+        df = self._app_state.filtered_df
+        if df is None or df.empty:
+            df = self._app_state.baseline_df
+
+        if df is None or df.empty:
             return
 
         mapping = self._app_state.column_mapping
         self._update_monthly_charts(
-            self._app_state.filtered_df,
+            df,
             year,
             mapping.date,
             mapping.gain_pct,
@@ -367,10 +385,15 @@ class BreakdownTab(QWidget):
     def _refresh_charts(self) -> None:
         """Refresh all charts with current data.
 
-        Re-triggers the data update handler with current filtered data.
+        Uses filtered_df if available, otherwise falls back to baseline_df.
         """
-        if self._app_state.filtered_df is not None:
-            self._on_filtered_data_updated(self._app_state.filtered_df)
+        # Prefer filtered data, fallback to baseline
+        df = self._app_state.filtered_df
+        if df is None or df.empty:
+            df = self._app_state.baseline_df
+
+        if df is not None and not df.empty:
+            self._update_charts_with_data(df)
 
     def _update_yearly_charts(
         self,
