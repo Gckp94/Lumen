@@ -403,7 +403,10 @@ class TestPortfolioCalculatorMultiStrategy:
         calc = PortfolioCalculator(starting_capital=100_000)
         result = calc.calculate_portfolio(strategies=[])
         assert len(result) == 0
-        assert list(result.columns) == ["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown", "win"]
+        assert list(result.columns) == [
+            "date", "trade_num", "strategy", "pnl",
+            "equity", "peak", "drawdown", "win", "ticker",
+        ]
 
     def test_portfolio_applies_stop_loss_and_efficiency(self):
         """Portfolio calculation should apply stop loss and efficiency subtraction."""

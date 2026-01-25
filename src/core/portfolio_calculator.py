@@ -205,7 +205,8 @@ class PortfolioCalculator:
             strategies: List of (trades_df, config) tuples
 
         Returns:
-            DataFrame with columns: date, trade_num, strategy, pnl, equity, peak, drawdown
+            DataFrame with columns: date, trade_num, strategy, pnl, equity, peak,
+            drawdown, win, ticker
         """
         if not strategies:
             return pd.DataFrame(
@@ -218,6 +219,7 @@ class PortfolioCalculator:
                     "peak",
                     "drawdown",
                     "win",
+                    "ticker",
                 ]
             )
 
@@ -243,6 +245,11 @@ class PortfolioCalculator:
                 df["_mae_pct"] = df[mapping.mae_pct_col]
             else:
                 df["_mae_pct"] = None
+            # Include ticker if available
+            if mapping.ticker_col and mapping.ticker_col in df.columns:
+                df["_ticker"] = df[mapping.ticker_col]
+            else:
+                df["_ticker"] = None
             all_trades.append(
                 df[
                     [
@@ -252,13 +259,17 @@ class PortfolioCalculator:
                         "_strategy_name",
                         "_config",
                         "_kelly_pct",
+                        "_ticker",
                     ]
                 ]
             )
 
         if not all_trades:
             return pd.DataFrame(
-                columns=["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown"]
+                columns=[
+                    "date", "trade_num", "strategy", "pnl",
+                    "equity", "peak", "drawdown", "win", "ticker",
+                ]
             )
 
         merged = pd.concat(all_trades, ignore_index=True)
@@ -314,6 +325,7 @@ class PortfolioCalculator:
                     "peak": peak,
                     "drawdown": drawdown,
                     "win": adjusted_gain > 0,  # Derived from adjusted gain
+                    "ticker": trade["_ticker"],
                 })
 
         return pd.DataFrame(results)
