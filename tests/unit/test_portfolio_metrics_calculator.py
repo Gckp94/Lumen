@@ -379,3 +379,83 @@ class TestPortfolioMetricsCalculator:
         assert metrics.daily is not None
         assert metrics.weekly is not None
         assert metrics.monthly is not None
+
+    def test_calculate_period_metrics_start_equity_uses_first_pnl(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Verify start_equity is calculated using first trade's PnL, not total period PnL.
+
+        This tests a bug fix where the old code used:
+            start_equity = first_equity - total_period_pnl  (WRONG)
+        Instead of:
+            start_equity = first_equity - first_trade_pnl   (CORRECT)
+
+        The bug caused inflated return percentages when total period PnL >> first trade PnL.
+        """
+        # Create a month with 3 trades where total PnL is much larger than first PnL
+        # Starting capital: $100,000
+        # Trade 1: +$100 PnL, equity = $100,100
+        # Trade 2: +$9,000 PnL, equity = $109,100
+        # Trade 3: +$900 PnL, equity = $110,000
+        # Total month PnL = $10,000
+        dates = [date(2024, 1, 15), date(2024, 1, 20), date(2024, 1, 25)]
+        pnls = [100, 9000, 900]  # Total = 10,000
+        equities = [100_100, 109_100, 110_000]  # Cumulative from $100,000 start
+
+        df = pd.DataFrame({
+            "date": dates,
+            "trade_num": [1, 2, 3],
+            "pnl": pnls,
+            "equity": equities,
+            "peak": [100_100, 109_100, 110_000],
+            "drawdown": [0, 0, 0],
+            "win": [True, True, True],
+        })
+
+        monthly = calculator.calculate_period_metrics(df, "monthly")
+
+        assert monthly is not None
+
+        # Correct calculation:
+        # start_equity = first_equity - first_pnl = 100,100 - 100 = 100,000
+        # return = total_pnl / start_equity = 10,000 / 100,000 = 10%
+        #
+        # OLD BUG calculation (would be wrong):
+        # start_equity = first_equity - total_pnl = 100,100 - 10,000 = 90,100
+        # return = 10,000 / 90,100 = 11.1%
+        assert monthly.max_win_pct == pytest.approx(10.0, rel=0.01)  # 10%, not 11.1%
+
+    def test_calculate_pearson_correlation(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Pearson correlation between two equity curves."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(100)]
+
+        # Create correlated equity curves (r ~ 0.8)
+        np.random.seed(42)
+        base_returns = np.random.normal(0.001, 0.02, 100)
+        # Correlated returns: 80% from base + 20% noise
+        corr_returns = 0.8 * base_returns + 0.2 * np.random.normal(0.001, 0.02, 100)
+
+        baseline_eq = [100_000]
+        combined_eq = [100_000]
+        for br, cr in zip(base_returns, corr_returns):
+            baseline_eq.append(baseline_eq[-1] * (1 + br))
+            combined_eq.append(combined_eq[-1] * (1 + cr))
+
+        baseline_df = pd.DataFrame({
+            "date": dates,
+            "equity": baseline_eq[1:],
+            "pnl": np.diff(baseline_eq),
+            "peak": np.maximum.accumulate(baseline_eq[1:]),
+            "drawdown": [0] * 100,
+            "win": [True] * 100,
+        })
+        combined_df = baseline_df.copy()
+        combined_df["equity"] = combined_eq[1:]
+        combined_df["pnl"] = np.diff(combined_eq)
+
+        corr = calculator.calculate_pearson_correlation(baseline_df, combined_df)
+
+        assert corr is not None
+        assert 0.5 < corr < 1.0  # Should be positively correlated

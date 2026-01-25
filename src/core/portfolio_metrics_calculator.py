@@ -29,6 +29,19 @@ class PeriodMetrics:
 
 
 @dataclass
+class CorrelationMetrics:
+    """Correlation and diversification metrics between baseline and combined."""
+
+    pearson_correlation: float | None  # Standard linear correlation
+    rolling_correlation_current: float | None  # Current 60-day rolling correlation
+    rolling_correlation_min: float | None  # Minimum rolling correlation
+    rolling_correlation_max: float | None  # Maximum rolling correlation
+    tail_correlation: float | None  # Correlation during stress periods
+    drawdown_correlation: float | None  # Correlation of drawdown series
+    lower_tail_dependence: float | None  # Joint extreme loss probability
+
+
+@dataclass
 class PortfolioMetrics:
     """Complete portfolio metrics."""
 
@@ -374,6 +387,13 @@ class PortfolioMetricsCalculator:
         df = equity_curve.copy()
         df["date"] = pd.to_datetime(df["date"])
 
+        # Sort by date and trade_num to ensure "first" aggregation gets chronologically first trade
+        # trade_num is needed when multiple trades occur on the same date
+        sort_cols = ["date"]
+        if "trade_num" in df.columns:
+            sort_cols.append("trade_num")
+        df = df.sort_values(sort_cols).reset_index(drop=True)
+
         # Group by period
         if period == "daily":
             df["period"] = df["date"].dt.date
@@ -386,14 +406,18 @@ class PortfolioMetricsCalculator:
 
         # Aggregate PnL by period and calculate return %
         period_data = df.groupby("period").agg({
-            "pnl": "sum",
-            "equity": "first",  # Starting equity for the period
+            "pnl": ["sum", "first"],  # Total PnL and first trade's PnL
+            "equity": "first",  # Equity after first trade in period
         }).reset_index()
 
+        # Flatten column names after multi-aggregation
+        period_data.columns = ["period", "pnl_sum", "pnl_first", "equity_first"]
+
         # Calculate period return % based on starting equity
-        # Use equity from start of period (before PnL)
-        period_data["start_equity"] = period_data["equity"] - period_data["pnl"]
-        period_data["return_pct"] = (period_data["pnl"] / period_data["start_equity"]) * 100
+        # Start equity = equity after first trade - first trade's PnL
+        # This gives us the equity BEFORE any trades in this period
+        period_data["start_equity"] = period_data["equity_first"] - period_data["pnl_first"]
+        period_data["return_pct"] = (period_data["pnl_sum"] / period_data["start_equity"]) * 100
 
         returns = period_data["return_pct"]
 
@@ -416,6 +440,7 @@ class PortfolioMetricsCalculator:
 
         max_win = float(returns.max()) if len(returns) > 0 else None
         max_loss = float(returns.min()) if len(returns) > 0 else None
+
 
         return PeriodMetrics(
             avg_green_pct=avg_green,
@@ -480,3 +505,28 @@ class PortfolioMetricsCalculator:
             var_95=var_95,
             cvar_95=cvar_95,
         )
+
+    def calculate_pearson_correlation(
+        self, baseline_df: pd.DataFrame, combined_df: pd.DataFrame
+    ) -> float | None:
+        """Calculate Pearson correlation between daily returns.
+
+        Args:
+            baseline_df: Baseline equity curve with 'equity' column.
+            combined_df: Combined equity curve with 'equity' column.
+
+        Returns:
+            Correlation coefficient (-1 to 1), or None if insufficient data.
+        """
+        baseline_returns = self._calculate_daily_returns(baseline_df)
+        combined_returns = self._calculate_daily_returns(combined_df)
+
+        if len(baseline_returns) < 10 or len(combined_returns) < 10:
+            return None
+
+        # Align lengths
+        min_len = min(len(baseline_returns), len(combined_returns))
+        baseline_returns = baseline_returns.iloc[:min_len]
+        combined_returns = combined_returns.iloc[:min_len]
+
+        return float(baseline_returns.corr(combined_returns))
