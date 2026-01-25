@@ -695,3 +695,39 @@ class TestPortfolioMetricsCalculator:
         assert cvar_result is not None
         # Marginal should be positive (improved = less negative VaR)
         assert var_result["var_marginal"] > 0
+
+    def test_calculate_edge_decay(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Edge decay analysis detects declining Sharpe ratio over time."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(504)]  # 2 years
+        np.random.seed(42)
+
+        # First year: high returns, second year: lower returns (decay)
+        returns_y1 = np.random.normal(0.002, 0.015, 252)  # ~50% annual, Sharpe ~2
+        returns_y2 = np.random.normal(0.0005, 0.015, 252)  # ~12% annual, Sharpe ~0.5
+        returns = np.concatenate([returns_y1, returns_y2])
+
+        equities = [100_000]
+        for r in returns:
+            equities.append(equities[-1] * (1 + r))
+
+        df = pd.DataFrame({
+            "date": dates,
+            "equity": equities[1:],
+            "pnl": np.diff(equities),
+            "peak": np.maximum.accumulate(equities[1:]),
+            "drawdown": [0] * 504,
+            "win": [r > 0 for r in returns],
+        })
+
+        result = calculator.calculate_edge_decay(df, window=252)
+
+        assert result is not None
+        assert "rolling_sharpe_current" in result
+        assert "rolling_sharpe_early" in result
+        assert "decay_pct" in result
+        assert "rolling_sharpe_series" in result
+        # Early period should have higher Sharpe than recent
+        assert result["rolling_sharpe_early"] > result["rolling_sharpe_current"]
+        assert result["decay_pct"] < 0  # Negative = decay

@@ -795,3 +795,49 @@ class PortfolioMetricsCalculator:
             "cvar_combined": cvar_combined,
             "cvar_marginal": cvar_combined - cvar_baseline,  # Positive if improved
         }
+
+    def calculate_edge_decay(
+        self, equity_curve: pd.DataFrame, window: int = 252
+    ) -> dict[str, float | pd.Series | None] | None:
+        """Calculate edge decay analysis via rolling Sharpe ratio.
+
+        Compares early period Sharpe to recent Sharpe to detect decay.
+
+        Args:
+            equity_curve: Equity curve DataFrame.
+            window: Rolling window size (default 252 = 1 year).
+
+        Returns:
+            Dict with rolling_sharpe_current, rolling_sharpe_early, decay_pct, series.
+        """
+        returns = self._calculate_daily_returns(equity_curve)
+
+        if len(returns) < window * 2:
+            return None
+
+        # Calculate rolling Sharpe
+        rolling_mean = returns.rolling(window).mean()
+        rolling_std = returns.rolling(window).std()
+        rolling_sharpe = np.sqrt(252) * rolling_mean / rolling_std
+        rolling_sharpe = rolling_sharpe.dropna()
+
+        if len(rolling_sharpe) < window:
+            return None
+
+        # Early period: first valid rolling Sharpe
+        early_sharpe = float(rolling_sharpe.iloc[0])
+        # Current period: most recent rolling Sharpe
+        current_sharpe = float(rolling_sharpe.iloc[-1])
+
+        # Calculate decay percentage
+        if early_sharpe != 0:
+            decay_pct = ((current_sharpe - early_sharpe) / abs(early_sharpe)) * 100
+        else:
+            decay_pct = 0.0
+
+        return {
+            "rolling_sharpe_current": current_sharpe,
+            "rolling_sharpe_early": early_sharpe,
+            "decay_pct": decay_pct,
+            "rolling_sharpe_series": rolling_sharpe,
+        }
