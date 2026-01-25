@@ -382,10 +382,7 @@ class PortfolioMetricsCalculator:
         # CVaR is mean of returns worse than VaR
         threshold = returns.quantile(1 - confidence)
         tail_returns = returns[returns <= threshold]
-        if len(tail_returns) == 0:
-            cvar = var
-        else:
-            cvar = float(tail_returns.mean() * 100)
+        cvar = var if len(tail_returns) == 0 else float(tail_returns.mean() * 100)
 
         return var, cvar
 
@@ -418,7 +415,9 @@ class PortfolioMetricsCalculator:
         if period == "daily":
             df["period"] = df["date"].dt.date
         elif period == "weekly":
-            df["period"] = df["date"].dt.isocalendar().week.astype(str) + "-" + df["date"].dt.year.astype(str)
+            week = df["date"].dt.isocalendar().week.astype(str)
+            year = df["date"].dt.year.astype(str)
+            df["period"] = week + "-" + year
         elif period == "monthly":
             df["period"] = df["date"].dt.to_period("M")
         else:

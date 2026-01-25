@@ -7,7 +7,7 @@ strategies using data from Portfolio Overview.
 import logging
 
 import pandas as pd
-from PyQt6.QtCore import Qt, pyqtSlot
+from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -193,7 +193,9 @@ class PortfolioMetricsTab(QWidget):
         """)
         layout.addWidget(title)
 
-        subtitle = QLabel("Comprehensive quantitative analysis comparing baseline vs combined portfolio")
+        subtitle = QLabel(
+            "Comprehensive quantitative analysis comparing baseline vs combined portfolio"
+        )
         subtitle.setStyleSheet(f"""
             QLabel {{
                 color: {Colors.TEXT_SECONDARY};

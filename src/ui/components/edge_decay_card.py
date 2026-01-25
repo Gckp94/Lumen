@@ -1,5 +1,4 @@
 """Edge decay analysis card with sparkline visualization."""
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
