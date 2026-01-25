@@ -1,12 +1,10 @@
 # src/core/portfolio_calculator.py
 """Portfolio equity and drawdown calculation."""
 import logging
-from typing import Optional
 
-import numpy as np
 import pandas as pd
 
-from src.core.portfolio_models import StrategyConfig, PositionSizeType
+from src.core.portfolio_models import PositionSizeType, StrategyConfig
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +71,9 @@ class PortfolioCalculator:
             DataFrame with columns: date, trade_num, pnl, equity, peak, drawdown
         """
         if trades_df.empty:
-            return pd.DataFrame(columns=["date", "trade_num", "pnl", "equity", "peak", "drawdown", "win"])
+            return pd.DataFrame(
+                columns=["date", "trade_num", "pnl", "equity", "peak", "drawdown", "win"]
+            )
 
         mapping = config.column_mapping
         df = trades_df.copy()
@@ -94,7 +94,7 @@ class PortfolioCalculator:
         peak = self.starting_capital
         trade_num = 0
 
-        for date, day_trades in df.groupby("_date", sort=True):
+        for _date, day_trades in df.groupby("_date", sort=True):
             day_opening = account_value
 
             for _, trade in day_trades.iterrows():
@@ -112,10 +112,9 @@ class PortfolioCalculator:
                     # MAE is already in percentage form (e.g., 5.0 = 5%)
                     # Do NOT multiply by 100 like gain_pct
                     mae_pct = float(trade[mapping.mae_pct_col])
-                    if mae_pct > config.stop_pct:
-                        stop_adjusted = -config.stop_pct
-                    else:
-                        stop_adjusted = gain_pct
+                    stop_adjusted = (
+                        -config.stop_pct if mae_pct > config.stop_pct else gain_pct
+                    )
                 else:
                     stop_adjusted = gain_pct
 
@@ -174,7 +173,11 @@ class PortfolioCalculator:
             # size_value is the fraction (e.g., 0.25 = 25% of Kelly, or 25 = 25% of Kelly)
             if kelly_pct is not None and kelly_pct > 0:
                 # Interpret size_value: if > 1, treat as percentage; if <= 1, treat as decimal
-                fraction = config.size_value if config.size_value <= 1 else config.size_value / 100.0
+                fraction = (
+                    config.size_value
+                    if config.size_value <= 1
+                    else config.size_value / 100.0
+                )
                 effective_kelly = kelly_pct * fraction
                 size = account_value * (effective_kelly / 100.0)
             else:
@@ -206,7 +209,16 @@ class PortfolioCalculator:
         """
         if not strategies:
             return pd.DataFrame(
-                columns=["date", "trade_num", "strategy", "pnl", "equity", "peak", "drawdown", "win"]
+                columns=[
+                    "date",
+                    "trade_num",
+                    "strategy",
+                    "pnl",
+                    "equity",
+                    "peak",
+                    "drawdown",
+                    "win",
+                ]
             )
 
         all_trades = []
@@ -231,7 +243,18 @@ class PortfolioCalculator:
                 df["_mae_pct"] = df[mapping.mae_pct_col]
             else:
                 df["_mae_pct"] = None
-            all_trades.append(df[["_date", "_gain_pct", "_mae_pct", "_strategy_name", "_config", "_kelly_pct"]])
+            all_trades.append(
+                df[
+                    [
+                        "_date",
+                        "_gain_pct",
+                        "_mae_pct",
+                        "_strategy_name",
+                        "_config",
+                        "_kelly_pct",
+                    ]
+                ]
+            )
 
         if not all_trades:
             return pd.DataFrame(
@@ -247,7 +270,7 @@ class PortfolioCalculator:
         peak = self.starting_capital
         trade_num = 0
 
-        for date, day_trades in merged.groupby("_date_only", sort=True):
+        for _date, day_trades in merged.groupby("_date_only", sort=True):
             day_opening = account_value
 
             for _, trade in day_trades.iterrows():
@@ -265,10 +288,9 @@ class PortfolioCalculator:
                     # MAE is already in percentage form (e.g., 5.0 = 5%)
                     # Do NOT multiply by 100 like gain_pct
                     mae_pct = float(mae_pct)
-                    if mae_pct > config.stop_pct:
-                        stop_adjusted = -config.stop_pct
-                    else:
-                        stop_adjusted = gain_pct
+                    stop_adjusted = (
+                        -config.stop_pct if mae_pct > config.stop_pct else gain_pct
+                    )
                 else:
                     stop_adjusted = gain_pct
 
