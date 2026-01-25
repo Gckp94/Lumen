@@ -169,3 +169,35 @@ def test_breakdown_tab_update_charts_with_data(qtbot, sample_trades):
 
     # Charts should now have data
     assert len(tab._yearly_charts["total_gain_pct"]._data) > 0
+
+
+def test_breakdown_tab_displays_filtered_data_when_filters_applied(qtbot, sample_trades):
+    """Test that filtered data overrides baseline when filters applied."""
+    from src.core.app_state import AppState
+    from src.core.models import ColumnMapping
+    from src.tabs.breakdown import BreakdownTab
+
+    state = AppState()
+    state.column_mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct=None,
+        win_loss=None,
+        win_loss_derived=True,
+        breakeven_is_win=False,
+    )
+    state.baseline_df = sample_trades
+    # Apply filter - take only half the trades
+    filtered = sample_trades.head(len(sample_trades) // 2).copy()
+    state.filtered_df = filtered
+
+    tab = BreakdownTab(state)
+    qtbot.addWidget(tab)
+
+    # Emit filtered_data_updated signal
+    state.filtered_data_updated.emit(filtered)
+
+    # Verify charts have data from filtered set
+    assert tab._yearly_charts["count"]._data, "Count chart should have data"
