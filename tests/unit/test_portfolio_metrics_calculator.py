@@ -622,3 +622,76 @@ class TestPortfolioMetricsCalculator:
         assert ltd is not None
         assert 0 <= ltd <= 1
         assert ltd > 0.10  # Should be higher than independence (0.10)
+
+    def test_calculate_marginal_sharpe_contribution(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Marginal Sharpe contribution shows if adding strategy improves Sharpe."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(252)]
+        np.random.seed(42)
+
+        # Baseline: moderate Sharpe
+        base_returns = np.random.normal(0.0005, 0.015, 252)
+        # Combined: slightly better Sharpe (uncorrelated alpha)
+        combined_returns = base_returns + np.random.normal(0.0002, 0.005, 252)
+
+        baseline_eq = [100_000]
+        combined_eq = [100_000]
+        for br, cr in zip(base_returns, combined_returns):
+            baseline_eq.append(baseline_eq[-1] * (1 + br))
+            combined_eq.append(combined_eq[-1] * (1 + cr))
+
+        baseline_df = pd.DataFrame({
+            "date": dates,
+            "equity": baseline_eq[1:],
+            "pnl": np.diff(baseline_eq),
+            "peak": np.maximum.accumulate(baseline_eq[1:]),
+            "drawdown": [0] * 252,
+            "win": [r > 0 for r in base_returns],
+        })
+        combined_df = baseline_df.copy()
+        combined_df["equity"] = combined_eq[1:]
+
+        result = calculator.calculate_marginal_sharpe_contribution(baseline_df, combined_df)
+
+        assert result is not None
+        assert "sharpe_baseline" in result
+        assert "sharpe_combined" in result
+        assert "sharpe_improvement" in result
+        assert result["sharpe_improvement"] > 0  # Combined should be better
+
+    def test_calculate_var_cvar_contribution(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """VaR and CVaR contribution measures change in tail risk."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(200)]
+        np.random.seed(42)
+
+        base_returns = np.random.normal(0.001, 0.02, 200)
+        # Combined has lower tail risk (less negative outliers)
+        combined_returns = np.random.normal(0.001, 0.015, 200)
+
+        baseline_eq = [100_000]
+        combined_eq = [100_000]
+        for br, cr in zip(base_returns, combined_returns):
+            baseline_eq.append(baseline_eq[-1] * (1 + br))
+            combined_eq.append(combined_eq[-1] * (1 + cr))
+
+        baseline_df = pd.DataFrame({
+            "date": dates,
+            "equity": baseline_eq[1:],
+            "pnl": np.diff(baseline_eq),
+            "peak": np.maximum.accumulate(baseline_eq[1:]),
+            "drawdown": [0] * 200,
+            "win": [r > 0 for r in base_returns],
+        })
+        combined_df = baseline_df.copy()
+        combined_df["equity"] = combined_eq[1:]
+
+        var_result = calculator.calculate_var_contribution(baseline_df, combined_df)
+        cvar_result = calculator.calculate_cvar_contribution(baseline_df, combined_df)
+
+        assert var_result is not None
+        assert cvar_result is not None
+        # Marginal should be positive (improved = less negative VaR)
+        assert var_result["var_marginal"] > 0

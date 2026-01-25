@@ -42,6 +42,26 @@ class CorrelationMetrics:
 
 
 @dataclass
+class ContributionMetrics:
+    """Portfolio contribution metrics showing impact of adding strategy."""
+
+    # Marginal Sharpe
+    sharpe_baseline: float | None
+    sharpe_combined: float | None
+    sharpe_improvement: float | None
+
+    # VaR Contribution
+    var_baseline: float | None
+    var_combined: float | None
+    var_marginal: float | None
+
+    # CVaR Contribution
+    cvar_baseline: float | None
+    cvar_combined: float | None
+    cvar_marginal: float | None
+
+
+@dataclass
 class PortfolioMetrics:
     """Complete portfolio metrics."""
 
@@ -689,3 +709,89 @@ class PortfolioMetricsCalculator:
             return 0.0
 
         return float(both_below / baseline_below_count)
+
+    def calculate_marginal_sharpe_contribution(
+        self, baseline_df: pd.DataFrame, combined_df: pd.DataFrame
+    ) -> dict[str, float | None] | None:
+        """Calculate marginal Sharpe contribution from adding strategy.
+
+        Measures the improvement in Sharpe ratio when combining strategies.
+
+        Args:
+            baseline_df: Baseline equity curve with 'equity' column.
+            combined_df: Combined equity curve with 'equity' column.
+
+        Returns:
+            Dict with sharpe_baseline, sharpe_combined, sharpe_improvement,
+            or None if insufficient data.
+        """
+        sharpe_baseline = self.calculate_sharpe_ratio(baseline_df)
+        sharpe_combined = self.calculate_sharpe_ratio(combined_df)
+
+        if sharpe_baseline is None or sharpe_combined is None:
+            return None
+
+        return {
+            "sharpe_baseline": sharpe_baseline,
+            "sharpe_combined": sharpe_combined,
+            "sharpe_improvement": sharpe_combined - sharpe_baseline,
+        }
+
+    def calculate_var_contribution(
+        self, baseline_df: pd.DataFrame, combined_df: pd.DataFrame, confidence: float = 0.95
+    ) -> dict[str, float | None] | None:
+        """Calculate VaR contribution from adding strategy.
+
+        Measures the change in Value at Risk when combining strategies.
+        A positive marginal VaR indicates improved risk (less negative).
+
+        Args:
+            baseline_df: Baseline equity curve with 'equity' column.
+            combined_df: Combined equity curve with 'equity' column.
+            confidence: Confidence level (default 0.95 for 95%).
+
+        Returns:
+            Dict with var_baseline, var_combined, var_marginal,
+            or None if insufficient data.
+        """
+        var_baseline, _ = self.calculate_var_cvar(baseline_df, confidence)
+        var_combined, _ = self.calculate_var_cvar(combined_df, confidence)
+
+        if var_baseline is None or var_combined is None:
+            return None
+
+        return {
+            "var_baseline": var_baseline,
+            "var_combined": var_combined,
+            "var_marginal": var_combined - var_baseline,  # Positive if improved
+        }
+
+    def calculate_cvar_contribution(
+        self, baseline_df: pd.DataFrame, combined_df: pd.DataFrame, confidence: float = 0.95
+    ) -> dict[str, float | None] | None:
+        """Calculate CVaR contribution from adding strategy.
+
+        Measures the change in Conditional Value at Risk (Expected Shortfall)
+        when combining strategies. A positive marginal CVaR indicates
+        improved tail risk (less negative).
+
+        Args:
+            baseline_df: Baseline equity curve with 'equity' column.
+            combined_df: Combined equity curve with 'equity' column.
+            confidence: Confidence level (default 0.95 for 95%).
+
+        Returns:
+            Dict with cvar_baseline, cvar_combined, cvar_marginal,
+            or None if insufficient data.
+        """
+        _, cvar_baseline = self.calculate_var_cvar(baseline_df, confidence)
+        _, cvar_combined = self.calculate_var_cvar(combined_df, confidence)
+
+        if cvar_baseline is None or cvar_combined is None:
+            return None
+
+        return {
+            "cvar_baseline": cvar_baseline,
+            "cvar_combined": cvar_combined,
+            "cvar_marginal": cvar_combined - cvar_baseline,  # Positive if improved
+        }
