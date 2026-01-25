@@ -889,6 +889,15 @@ class PortfolioMetricsCalculator:
 
         baseline_df = baseline_df.copy()
         combined_df = combined_df.copy()
+
+        # Filter out rows with None tickers - we only count actual ticker overlap
+        baseline_df = baseline_df[baseline_df["ticker"].notna()]
+        combined_df = combined_df[combined_df["ticker"].notna()]
+
+        # If no valid tickers in either dataframe, no ticker data available
+        if len(baseline_df) == 0 or len(combined_df) == 0:
+            return None
+
         baseline_df["date"] = pd.to_datetime(baseline_df["date"])
         combined_df["date"] = pd.to_datetime(combined_df["date"])
 
