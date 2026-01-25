@@ -530,3 +530,42 @@ class PortfolioMetricsCalculator:
         combined_returns = combined_returns.iloc[:min_len]
 
         return float(baseline_returns.corr(combined_returns))
+
+    def calculate_rolling_correlation(
+        self,
+        baseline_df: pd.DataFrame,
+        combined_df: pd.DataFrame,
+        window: int = 60,
+    ) -> tuple[float | None, float | None, float | None, pd.Series | None]:
+        """Calculate rolling correlation over time.
+
+        Args:
+            baseline_df: Baseline equity curve.
+            combined_df: Combined equity curve.
+            window: Rolling window size in days (default 60).
+
+        Returns:
+            Tuple of (current, min, max, full_series) or (None, None, None, None).
+        """
+        baseline_returns = self._calculate_daily_returns(baseline_df)
+        combined_returns = self._calculate_daily_returns(combined_df)
+
+        min_len = min(len(baseline_returns), len(combined_returns))
+        if min_len < window:
+            return None, None, None, None
+
+        baseline_returns = baseline_returns.iloc[:min_len].reset_index(drop=True)
+        combined_returns = combined_returns.iloc[:min_len].reset_index(drop=True)
+
+        rolling_corr = baseline_returns.rolling(window).corr(combined_returns)
+        rolling_corr = rolling_corr.dropna()
+
+        if len(rolling_corr) == 0:
+            return None, None, None, None
+
+        return (
+            float(rolling_corr.iloc[-1]),
+            float(rolling_corr.min()),
+            float(rolling_corr.max()),
+            rolling_corr,
+        )

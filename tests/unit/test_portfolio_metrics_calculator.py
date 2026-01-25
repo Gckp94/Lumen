@@ -459,3 +459,45 @@ class TestPortfolioMetricsCalculator:
 
         assert corr is not None
         assert 0.5 < corr < 1.0  # Should be positively correlated
+
+    def test_calculate_rolling_correlation(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Rolling 60-day correlation tracks time-varying relationship."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(120)]
+        np.random.seed(42)
+
+        # First 60 days: high correlation, next 60 days: lower correlation
+        base_returns = np.random.normal(0.001, 0.02, 120)
+        corr_returns = np.concatenate([
+            0.9 * base_returns[:60] + 0.1 * np.random.normal(0, 0.02, 60),  # High corr
+            0.3 * base_returns[60:] + 0.7 * np.random.normal(0, 0.02, 60),  # Low corr
+        ])
+
+        baseline_eq = [100_000]
+        combined_eq = [100_000]
+        for br, cr in zip(base_returns, corr_returns):
+            baseline_eq.append(baseline_eq[-1] * (1 + br))
+            combined_eq.append(combined_eq[-1] * (1 + cr))
+
+        baseline_df = pd.DataFrame({
+            "date": dates,
+            "equity": baseline_eq[1:],
+            "pnl": np.diff(baseline_eq),
+            "peak": np.maximum.accumulate(baseline_eq[1:]),
+            "drawdown": [0] * 120,
+            "win": [True] * 120,
+        })
+        combined_df = baseline_df.copy()
+        combined_df["equity"] = combined_eq[1:]
+
+        current, min_val, max_val, series = calculator.calculate_rolling_correlation(
+            baseline_df, combined_df, window=60
+        )
+
+        assert current is not None
+        assert min_val is not None
+        assert max_val is not None
+        assert series is not None
+        assert len(series) > 0
+        assert min_val < max_val  # Should vary over time
