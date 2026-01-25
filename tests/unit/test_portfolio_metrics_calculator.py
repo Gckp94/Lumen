@@ -582,3 +582,43 @@ class TestPortfolioMetricsCalculator:
 
         assert dd_corr is not None
         assert dd_corr > 0.5  # Should be positively correlated drawdowns
+
+    def test_calculate_lower_tail_dependence(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Lower tail dependence measures joint extreme loss probability."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(200)]
+        np.random.seed(42)
+
+        # Create returns with tail dependence
+        base_returns = np.random.normal(0.001, 0.02, 200)
+        combined_returns = np.random.normal(0.001, 0.02, 200)
+
+        # When baseline is in worst 10%, combined is also in worst 10% (35% of time)
+        # This is higher than the 10% expected under independence
+        worst_baseline_idx = np.argsort(base_returns)[:20]  # Worst 10%
+        for idx in worst_baseline_idx[:7]:  # 7 of 20 = 35%
+            combined_returns[idx] = np.random.uniform(-0.05, -0.03)
+
+        baseline_eq = [100_000]
+        combined_eq = [100_000]
+        for br, cr in zip(base_returns, combined_returns):
+            baseline_eq.append(baseline_eq[-1] * (1 + br))
+            combined_eq.append(combined_eq[-1] * (1 + cr))
+
+        baseline_df = pd.DataFrame({
+            "date": dates,
+            "equity": baseline_eq[1:],
+            "pnl": np.diff(baseline_eq),
+            "peak": np.maximum.accumulate(baseline_eq[1:]),
+            "drawdown": [0] * 200,
+            "win": [r > 0 for r in base_returns],
+        })
+        combined_df = baseline_df.copy()
+        combined_df["equity"] = combined_eq[1:]
+
+        ltd = calculator.calculate_lower_tail_dependence(baseline_df, combined_df)
+
+        assert ltd is not None
+        assert 0 <= ltd <= 1
+        assert ltd > 0.10  # Should be higher than independence (0.10)

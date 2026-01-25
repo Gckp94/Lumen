@@ -647,3 +647,45 @@ class PortfolioMetricsCalculator:
         combined_dd = combined_dd.iloc[:min_len].reset_index(drop=True)
 
         return float(baseline_dd.corr(combined_dd))
+
+    def calculate_lower_tail_dependence(
+        self,
+        baseline_df: pd.DataFrame,
+        combined_df: pd.DataFrame,
+        quantile: float = 0.10,
+    ) -> float | None:
+        """Calculate lower tail dependence coefficient.
+
+        Measures probability that combined is in its worst quantile
+        given that baseline is in its worst quantile.
+
+        Args:
+            baseline_df: Baseline equity curve.
+            combined_df: Combined equity curve.
+            quantile: Threshold quantile (default 0.10 for worst 10%).
+
+        Returns:
+            Tail dependence coefficient (0-1), or None if insufficient data.
+        """
+        baseline_returns = self._calculate_daily_returns(baseline_df)
+        combined_returns = self._calculate_daily_returns(combined_df)
+
+        min_len = min(len(baseline_returns), len(combined_returns))
+        if min_len < 50:
+            return None
+
+        baseline_returns = baseline_returns.iloc[:min_len].reset_index(drop=True)
+        combined_returns = combined_returns.iloc[:min_len].reset_index(drop=True)
+
+        threshold_baseline = baseline_returns.quantile(quantile)
+        threshold_combined = combined_returns.quantile(quantile)
+
+        baseline_below = baseline_returns < threshold_baseline
+        combined_below = combined_returns < threshold_combined
+        both_below = (baseline_below & combined_below).sum()
+        baseline_below_count = baseline_below.sum()
+
+        if baseline_below_count == 0:
+            return 0.0
+
+        return float(both_below / baseline_below_count)
