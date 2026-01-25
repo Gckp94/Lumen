@@ -841,3 +841,76 @@ class PortfolioMetricsCalculator:
             "decay_pct": decay_pct,
             "rolling_sharpe_series": rolling_sharpe,
         }
+
+    def calculate_ticker_overlap(
+        self, baseline_df: pd.DataFrame, combined_df: pd.DataFrame
+    ) -> dict[str, int | float] | None:
+        """Calculate ticker overlap between baseline and combined portfolios.
+
+        Args:
+            baseline_df: Baseline trades with 'ticker' column.
+            combined_df: Combined trades with 'ticker' column.
+
+        Returns:
+            Dict with counts and overlap percentage, or None if no ticker data.
+        """
+        if "ticker" not in baseline_df.columns or "ticker" not in combined_df.columns:
+            return None
+
+        baseline_tickers = set(baseline_df["ticker"].dropna().unique())
+        combined_tickers = set(combined_df["ticker"].dropna().unique())
+
+        if len(baseline_tickers) == 0 or len(combined_tickers) == 0:
+            return None
+
+        overlap = baseline_tickers.intersection(combined_tickers)
+        overlap_pct = len(overlap) / min(len(baseline_tickers), len(combined_tickers)) * 100
+
+        return {
+            "baseline_ticker_count": len(baseline_tickers),
+            "combined_ticker_count": len(combined_tickers),
+            "overlapping_count": len(overlap),
+            "overlap_pct": overlap_pct,
+        }
+
+    def calculate_concurrent_exposure(
+        self, baseline_df: pd.DataFrame, combined_df: pd.DataFrame
+    ) -> dict[str, int | float] | None:
+        """Calculate same-day same-ticker concurrent exposure.
+
+        Args:
+            baseline_df: Baseline trades with 'date' and 'ticker' columns.
+            combined_df: Combined trades with 'date' and 'ticker' columns.
+
+        Returns:
+            Dict with concurrent count and percentage, or None if no ticker data.
+        """
+        if "ticker" not in baseline_df.columns or "ticker" not in combined_df.columns:
+            return None
+
+        baseline_df = baseline_df.copy()
+        combined_df = combined_df.copy()
+        baseline_df["date"] = pd.to_datetime(baseline_df["date"])
+        combined_df["date"] = pd.to_datetime(combined_df["date"])
+
+        # Merge on date and ticker
+        merged = baseline_df.merge(
+            combined_df,
+            on=["date", "ticker"],
+            how="inner",
+            suffixes=("_baseline", "_combined"),
+        )
+
+        concurrent_count = len(merged)
+        total_trades = len(baseline_df) + len(combined_df)
+
+        if total_trades == 0:
+            return None
+
+        # Multiply by 2 because each concurrent trade counts in both portfolios
+        concurrent_pct = (concurrent_count * 2 / total_trades) * 100
+
+        return {
+            "concurrent_count": concurrent_count,
+            "concurrent_pct": concurrent_pct,
+        }

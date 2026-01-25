@@ -731,3 +731,73 @@ class TestPortfolioMetricsCalculator:
         # Early period should have higher Sharpe than recent
         assert result["rolling_sharpe_early"] > result["rolling_sharpe_current"]
         assert result["decay_pct"] < 0  # Negative = decay
+
+    def test_calculate_ticker_overlap(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Ticker overlap measures how often strategies trade same securities."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(20)]
+
+        # Baseline trades: AAPL, MSFT, GOOG (3 unique)
+        baseline_df = pd.DataFrame({
+            "date": dates[:10],
+            "ticker": ["AAPL", "MSFT", "GOOG", "AAPL", "MSFT",
+                       "GOOG", "AAPL", "MSFT", "GOOG", "AAPL"],
+            "equity": [100_000 + i * 100 for i in range(10)],
+            "pnl": [100] * 10,
+            "peak": [100_000 + i * 100 for i in range(10)],
+            "drawdown": [0] * 10,
+            "win": [True] * 10,
+        })
+
+        # Combined trades: AAPL, MSFT, TSLA, NVDA (4 unique, 2 overlap)
+        combined_df = pd.DataFrame({
+            "date": dates[10:],
+            "ticker": ["AAPL", "MSFT", "TSLA", "NVDA", "AAPL",
+                       "TSLA", "NVDA", "MSFT", "TSLA", "NVDA"],
+            "equity": [101_000 + i * 100 for i in range(10)],
+            "pnl": [100] * 10,
+            "peak": [101_000 + i * 100 for i in range(10)],
+            "drawdown": [0] * 10,
+            "win": [True] * 10,
+        })
+
+        result = calculator.calculate_ticker_overlap(baseline_df, combined_df)
+
+        assert result is not None
+        assert result["baseline_ticker_count"] == 3
+        assert result["combined_ticker_count"] == 4
+        assert result["overlapping_count"] == 2  # AAPL, MSFT
+        assert result["overlap_pct"] == pytest.approx(66.67, rel=0.01)  # 2/3
+
+    def test_calculate_concurrent_exposure(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Concurrent exposure measures same-day same-ticker trades."""
+        # Baseline: AAPL on Jan 2, MSFT on Jan 3
+        baseline_df = pd.DataFrame({
+            "date": [date(2024, 1, 2), date(2024, 1, 3)],
+            "ticker": ["AAPL", "MSFT"],
+            "equity": [100_000, 100_100],
+            "pnl": [100, 100],
+            "peak": [100_000, 100_100],
+            "drawdown": [0, 0],
+            "win": [True, True],
+        })
+
+        # Combined: AAPL on Jan 2 (concurrent!), GOOG on Jan 3
+        combined_df = pd.DataFrame({
+            "date": [date(2024, 1, 2), date(2024, 1, 3)],
+            "ticker": ["AAPL", "GOOG"],
+            "equity": [100_000, 100_100],
+            "pnl": [100, 100],
+            "peak": [100_000, 100_100],
+            "drawdown": [0, 0],
+            "win": [True, True],
+        })
+
+        result = calculator.calculate_concurrent_exposure(baseline_df, combined_df)
+
+        assert result is not None
+        assert result["concurrent_count"] == 1  # AAPL on Jan 2
+        assert result["concurrent_pct"] > 0
