@@ -22,7 +22,11 @@ from src.core.portfolio_metrics_calculator import (
     PortfolioMetricsCalculator,
 )
 from src.ui.components.comparison_panel import ComparisonPanel
+from src.ui.components.contribution_panel import ContributionPanel
+from src.ui.components.correlation_panel import CorrelationPanel
+from src.ui.components.edge_decay_card import EdgeDecayCard
 from src.ui.components.period_metrics_card import PeriodMetricsCard
+from src.ui.components.ticker_overlap_card import TickerOverlapCard
 from src.ui.constants import Colors, Fonts, Spacing
 
 logger = logging.getLogger(__name__)
@@ -115,7 +119,7 @@ class PortfolioMetricsTab(QWidget):
         header = self._create_header()
         content_layout.addWidget(header)
 
-        # Main metrics panels (2 columns)
+        # Main metrics panels (3 columns)
         panels_layout = QHBoxLayout()
         panels_layout.setSpacing(Spacing.LG)
 
@@ -129,14 +133,34 @@ class PortfolioMetricsTab(QWidget):
         self._risk_panel = ComparisonPanel("Risk Metrics", self.RISK_METRICS)
         left_col.addWidget(self._risk_panel)
 
+        left_col.addStretch()
         panels_layout.addLayout(left_col, 1)
 
-        # Right column: Statistical + Period metrics
+        # Center column: Correlation + Contribution panels
+        center_col = QVBoxLayout()
+        center_col.setSpacing(Spacing.LG)
+
+        self._correlation_panel = CorrelationPanel()
+        center_col.addWidget(self._correlation_panel)
+
+        self._contribution_panel = ContributionPanel()
+        center_col.addWidget(self._contribution_panel)
+
+        center_col.addStretch()
+        panels_layout.addLayout(center_col, 1)
+
+        # Right column: Statistical + Edge decay + Ticker overlap + Period metrics
         right_col = QVBoxLayout()
         right_col.setSpacing(Spacing.LG)
 
         self._stat_panel = ComparisonPanel("Statistical Analysis", self.STAT_METRICS)
         right_col.addWidget(self._stat_panel)
+
+        self._edge_decay_card = EdgeDecayCard()
+        right_col.addWidget(self._edge_decay_card)
+
+        self._ticker_overlap_card = TickerOverlapCard()
+        right_col.addWidget(self._ticker_overlap_card)
 
         # Period metrics section
         period_section = self._create_period_section()
@@ -265,6 +289,7 @@ class PortfolioMetricsTab(QWidget):
         # Update UI
         self._update_panels()
         self._update_period_cards()
+        self._update_advanced_metrics()
 
         logger.debug("Portfolio metrics updated")
 
@@ -309,6 +334,65 @@ class PortfolioMetricsTab(QWidget):
         self._daily_card.update_metrics(baseline_daily, combined_daily)
         self._weekly_card.update_metrics(baseline_weekly, combined_weekly)
         self._monthly_card.update_metrics(baseline_monthly, combined_monthly)
+
+    def _update_advanced_metrics(self) -> None:
+        """Update correlation, contribution, edge decay, and overlap metrics."""
+        if self._baseline_data is None or self._combined_data is None:
+            # Clear panels when data unavailable
+            self._correlation_panel.update_metrics(None, None, None, None)
+            self._contribution_panel.update_metrics(None, None, None)
+            self._edge_decay_card.update_metrics(None, None, None)
+            self._ticker_overlap_card.update_metrics(None, None)
+            return
+
+        # Correlation metrics
+        pearson = self._calculator.calculate_pearson_correlation(
+            self._baseline_data, self._combined_data
+        )
+        tail = self._calculator.calculate_tail_correlation(
+            self._baseline_data, self._combined_data
+        )
+        dd_corr = self._calculator.calculate_drawdown_correlation(
+            self._baseline_data, self._combined_data
+        )
+        ltd = self._calculator.calculate_lower_tail_dependence(
+            self._baseline_data, self._combined_data
+        )
+
+        self._correlation_panel.update_metrics(pearson, tail, dd_corr, ltd)
+
+        # Contribution metrics
+        sharpe_contrib = self._calculator.calculate_marginal_sharpe_contribution(
+            self._baseline_data, self._combined_data
+        )
+        var_contrib = self._calculator.calculate_var_contribution(
+            self._baseline_data, self._combined_data
+        )
+        cvar_contrib = self._calculator.calculate_cvar_contribution(
+            self._baseline_data, self._combined_data
+        )
+
+        self._contribution_panel.update_metrics(sharpe_contrib, var_contrib, cvar_contrib)
+
+        # Edge decay analysis (on combined portfolio)
+        edge_decay = self._calculator.calculate_edge_decay(self._combined_data)
+        if edge_decay:
+            self._edge_decay_card.update_metrics(
+                edge_decay.get("rolling_sharpe_current"),
+                edge_decay.get("rolling_sharpe_early"),
+                edge_decay.get("decay_pct"),
+            )
+        else:
+            self._edge_decay_card.update_metrics(None, None, None)
+
+        # Ticker overlap (if ticker data available)
+        overlap = self._calculator.calculate_ticker_overlap(
+            self._baseline_data, self._combined_data
+        )
+        concurrent = self._calculator.calculate_concurrent_exposure(
+            self._baseline_data, self._combined_data
+        )
+        self._ticker_overlap_card.update_metrics(overlap, concurrent)
 
     def _format_metric(self, key: str, value: float | int | None) -> str:
         """Format a metric value for display.
