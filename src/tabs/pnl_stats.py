@@ -995,6 +995,35 @@ class PnLStatsTab(QWidget):
             logger.info("Kelly equity curve is None, clearing chart")
             self._kelly_chart_panel.set_baseline(None)
 
+        # Update adjusted_gain_pct column in baseline_df and filtered_df
+        # This ensures Monte Carlo gets the correct efficiency-adjusted gains
+        if adjustment_params is not None and column_mapping.mae_pct is not None:
+            # Update baseline_df
+            adjusted_gains = adjustment_params.calculate_adjusted_gains(
+                baseline_df, column_mapping.gain_pct, column_mapping.mae_pct
+            )
+            baseline_df["adjusted_gain_pct"] = adjusted_gains
+            logger.debug(
+                "Updated baseline_df adjusted_gain_pct: efficiency=%.2f%%, mean=%.4f",
+                adjustment_params.efficiency,
+                adjusted_gains.mean(),
+            )
+            
+            # Also update filtered_df if it exists
+            # NOTE: filtered_df has reset indices (0, 1, 2, ...) after first-trigger filtering,
+            # so we must recalculate directly on filtered_df, not copy from baseline_df
+            if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
+                filtered_adjusted_gains = adjustment_params.calculate_adjusted_gains(
+                    self._app_state.filtered_df, column_mapping.gain_pct, column_mapping.mae_pct
+                )
+                self._app_state.filtered_df["adjusted_gain_pct"] = filtered_adjusted_gains
+                logger.debug(
+                    "Updated filtered_df adjusted_gain_pct: efficiency=%.2f%%, %d rows, mean=%.4f",
+                    adjustment_params.efficiency,
+                    len(self._app_state.filtered_df),
+                    filtered_adjusted_gains.mean(),
+                )
+
         # Recalculate filtered metrics if there is filtered data
         filtered_metrics = None
         if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
