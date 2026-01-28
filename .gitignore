@@ -54,3 +54,6 @@ dmypy.json
 
 # Git worktrees
 .worktrees/
+
+# Filter presets (user-specific)
+filters/
