@@ -2,6 +2,7 @@
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -39,6 +40,8 @@ class FilterPanel(QWidget):
     date_range_changed = pyqtSignal(object, object, bool)  # start, end, all_dates
     time_range_changed = pyqtSignal(object, object, bool)  # start, end, all_times
     single_filter_applied = pyqtSignal(object)  # Emits single FilterCriteria
+    preset_save_requested = pyqtSignal()  # Emitted when Save clicked
+    preset_load_requested = pyqtSignal(str)  # Emitted with preset name
 
     def __init__(
         self,
@@ -144,6 +147,17 @@ class FilterPanel(QWidget):
         self._clear_btn.clicked.connect(self._on_clear_filters)
         btn_layout.addWidget(self._clear_btn)
 
+        btn_layout.addSpacing(Spacing.MD)
+
+        self._save_btn = QPushButton("Save")
+        self._save_btn.clicked.connect(self._on_save_clicked)
+        btn_layout.addWidget(self._save_btn)
+
+        self._load_combo = QComboBox()
+        self._load_combo.addItem("Load preset...")
+        self._load_combo.currentIndexChanged.connect(self._on_load_selected)
+        btn_layout.addWidget(self._load_combo)
+
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
 
@@ -187,6 +201,55 @@ class FilterPanel(QWidget):
             }}
         """
         self._clear_btn.setStyleSheet(secondary_btn_style)
+
+        # Save button (amber accent)
+        save_btn_style = f"""
+            QPushButton {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+                padding: 6px 12px;
+            }}
+            QPushButton:hover {{
+                border-color: {Colors.SIGNAL_AMBER};
+                color: {Colors.SIGNAL_AMBER};
+            }}
+        """
+        self._save_btn.setStyleSheet(save_btn_style)
+
+        # Load combo
+        load_combo_style = f"""
+            QComboBox {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+                padding: 6px 12px;
+                min-width: 120px;
+            }}
+            QComboBox:hover {{
+                border-color: {Colors.SIGNAL_CYAN};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 20px;
+            }}
+            QComboBox::down-arrow {{
+                width: 0;
+                height: 0;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid {Colors.TEXT_SECONDARY};
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                border: 1px solid {Colors.BG_BORDER};
+                selection-background-color: {Colors.BG_SURFACE};
+            }}
+        """
+        self._load_combo.setStyleSheet(load_combo_style)
 
         # Add chips scroll area and frame styling - use explicit backgrounds to prevent bleeding
         self._chips_scroll.setStyleSheet(f"""
@@ -349,3 +412,39 @@ class FilterPanel(QWidget):
             Times are HH:MM:SS strings or None if all_times=True.
         """
         return self._time_range_filter.get_range()
+
+    def _on_save_clicked(self) -> None:
+        """Handle Save button click."""
+        self.preset_save_requested.emit()
+
+    def _on_load_selected(self, index: int) -> None:
+        """Handle Load combo selection.
+
+        Args:
+            index: Selected item index.
+        """
+        if index > 0:  # Skip placeholder
+            preset_name = self._load_combo.itemText(index)
+            self.preset_load_requested.emit(preset_name)
+            # Reset to placeholder
+            self._load_combo.blockSignals(True)
+            self._load_combo.setCurrentIndex(0)
+            self._load_combo.blockSignals(False)
+
+    def update_preset_list(self, names: list[str]) -> None:
+        """Update the Load dropdown with available presets.
+
+        Args:
+            names: List of preset names (already sorted).
+        """
+        self._load_combo.blockSignals(True)
+        self._load_combo.clear()
+
+        if names:
+            self._load_combo.addItem("Load preset...")
+            for name in names:
+                self._load_combo.addItem(name)
+        else:
+            self._load_combo.addItem("No saved presets")
+
+        self._load_combo.blockSignals(False)
