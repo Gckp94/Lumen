@@ -15,6 +15,7 @@ import pandas as pd
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QCheckBox,
+    QDialog,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -30,6 +31,7 @@ from src.core.app_state import AppState
 from src.core.exceptions import ExportError
 from src.core.export_manager import ExportManager
 from src.core.filter_engine import FilterEngine
+from src.core.filter_preset_manager import FilterPresetManager
 from src.core.first_trigger import FirstTriggerEngine
 from src.core.models import FilterCriteria, TradingMetrics
 from src.ui.components.axis_column_selector import AxisColumnSelector
@@ -38,6 +40,7 @@ from src.ui.components.chart_canvas import ChartCanvas
 from src.ui.components.filter_panel import FilterPanel
 from src.ui.components.toast import Toast
 from src.ui.constants import Animation, Colors, Spacing
+from src.ui.dialogs.save_preset_dialog import SavePresetDialog
 
 if TYPE_CHECKING:
     pass
@@ -89,6 +92,8 @@ class FeatureExplorerTab(QWidget):
         self._y_filter_min: float | None = None
         self._y_filter_max: float | None = None
         # Guard flag to prevent recursion when chart updates trigger range changes
+
+        self._preset_manager = FilterPresetManager()
 
         self._setup_ui()
         self._connect_signals()
@@ -284,6 +289,10 @@ class FeatureExplorerTab(QWidget):
         self._axis_selector.y_bounds_changed.connect(self._on_y_bounds_changed)
         self._axis_selector.bounds_reset.connect(self._on_bounds_reset)
 
+        # Filter preset signals
+        self._filter_panel.preset_save_requested.connect(self._on_preset_save)
+        self._filter_panel.preset_load_requested.connect(self._on_preset_load)
+
     def _on_data_loaded(self, df: pd.DataFrame) -> None:
         """Handle data loaded signal.
 
@@ -327,6 +336,9 @@ class FeatureExplorerTab(QWidget):
                 self._axis_selector.set_y_column("gain_pct")
 
             logger.info(f"Axis selector populated with {len(numeric_columns)} columns")
+
+        # Refresh preset list whenever data is loaded
+        self._refresh_preset_list()
 
     def _on_column_mapping_changed(self, mapping: object) -> None:
         """Handle column mapping changed signal.
@@ -946,3 +958,33 @@ class FeatureExplorerTab(QWidget):
         except ExportError as e:
             Toast.display(self, str(e), "error")
             logger.error("Export failed: %s", e)
+
+    def _on_preset_save(self) -> None:
+        """Handle preset save request."""
+        existing = self._preset_manager.list_presets()
+        dialog = SavePresetDialog(existing_names=existing, parent=self)
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            name = dialog.get_preset_name()
+            preset = self._filter_panel.get_full_state(name)
+            self._preset_manager.save(preset)
+            self._refresh_preset_list()
+
+    def _on_preset_load(self, name: str) -> None:
+        """Handle preset load request.
+
+        Args:
+            name: Preset name to load.
+        """
+        try:
+            preset = self._preset_manager.load(name)
+            skipped = self._filter_panel.set_full_state(preset)
+            if skipped:
+                logger.warning(f"Skipped columns not in data: {skipped}")
+        except FileNotFoundError:
+            logger.error(f"Preset '{name}' not found")
+
+    def _refresh_preset_list(self) -> None:
+        """Refresh the preset dropdown with current presets."""
+        names = self._preset_manager.list_presets()
+        self._filter_panel.update_preset_list(names)
