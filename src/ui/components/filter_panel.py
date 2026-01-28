@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.core.models import FilterCriteria
+from src.core.models import FilterCriteria, FilterPreset
 from src.ui.components.column_filter_panel import ColumnFilterPanel
 from src.ui.components.date_range_filter import DateRangeFilter
 from src.ui.components.filter_chip import FilterChip
@@ -448,3 +448,43 @@ class FilterPanel(QWidget):
             self._load_combo.addItem("No saved presets")
 
         self._load_combo.blockSignals(False)
+
+    def get_full_state(self, name: str) -> FilterPreset:
+        """Get complete filter state as a FilterPreset.
+
+        Args:
+            name: Name for the preset.
+
+        Returns:
+            FilterPreset with all current filter state.
+        """
+        return FilterPreset(
+            name=name,
+            column_filters=self._column_filter_panel.get_active_criteria(),
+            date_range=self.get_date_range(),
+            time_range=self.get_time_range(),
+            first_trigger_only=self._first_trigger_toggle.isChecked(),
+        )
+
+    def set_full_state(self, preset: FilterPreset) -> list[str]:
+        """Apply a FilterPreset to all filter controls.
+
+        Args:
+            preset: FilterPreset to apply.
+
+        Returns:
+            List of column names that were skipped (not found).
+        """
+        # Set column filters
+        skipped = self._column_filter_panel.set_filter_values(preset.column_filters)
+
+        # Set date range
+        self._date_range_filter.set_range(*preset.date_range)
+
+        # Set time range
+        self._time_range_filter.set_range(*preset.time_range)
+
+        # Set first trigger toggle
+        self._first_trigger_toggle.setChecked(preset.first_trigger_only)
+
+        return skipped
