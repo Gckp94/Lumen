@@ -208,6 +208,43 @@ class TimeRangeFilter(QWidget):
         self._end_time.setEnabled(False)
         self._emit_change()
 
+    def set_range(
+        self, start: str | None, end: str | None, all_times: bool
+    ) -> None:
+        """Set the time range programmatically.
+
+        Args:
+            start: Start time string (HH:MM:SS) or None.
+            end: End time string (HH:MM:SS) or None.
+            all_times: Whether to enable 'All Times' mode.
+        """
+        # Block signals during update
+        self._all_times_checkbox.blockSignals(True)
+        self._start_time.blockSignals(True)
+        self._end_time.blockSignals(True)
+
+        self._all_times = all_times
+        self._all_times_checkbox.setChecked(all_times)
+        self._start_time.setEnabled(not all_times)
+        self._end_time.setEnabled(not all_times)
+
+        if start:
+            time = QTime.fromString(start, "HH:mm:ss")
+            if time.isValid():
+                self._start_time.setTime(time)
+
+        if end:
+            time = QTime.fromString(end, "HH:mm:ss")
+            if time.isValid():
+                self._end_time.setTime(time)
+
+        # Restore signals
+        self._all_times_checkbox.blockSignals(False)
+        self._start_time.blockSignals(False)
+        self._end_time.blockSignals(False)
+
+        self._emit_change()
+
     def keyPressEvent(self, event: QKeyEvent | None) -> None:
         """Handle key press for keyboard navigation.
 

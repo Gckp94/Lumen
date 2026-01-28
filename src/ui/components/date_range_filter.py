@@ -206,6 +206,43 @@ class DateRangeFilter(QWidget):
         self._end_date.setEnabled(False)
         self._emit_change()
 
+    def set_range(
+        self, start: str | None, end: str | None, all_dates: bool
+    ) -> None:
+        """Set the date range programmatically.
+
+        Args:
+            start: Start date ISO string (YYYY-MM-DD) or None.
+            end: End date ISO string (YYYY-MM-DD) or None.
+            all_dates: Whether to enable 'All Dates' mode.
+        """
+        # Block signals during update
+        self._all_dates_checkbox.blockSignals(True)
+        self._start_date.blockSignals(True)
+        self._end_date.blockSignals(True)
+
+        self._all_dates = all_dates
+        self._all_dates_checkbox.setChecked(all_dates)
+        self._start_date.setEnabled(not all_dates)
+        self._end_date.setEnabled(not all_dates)
+
+        if start:
+            date = QDate.fromString(start, Qt.DateFormat.ISODate)
+            if date.isValid():
+                self._start_date.setDate(date)
+
+        if end:
+            date = QDate.fromString(end, Qt.DateFormat.ISODate)
+            if date.isValid():
+                self._end_date.setDate(date)
+
+        # Restore signals
+        self._all_dates_checkbox.blockSignals(False)
+        self._start_date.blockSignals(False)
+        self._end_date.blockSignals(False)
+
+        self._emit_change()
+
     def keyPressEvent(self, event: QKeyEvent | None) -> None:
         """Handle key press for keyboard navigation.
 
