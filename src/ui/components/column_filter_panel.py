@@ -274,3 +274,30 @@ class ColumnFilterPanel(QWidget):
         """
         self._columns = columns
         self._build_rows()
+
+    def set_filter_values(self, criteria: list[FilterCriteria]) -> list[str]:
+        """Set filter values from a list of FilterCriteria.
+
+        Populates rows matching the criteria columns. Skips criteria
+        for columns that don't exist in the panel.
+
+        Args:
+            criteria: List of FilterCriteria to apply.
+
+        Returns:
+            List of column names that were skipped (not found).
+        """
+        # Clear all existing values first
+        self.clear_all()
+
+        skipped = []
+        column_to_row = {row.get_column_name(): row for row in self._rows}
+
+        for c in criteria:
+            row = column_to_row.get(c.column)
+            if row:
+                row.set_values(c.operator, c.min_val, c.max_val)
+            else:
+                skipped.append(c.column)
+
+        return skipped

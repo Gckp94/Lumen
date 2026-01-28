@@ -313,12 +313,39 @@ class ColumnFilterRow(QWidget):
         self._min_input.clear()
         self._max_input.clear()
 
-    def set_values(self, min_val: float | None, max_val: float | None) -> None:
-        """Set min and max input values.
+    def set_values(
+        self,
+        operator: FilterOp,
+        min_val: float | None,
+        max_val: float | None,
+    ) -> None:
+        """Set filter values programmatically.
 
         Args:
+            operator: Filter operator ('between', 'not_between', etc.).
             min_val: Minimum value or None to clear.
             max_val: Maximum value or None to clear.
         """
+        # Set operator
+        self._operator = operator
+        # Map operator to display text
+        display_map = {
+            "between": "between",
+            "not_between": "not between",
+            "between_blanks": "between + blanks",
+            "not_between_blanks": "not between + blanks",
+        }
+        self._operator_btn.setText(display_map.get(operator, operator))
+
+        # Set values with signals blocked to avoid multiple emissions
+        self._min_input.blockSignals(True)
+        self._max_input.blockSignals(True)
+
         self._min_input.setText(str(min_val) if min_val is not None else "")
         self._max_input.setText(str(max_val) if max_val is not None else "")
+
+        self._min_input.blockSignals(False)
+        self._max_input.blockSignals(False)
+
+        self._update_indicator()
+        self.values_changed.emit()
