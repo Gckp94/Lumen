@@ -394,6 +394,27 @@ class FilterCriteria:
 
 
 @dataclass
+class FilterPreset:
+    """Complete filter state for save/load functionality.
+
+    Attributes:
+        name: Display name for the preset.
+        column_filters: List of column filter criteria.
+        date_range: Tuple of (start_iso, end_iso, all_dates).
+        time_range: Tuple of (start_time, end_time, all_times).
+        first_trigger_only: State of first trigger toggle.
+        created: ISO timestamp when preset was created.
+    """
+
+    name: str
+    column_filters: list[FilterCriteria]
+    date_range: tuple[str | None, str | None, bool]
+    time_range: tuple[str | None, str | None, bool]
+    first_trigger_only: bool
+    created: str | None = None
+
+
+@dataclass
 class BinDefinition:
     """Single bin definition for data binning.
 
