@@ -606,6 +606,43 @@ class TestMetricsCalculatorExtended:
         # eg_flat_stake can still be calculated even with negative Kelly
         # because flat stake doesn't depend on Kelly
 
+    def test_eg_frac_kelly_uses_stop_adjusted_sizing(self) -> None:
+        """EG Frac Kelly uses stop-adjusted Kelly when stop loss is provided."""
+        calc = MetricsCalculator()
+        df = pd.DataFrame({
+            "gain_pct": [0.08, 0.06, -0.04, 0.05, -0.03],  # Positive edge (decimal format)
+            "mae_pct": [2.0, 1.0, 4.0, 1.5, 3.0],  # MAE values (percentage format)
+        })
+
+        # Calculate without stop adjustment
+        metrics_no_stop, _, _ = calc.calculate(
+            df, "gain_pct", derived=True, fractional_kelly_pct=25.0
+        )
+
+        # Calculate with stop adjustment (8% stop)
+        from src.core.models import AdjustmentParams
+        adj_params = AdjustmentParams(stop_loss=8.0, efficiency=0.0)
+        metrics_with_stop, _, _ = calc.calculate(
+            df, "gain_pct", derived=True, fractional_kelly_pct=25.0,
+            adjustment_params=adj_params, mae_col="mae_pct"
+        )
+
+        # Stop-adjusted Kelly should be larger (position size scales with 1/stop)
+        assert metrics_with_stop.stop_adjusted_kelly is not None
+        assert metrics_with_stop.stop_adjusted_kelly > metrics_no_stop.kelly
+
+        # Fractional Kelly should use stop-adjusted value
+        assert metrics_with_stop.fractional_kelly is not None
+        expected_frac_kelly = metrics_with_stop.stop_adjusted_kelly * 0.25
+        assert metrics_with_stop.fractional_kelly == pytest.approx(
+            expected_frac_kelly, rel=0.01
+        )
+
+        # EG Frac Kelly should reflect the larger position size
+        # (will be lower or negative due to higher variance penalty)
+        assert metrics_with_stop.eg_frac_kelly is not None
+        assert metrics_no_stop.eg_frac_kelly is not None
+
     def test_median_winner_none_with_no_winners(self) -> None:
         """Median winner is None when no winners."""
         calc = MetricsCalculator()
