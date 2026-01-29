@@ -413,8 +413,8 @@ class TestMetricsCalculatorExtended:
         kelly_decimal = metrics.kelly / 100
         all_gains = metrics.winner_gains + metrics.loser_gains
         variance_decimal = float(pd.Series(all_gains).var())
-        # Convert variance to percentage² (consistent with EV units)
-        variance_pct = variance_decimal * 10000
+        # Convert variance for consistent units with EV (percentage format)
+        variance_pct = variance_decimal * 100
         expected_eg = (kelly_decimal * metrics.ev) - (
             (kelly_decimal**2) * variance_pct / 2
         )
@@ -443,29 +443,29 @@ class TestMetricsCalculatorExtended:
         # Gains in decimal: [0.10, 0.10, 0.10, 0.10, -0.20]
         # Variance (decimal²) = var([0.10, 0.10, 0.10, 0.10, -0.20])
         #                     = 0.018 (sample variance)
-        # Variance (percentage²) = 0.018 * 10000 = 180
+        # Variance for EG formula = 0.018 * 100 = 1.8
         #
-        # EG = f * EV - (f² * variance_pct²) / 2
-        #    = 0.40 * 4.0 - (0.40² * 180) / 2
-        #    = 1.6 - (0.16 * 180) / 2
-        #    = 1.6 - 14.4
-        #    = -12.8%
+        # EG = f * EV - (f² * variance_pct) / 2
+        #    = 0.40 * 4.0 - (0.40² * 1.8) / 2
+        #    = 1.6 - (0.16 * 1.8) / 2
+        #    = 1.6 - 0.144
+        #    = 1.456%
         #
-        # This SHOULD be negative! Full Kelly on high-variance trades
-        # leads to overbetting and negative expected growth.
+        # This validates that variance penalty is meaningful but not excessive.
 
         kelly_decimal = metrics.kelly / 100  # 0.40
         all_gains = metrics.winner_gains + metrics.loser_gains
         variance_decimal = float(pd.Series(all_gains).var())
-        variance_pct = variance_decimal * 10000  # Convert to percentage²
+        variance_pct = variance_decimal * 100  # Convert for EG formula
 
         expected_eg = (kelly_decimal * metrics.ev) - (
             (kelly_decimal**2) * variance_pct / 2
         )
 
         assert metrics.eg_full_kelly == pytest.approx(expected_eg, abs=0.1)
-        # The value should be significantly negative due to high variance
-        assert metrics.eg_full_kelly < 0
+        # EG should be positive but less than f*EV due to variance penalty
+        assert metrics.eg_full_kelly > 0
+        assert metrics.eg_full_kelly < kelly_decimal * metrics.ev
 
     def test_median_calculations(self, known_trades_df: pd.DataFrame) -> None:
         """Median winner and loser calculations."""

@@ -256,9 +256,9 @@ class MetricsCalculator:
             var_result = pd.Series(all_gains).var()
             if pd.notna(var_result):
                 # Variance is in decimal² format (e.g., 0.01 for 10% std dev)
-                # Convert to percentage² for consistent units with EV
-                # (0.01 decimal² = 100 percentage²)
-                combined_variance = cast(float, var_result) * 10000
+                # EV is in percentage format, so multiply variance by 100
+                # to make units consistent in the EG formula
+                combined_variance = cast(float, var_result) * 100
 
         if combined_variance is not None and ev is not None:
             # EG Full Kelly - only when Kelly > 0
