@@ -418,6 +418,53 @@ class TestMetricsCalculatorExtended:
         )
         assert metrics.eg_full_kelly == pytest.approx(expected_eg, abs=0.001)
 
+    def test_eg_full_kelly_variance_units(self) -> None:
+        """EG formula uses variance in percentage² units (consistent with EV)."""
+        calc = MetricsCalculator()
+        # Create trades with known values for manual verification
+        # 4 winners at +10%, 1 loser at -20%
+        # Win rate = 80%, avg_winner = 10%, avg_loser = -20%
+        # EV = 0.8 * 10 + 0.2 * (-20) = 8 - 4 = 4%
+        # R:R = 10/20 = 0.5
+        # Kelly = 0.8 - 0.2/0.5 = 0.8 - 0.4 = 0.4 = 40%
+        df = pd.DataFrame({
+            "gain_pct": [0.10, 0.10, 0.10, 0.10, -0.20],  # decimal format
+        })
+        metrics, _, _ = calc.calculate(df, "gain_pct", derived=True)
+
+        # Verify intermediate values
+        assert metrics.win_rate == pytest.approx(80.0, abs=0.1)
+        assert metrics.ev == pytest.approx(4.0, abs=0.1)
+        assert metrics.kelly == pytest.approx(40.0, abs=0.1)
+
+        # Manual calculation with CORRECT units:
+        # Gains in decimal: [0.10, 0.10, 0.10, 0.10, -0.20]
+        # Variance (decimal²) = var([0.10, 0.10, 0.10, 0.10, -0.20])
+        #                     = 0.018 (sample variance)
+        # Variance (percentage²) = 0.018 * 10000 = 180
+        #
+        # EG = f * EV - (f² * variance_pct²) / 2
+        #    = 0.40 * 4.0 - (0.40² * 180) / 2
+        #    = 1.6 - (0.16 * 180) / 2
+        #    = 1.6 - 14.4
+        #    = -12.8%
+        #
+        # This SHOULD be negative! Full Kelly on high-variance trades
+        # leads to overbetting and negative expected growth.
+
+        kelly_decimal = metrics.kelly / 100  # 0.40
+        all_gains = metrics.winner_gains + metrics.loser_gains
+        variance_decimal = float(pd.Series(all_gains).var())
+        variance_pct = variance_decimal * 10000  # Convert to percentage²
+
+        expected_eg = (kelly_decimal * metrics.ev) - (
+            (kelly_decimal**2) * variance_pct / 2
+        )
+
+        assert metrics.eg_full_kelly == pytest.approx(expected_eg, abs=0.1)
+        # The value should be significantly negative due to high variance
+        assert metrics.eg_full_kelly < 0
+
     def test_median_calculations(self, known_trades_df: pd.DataFrame) -> None:
         """Median winner and loser calculations."""
         calc = MetricsCalculator()
