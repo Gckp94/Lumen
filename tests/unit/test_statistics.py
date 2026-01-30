@@ -920,3 +920,190 @@ class TestCalculateOffsetTable:
         assert row_0["Win %"] == 0.0
         # Avg Gain should be -16%
         assert row_0["Avg. Gain %"] == pytest.approx(-16.0, rel=0.01)
+
+
+# =============================================================================
+# Tests for calculate_scaling_table
+# =============================================================================
+
+
+class TestCalculateScalingTable:
+    """Tests for the calculate_scaling_table function."""
+
+    def test_basic_data(self, sample_mapping):
+        """Test scaling table with basic data."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, 0.20, -0.05],
+            "mfe_pct": [15.0, 8.0, 3.0],
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        assert len(result) == 8  # 8 target levels
+        assert "Partial Target %" in result.columns
+        assert "% of Trades" in result.columns
+
+    def test_target_levels(self, sample_mapping):
+        """Test correct target levels."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10],
+            "mfe_pct": [50.0],
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        targets = result["Partial Target %"].tolist()
+        assert targets == [5, 10, 15, 20, 25, 30, 35, 40]
+
+    def test_percent_of_trades(self, sample_mapping):
+        """Test % of trades reaching target."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, 0.10, 0.10],
+            "mfe_pct": [8.0, 12.0, 22.0],  # 1 at 10%, 2 at 10+%, 3 total
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        row_10 = result[result["Partial Target %"] == 10].iloc[0]
+        assert row_10["% of Trades"] == pytest.approx(66.67, rel=0.01)  # 2/3
+
+    def test_blended_return_calculation(self, sample_mapping):
+        """Test blended return formula."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.20],  # 20% full hold return
+            "mfe_pct": [15.0],  # Reaches 10% target
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        row_10 = result[result["Partial Target %"] == 10].iloc[0]
+        # blended = 0.5 * 0.10 + 0.5 * 0.20 = 0.05 + 0.10 = 0.15 = 15%
+        assert row_10["Avg Blended Return %"] == pytest.approx(15.0, rel=0.01)
+
+    def test_no_target_reached_uses_full_hold(self, sample_mapping):
+        """Test that trades not reaching target use full hold."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.20],  # 20% return
+            "mfe_pct": [8.0],  # Only reaches 8%, not 10%
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        row_10 = result[result["Partial Target %"] == 10].iloc[0]
+        # Trade didn't reach 10% target, so blended = full hold
+        assert row_10["Avg Blended Return %"] == pytest.approx(20.0, rel=0.01)
+
+    def test_all_columns_present(self, sample_mapping):
+        """Test that all required columns are present."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, -0.05],
+            "mfe_pct": [15.0, 5.0],
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        expected_columns = [
+            "Partial Target %",
+            "% of Trades",
+            "Avg Blended Return %",
+            "Avg Full Hold Return %",
+            "Total Blended Return %",
+            "Total Full Hold Return %",
+            "Blended Win %",
+            "Full Hold Win %",
+            "Blended Profit Ratio",
+            "Full Hold Profit Ratio",
+            "Blended Edge %",
+            "Full Hold Edge %",
+            "Blended EG %",
+            "Full Hold EG %",
+        ]
+        for col in expected_columns:
+            assert col in result.columns, f"Missing column: {col}"
+
+    def test_full_hold_return_unchanged(self, sample_mapping):
+        """Test full hold return is always original return."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.15, 0.25],  # 15% and 25% returns
+            "mfe_pct": [50.0, 50.0],  # Both reach all targets
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        # Full hold average should always be (15 + 25) / 2 = 20%
+        for _, row in result.iterrows():
+            assert row["Avg Full Hold Return %"] == pytest.approx(20.0, rel=0.01)
+
+    def test_total_returns(self, sample_mapping):
+        """Test total return calculations."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, 0.20],  # 10% and 20% returns
+            "mfe_pct": [15.0, 15.0],  # Both reach 10% target
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        row_10 = result[result["Partial Target %"] == 10].iloc[0]
+        # Total Full Hold = 10 + 20 = 30%
+        assert row_10["Total Full Hold Return %"] == pytest.approx(30.0, rel=0.01)
+        # Blended for trade 1: 0.5*10 + 0.5*10 = 10%
+        # Blended for trade 2: 0.5*10 + 0.5*20 = 15%
+        # Total Blended = 10 + 15 = 25%
+        assert row_10["Total Blended Return %"] == pytest.approx(25.0, rel=0.01)
+
+    def test_win_rate_calculation(self, sample_mapping):
+        """Test win rate calculations for blended and full hold."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.05, -0.15],  # 1 win, 1 loss (full hold)
+            "mfe_pct": [20.0, 20.0],  # Both reach 10% target
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        row_10 = result[result["Partial Target %"] == 10].iloc[0]
+        # Full hold: 1 win (5%), 1 loss (-15%) -> 50% win rate
+        assert row_10["Full Hold Win %"] == pytest.approx(50.0, rel=0.01)
+        # Blended trade 1: 0.5*10 + 0.5*5 = 7.5% (win)
+        # Blended trade 2: 0.5*10 + 0.5*(-15) = 5 - 7.5 = -2.5% (loss)
+        assert row_10["Blended Win %"] == pytest.approx(50.0, rel=0.01)
+
+    def test_different_scale_out_percentages(self, sample_mapping):
+        """Test different scale out percentages."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.30],  # 30% full hold return
+            "mfe_pct": [20.0],  # Reaches 10% target
+        })
+
+        # With 50% scale out at 10%: blended = 0.5*10 + 0.5*30 = 20%
+        result_50 = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+        row_50 = result_50[result_50["Partial Target %"] == 10].iloc[0]
+        assert row_50["Avg Blended Return %"] == pytest.approx(20.0, rel=0.01)
+
+        # With 25% scale out at 10%: blended = 0.25*10 + 0.75*30 = 2.5 + 22.5 = 25%
+        result_25 = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.25)
+        row_25 = result_25[result_25["Partial Target %"] == 10].iloc[0]
+        assert row_25["Avg Blended Return %"] == pytest.approx(25.0, rel=0.01)
+
+    def test_empty_dataframe(self, sample_mapping):
+        """Test with empty dataframe."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [],
+            "mfe_pct": [],
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        # Should still have 8 rows (one for each target level)
+        assert len(result) == 8
+        # % of Trades should be 0 for all
+        assert all(result["% of Trades"] == 0.0)
+
+    def test_mixed_reaching_targets(self, sample_mapping):
+        """Test with trades that reach different target levels."""
+        df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, 0.10, 0.10],
+            "mfe_pct": [7.0, 12.0, 25.0],  # MFE values for each trade
+        })
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
+
+        # At 5%: all 3 trades qualify (7%, 12%, 25% MFE all >= 5%)
+        row_5 = result[result["Partial Target %"] == 5].iloc[0]
+        assert row_5["% of Trades"] == pytest.approx(100.0, rel=0.01)
+
+        # At 10%: 2 trades qualify (12% and 25% MFE >= 10%)
+        row_10 = result[result["Partial Target %"] == 10].iloc[0]
+        assert row_10["% of Trades"] == pytest.approx(66.67, rel=0.01)
+
+        # At 25%: 1 trade qualifies (25% MFE >= 25%)
+        row_25 = result[result["Partial Target %"] == 25].iloc[0]
+        assert row_25["% of Trades"] == pytest.approx(33.33, rel=0.01)

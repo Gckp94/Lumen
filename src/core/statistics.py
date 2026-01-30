@@ -601,12 +601,18 @@ def _calculate_offset_level_row(
     }
 
 
+# Partial profit target levels (fixed)
+SCALING_TARGET_LEVELS = [5, 10, 15, 20, 25, 30, 35, 40]
+
+
 def calculate_scaling_table(
     df: pd.DataFrame,
     mapping: ColumnMapping,
     scale_out_pct: float,
 ) -> pd.DataFrame:
     """Compare blended partial-profit returns vs full hold.
+
+    Analyzes taking partial profits at various MFE targets vs. holding to close.
 
     Args:
         df: Trade data with adjusted_gain_pct and mfe_pct columns.
@@ -615,5 +621,170 @@ def calculate_scaling_table(
 
     Returns:
         DataFrame with rows for each target level comparing blended vs full hold.
+        Columns: Partial Target %, % of Trades, Avg Blended Return %,
+                 Avg Full Hold Return %, Total Blended Return %,
+                 Total Full Hold Return %, Blended Win %, Full Hold Win %,
+                 Blended Profit Ratio, Full Hold Profit Ratio,
+                 Blended Edge %, Full Hold Edge %, Blended EG %, Full Hold EG %
     """
-    raise NotImplementedError
+    rows = []
+    mfe_col = mapping.mfe_pct
+
+    for target in SCALING_TARGET_LEVELS:
+        row = _calculate_scaling_row(df, mfe_col, target, scale_out_pct)
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def _calculate_scaling_row(
+    df: pd.DataFrame,
+    mfe_col: str,
+    target: int,
+    scale_out_pct: float,
+) -> dict:
+    """Calculate metrics for a single scaling target level.
+
+    Args:
+        df: Trade data DataFrame.
+        mfe_col: Column name for MFE percentage (percentage points).
+        target: Target level for partial profit (e.g., 10 for 10%).
+        scale_out_pct: Fraction of position to scale out (0-1).
+
+    Returns:
+        Dictionary with metrics for this target level.
+    """
+    total_trades = len(df)
+
+    # Handle empty data
+    if total_trades == 0:
+        return {
+            "Partial Target %": target,
+            "% of Trades": 0.0,
+            "Avg Blended Return %": None,
+            "Avg Full Hold Return %": None,
+            "Total Blended Return %": 0.0,
+            "Total Full Hold Return %": 0.0,
+            "Blended Win %": 0.0,
+            "Full Hold Win %": 0.0,
+            "Blended Profit Ratio": None,
+            "Full Hold Profit Ratio": None,
+            "Blended Edge %": None,
+            "Full Hold Edge %": None,
+            "Blended EG %": None,
+            "Full Hold EG %": None,
+        }
+
+    # Full hold returns (in decimal, e.g., 0.10 = 10%)
+    full_hold_returns = df["adjusted_gain_pct"].copy()
+
+    # Calculate blended returns for each trade
+    # If mfe_pct >= target: blended = scale_out_pct * (target/100) + (1-scale_out_pct) * full_hold
+    # If mfe_pct < target: blended = full_hold (couldn't reach target, so no scaling)
+    target_reached_mask = df[mfe_col] >= target
+    reached_count = target_reached_mask.sum()
+
+    # Calculate blended returns
+    blended_returns = full_hold_returns.copy()
+    # For trades that reached the target, apply the blending formula
+    # target/100 converts target (percentage points) to decimal
+    blended_returns[target_reached_mask] = (
+        scale_out_pct * (target / 100.0)
+        + (1 - scale_out_pct) * full_hold_returns[target_reached_mask]
+    )
+
+    # % of Trades reaching target
+    pct_of_trades = (reached_count / total_trades) * 100
+
+    # Convert returns to percentages for display
+    blended_returns_pct = blended_returns * 100
+    full_hold_returns_pct = full_hold_returns * 100
+
+    # Calculate averages
+    avg_blended = blended_returns_pct.mean()
+    avg_full_hold = full_hold_returns_pct.mean()
+
+    # Calculate totals
+    total_blended = blended_returns_pct.sum()
+    total_full_hold = full_hold_returns_pct.sum()
+
+    # Calculate metrics for blended returns
+    blended_metrics = _calculate_return_metrics(blended_returns)
+
+    # Calculate metrics for full hold returns
+    full_hold_metrics = _calculate_return_metrics(full_hold_returns)
+
+    return {
+        "Partial Target %": target,
+        "% of Trades": pct_of_trades,
+        "Avg Blended Return %": avg_blended,
+        "Avg Full Hold Return %": avg_full_hold,
+        "Total Blended Return %": total_blended,
+        "Total Full Hold Return %": total_full_hold,
+        "Blended Win %": blended_metrics["win_pct"],
+        "Full Hold Win %": full_hold_metrics["win_pct"],
+        "Blended Profit Ratio": blended_metrics["profit_ratio"],
+        "Full Hold Profit Ratio": full_hold_metrics["profit_ratio"],
+        "Blended Edge %": blended_metrics["edge_pct"],
+        "Full Hold Edge %": full_hold_metrics["edge_pct"],
+        "Blended EG %": blended_metrics["eg_pct"],
+        "Full Hold EG %": full_hold_metrics["eg_pct"],
+    }
+
+
+def _calculate_return_metrics(returns: pd.Series) -> dict:
+    """Calculate win %, profit ratio, edge %, and EG % from returns.
+
+    Args:
+        returns: Series of returns in decimal form (e.g., 0.10 = 10%).
+
+    Returns:
+        Dictionary with win_pct, profit_ratio, edge_pct, eg_pct.
+    """
+    total = len(returns)
+    if total == 0:
+        return {
+            "win_pct": 0.0,
+            "profit_ratio": None,
+            "edge_pct": None,
+            "eg_pct": None,
+        }
+
+    winners_mask = returns > 0
+    losers_mask = returns < 0
+
+    win_count = winners_mask.sum()
+    loss_count = losers_mask.sum()
+
+    # Win %
+    win_pct = (win_count / total) * 100
+    win_rate = win_count / total  # decimal for calculations
+
+    # Avg win and avg loss
+    avg_win = returns[winners_mask].mean() if win_count > 0 else 0.0
+    avg_loss = returns[losers_mask].mean() if loss_count > 0 else 0.0  # Negative
+
+    # Profit Ratio: avg_win / abs(avg_loss)
+    profit_ratio = avg_win / abs(avg_loss) if avg_loss != 0 else None
+
+    # Edge %: (profit_ratio + 1) * win_rate - 1
+    if profit_ratio is not None:
+        edge_decimal = (profit_ratio + 1) * win_rate - 1
+        edge_pct = edge_decimal * 100
+    else:
+        edge_pct = None
+
+    # EG %: win_rate - (1 - win_rate) / profit_ratio
+    if profit_ratio is not None and profit_ratio > 0:
+        loss_rate = 1 - win_rate
+        eg_decimal = win_rate - loss_rate / profit_ratio
+        eg_pct = eg_decimal * 100
+    else:
+        eg_pct = None
+
+    return {
+        "win_pct": win_pct,
+        "profit_ratio": profit_ratio,
+        "edge_pct": edge_pct,
+        "eg_pct": eg_pct,
+    }
