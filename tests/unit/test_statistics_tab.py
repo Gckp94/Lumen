@@ -768,15 +768,13 @@ class TestStatisticsTabEmptyStates:
         )
         app_state.baseline_calculated.emit(dummy_metrics)
 
-        # Scaling tab (index 3) should be disabled (MFE-dependent)
-        assert not tab._tab_widget.isTabEnabled(3), "Scaling tab should be disabled"
+        # Scaling tab (index 2) should be disabled (MFE-dependent)
+        assert not tab._tab_widget.isTabEnabled(2), "Scaling tab should be disabled"
 
         # MAE/MFE tab (index 0) should be enabled (has MAE)
         assert tab._tab_widget.isTabEnabled(0), "MAE/MFE tab should be enabled (has MAE)"
-        # Stop Loss tab (index 1) should be enabled (MAE-dependent)
-        assert tab._tab_widget.isTabEnabled(1), "Stop Loss tab should be enabled"
-        # Offset tab (index 2) should be enabled (MAE-dependent)
-        assert tab._tab_widget.isTabEnabled(2), "Offset tab should be enabled"
+        # Stop Loss/Offset tab (index 1) should be enabled (MAE-dependent)
+        assert tab._tab_widget.isTabEnabled(1), "Stop Loss/Offset tab should be enabled"
 
     def test_disables_mae_tables_when_missing(self, app):
         """Test MAE-dependent tables disabled when mae_pct column missing from data."""
@@ -815,13 +813,12 @@ class TestStatisticsTabEmptyStates:
         app_state.baseline_calculated.emit(dummy_metrics)
 
         # MAE-dependent tabs should be disabled
-        assert not tab._tab_widget.isTabEnabled(1), "Stop Loss tab should be disabled"
-        assert not tab._tab_widget.isTabEnabled(2), "Offset tab should be disabled"
+        assert not tab._tab_widget.isTabEnabled(1), "Stop Loss/Offset tab should be disabled"
 
         # MAE/MFE tab (index 0) should be enabled (has MFE)
         assert tab._tab_widget.isTabEnabled(0), "MAE/MFE tab should be enabled (has MFE)"
-        # Scaling tab (index 3) should be enabled (MFE-dependent)
-        assert tab._tab_widget.isTabEnabled(3), "Scaling tab should be enabled"
+        # Scaling tab (index 2) should be enabled (MFE-dependent)
+        assert tab._tab_widget.isTabEnabled(2), "Scaling tab should be enabled"
 
     def test_all_tabs_enabled_when_all_columns_present(self, app):
         """Test all tabs enabled when both mae_pct and mfe_pct columns present."""
@@ -858,8 +855,8 @@ class TestStatisticsTabEmptyStates:
         )
         app_state.baseline_calculated.emit(dummy_metrics)
 
-        # All 4 tabs should be enabled
-        for i in range(4):
+        # All 3 tabs should be enabled
+        for i in range(3):
             assert tab._tab_widget.isTabEnabled(i), f"Tab {i} should be enabled"
 
     def test_all_tabs_disabled_when_no_mapping(self, app):
