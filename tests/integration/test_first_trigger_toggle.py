@@ -25,6 +25,7 @@ def column_mapping() -> ColumnMapping:
         time="time",
         gain_pct="gain_pct",
         mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
         win_loss_derived=True,
     )
 

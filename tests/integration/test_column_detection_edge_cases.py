@@ -21,6 +21,7 @@ class TestColumnDetectionWithSimilarNames:
             "gain_pct_from_low",  # Wrong - huge values
             "gain_pct",  # Correct - decimal percentages
             "mae_pct",
+            "mfe_pct",
         ]
 
         mapper = ColumnMapper()
@@ -40,6 +41,7 @@ class TestColumnDetectionWithSimilarNames:
             "gain_pct_from_low": [50.0, -80.0, 120.0],  # Wrong column - huge values
             "gain_pct": [0.05, -0.03, 0.08],  # Correct column - decimal percentages
             "mae_pct": [0.02, 0.05, 0.01],
+            "mfe_pct": [0.10, 0.02, 0.12],
         })
 
         mapper = ColumnMapper()

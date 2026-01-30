@@ -44,6 +44,7 @@ def column_mapping():
         time="time",
         gain_pct="gain_pct",
         mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
         win_loss=None,
         breakeven_is_win=True,
         win_loss_derived=True,

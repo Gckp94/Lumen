@@ -194,7 +194,8 @@ class TestFilteredMetricsIntegration:
             time="time",
             gain_pct="gain_pct",
             win_loss=None,
-            mae_pct=None,
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
             win_loss_derived=True,
             breakeven_is_win=False,
         )
@@ -380,7 +381,8 @@ class TestComparisonRibbonIntegration:
             time="time",
             gain_pct="gain_pct",
             win_loss=None,
-            mae_pct=None,
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
             win_loss_derived=True,
             breakeven_is_win=False,
         )
@@ -675,7 +677,8 @@ class TestComparisonGridIntegration:
             time="time",
             gain_pct="gain_pct",
             win_loss=None,
-            mae_pct=None,
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
             win_loss_derived=True,
             breakeven_is_win=False,
         )
@@ -826,7 +829,8 @@ class TestEquityChartSignalFlow:
             time="time",
             gain_pct="gain_pct",
             win_loss=None,
-            mae_pct=None,
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
             win_loss_derived=True,
             breakeven_is_win=False,
         )
@@ -1010,7 +1014,8 @@ class TestHistogramDialogIntegration:
             time="time",
             gain_pct="gain_pct",
             win_loss=None,
-            mae_pct=None,
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
             win_loss_derived=True,
             breakeven_is_win=False,
         )

@@ -85,6 +85,7 @@ class TestParameterSensitivityEngine:
             time="time",
             gain_pct="gain_pct",
             mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
         )
 
     def test_engine_initialization(self, sample_df, sample_filters, sample_column_mapping):
@@ -293,6 +294,7 @@ class TestParameterSensitivityWorker:
             time="time",
             gain_pct="gain_pct",
             mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
         )
 
     def test_worker_is_qthread(self, sample_df, sample_column_mapping):
