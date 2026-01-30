@@ -4,6 +4,7 @@ import logging
 
 import pandas as pd
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QBrush, QColor, QFont
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -28,6 +29,91 @@ from src.core.statistics import (
 from src.ui.constants import Colors, Fonts, Spacing
 
 logger = logging.getLogger(__name__)
+
+# Conditional cell colors per design spec
+# Positive metrics (EG%, Edge%, positive returns)
+CELL_POSITIVE_BG = QColor(0, 255, 212, 30)  # Cyan tint (12% alpha ~ 30/255)
+CELL_POSITIVE_TEXT = QColor("#00FFD4")  # Plasma-cyan
+
+# Negative metrics (losses, negative edge)
+CELL_NEGATIVE_BG = QColor(255, 71, 87, 30)  # Coral tint (12% alpha ~ 30/255)
+CELL_NEGATIVE_TEXT = QColor("#FF4757")  # Solar-coral
+
+# Best row highlight (highest EG% per table)
+ROW_OPTIMAL_BG = QColor(0, 255, 212, 20)  # Subtle cyan glow (8% alpha ~ 20/255)
+ROW_OPTIMAL_BORDER = QColor("#00FFD4")  # Left border accent
+
+# Columns that should have conditional coloring based on positive/negative values
+STYLED_COLUMNS = {
+    "EG %",
+    "Edge %",
+    "Avg. Gain %",
+    "Median Gain %",
+    "EV %",
+    "Total Gain %",
+    "Avg Blended Return %",
+    "Avg Full Hold Return %",
+    "Total Blended Return %",
+    "Total Full Hold Return %",
+    "Blended Edge %",
+    "Full Hold Edge %",
+    "Blended EG %",
+    "Full Hold EG %",
+}
+
+# Columns that are ratios (3 decimal places)
+RATIO_COLUMNS = {
+    "Profit Ratio",
+    "Blended Profit Ratio",
+    "Full Hold Profit Ratio",
+}
+
+# Columns that are counts (integer with thousands separator)
+COUNT_COLUMNS = {
+    "# of Plays",
+    "# of Trades",
+}
+
+# Columns that are percentages (2 decimal places with % symbol)
+PERCENTAGE_COLUMNS = {
+    "% of Total",
+    "Win %",
+    "Edge %",
+    "EG %",
+    "Max Loss %",
+    "Avg %",
+    "Median %",
+    "% of Trades",
+    "Avg. Gain %",
+    "Median Gain %",
+    "EV %",
+    "Total Gain %",
+    "Avg Blended Return %",
+    "Avg Full Hold Return %",
+    "Total Blended Return %",
+    "Total Full Hold Return %",
+    "Blended Win %",
+    "Full Hold Win %",
+    "Blended Edge %",
+    "Full Hold Edge %",
+    "Blended EG %",
+    "Full Hold EG %",
+    ">5% MAE Probability",
+    ">10% MAE Probability",
+    ">15% MAE Probability",
+    ">20% MAE Probability",
+    ">5% MFE Probability",
+    ">10% MFE Probability",
+    ">15% MFE Probability",
+    ">20% MFE Probability",
+}
+
+# Kelly columns (show as percentages with 2 decimals)
+KELLY_COLUMNS = {
+    "Full Kelly (Stop Adj)",
+    "Half Kelly (Stop Adj)",
+    "Quarter Kelly (Stop Adj)",
+}
 
 
 class StatisticsTab(QWidget):
@@ -362,45 +448,166 @@ class StatisticsTab(QWidget):
         table.setColumnCount(len(df.columns))
 
         # Set headers
-        table.setHorizontalHeaderLabels(list(df.columns))
+        columns = list(df.columns)
+        table.setHorizontalHeaderLabels(columns)
 
-        # Populate cells
+        # Populate cells with styling
         for row_idx, (_, row) in enumerate(df.iterrows()):
             for col_idx, value in enumerate(row):
-                item = self._create_table_item(value)
+                column_name = columns[col_idx]
+                item = self._create_table_item(value, column_name, col_idx == 0)
+                self._style_cell(item, value, column_name)
                 table.setItem(row_idx, col_idx, item)
+
+        # Highlight optimal row (highest EG%) for tables that have EG % column
+        self._highlight_optimal_row(table, columns)
 
         # Resize columns to content
         header = table.horizontalHeader()
         if header:
             header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
 
-    def _create_table_item(self, value) -> QTableWidgetItem:
+    def _create_table_item(
+        self, value, column_name: str = "", is_first_column: bool = False
+    ) -> QTableWidgetItem:
         """Create a formatted table item from a value.
 
         Args:
             value: The value to display (can be str, int, float, or None).
+            column_name: The name of the column for formatting decisions.
+            is_first_column: Whether this is the first column (label column).
 
         Returns:
             Formatted QTableWidgetItem.
         """
-        if value is None:
-            text = "-"
-        elif isinstance(value, float):
-            # Format floats with 2 decimal places
-            text = f"{value:.2f}"
-        elif isinstance(value, int):
-            text = str(value)
-        else:
-            text = str(value)
-
+        text = self._format_value(value, column_name)
         item = QTableWidgetItem(text)
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make read-only
 
-        # Right-align numeric values
-        if isinstance(value, (int, float)) and value is not None:
-            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        else:
+        # Set alignment and font based on column type
+        if is_first_column:
+            # First column: bold, left-aligned
             item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            font = QFont(Fonts.DATA)
+            font.setBold(True)
+            item.setFont(font)
+        elif isinstance(value, (int, float)) and value is not None:
+            # Numeric columns: right-aligned, Azeret Mono font
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setFont(QFont(Fonts.DATA))
+        else:
+            # Other columns: left-aligned
+            item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            item.setFont(QFont(Fonts.DATA))
 
         return item
+
+    def _format_value(self, value, column_name: str) -> str:
+        """Format a value for display based on column type.
+
+        Args:
+            value: The value to format.
+            column_name: The column name for determining format.
+
+        Returns:
+            Formatted string representation.
+        """
+        if value is None:
+            return "-"
+
+        # Count columns: integer with thousands separator
+        if column_name in COUNT_COLUMNS:
+            return f"{int(value):,}"
+
+        # Ratio columns: 3 decimal places
+        if column_name in RATIO_COLUMNS:
+            return f"{value:.3f}"
+
+        # Percentage columns: 2 decimal places with % symbol
+        if column_name in PERCENTAGE_COLUMNS:
+            return f"{value:.2f}%"
+
+        # Kelly columns: 2 decimal places with % symbol
+        if column_name in KELLY_COLUMNS:
+            return f"{value:.2f}%"
+
+        # Default formatting for other floats
+        if isinstance(value, float):
+            return f"{value:.2f}"
+        elif isinstance(value, int):
+            return str(value)
+        else:
+            return str(value)
+
+    def _style_cell(
+        self, item: QTableWidgetItem, value, column_name: str
+    ) -> None:
+        """Apply conditional styling to a cell based on value and column type.
+
+        Args:
+            item: The QTableWidgetItem to style.
+            value: The numeric value (or None).
+            column_name: The column name for determining if styling applies.
+        """
+        # Only style columns that should have conditional coloring
+        if column_name not in STYLED_COLUMNS:
+            return
+
+        # Only style numeric values
+        if value is None or not isinstance(value, (int, float)):
+            return
+
+        # Apply color based on positive/negative
+        if value > 0:
+            item.setBackground(QBrush(CELL_POSITIVE_BG))
+            item.setForeground(QBrush(CELL_POSITIVE_TEXT))
+        elif value < 0:
+            item.setBackground(QBrush(CELL_NEGATIVE_BG))
+            item.setForeground(QBrush(CELL_NEGATIVE_TEXT))
+
+    def _highlight_optimal_row(
+        self, table: QTableWidget, columns: list[str]
+    ) -> None:
+        """Highlight the row with the best EG% value.
+
+        Args:
+            table: The QTableWidget to modify.
+            columns: List of column names.
+        """
+        # Find EG % column index
+        eg_col_idx = None
+        for idx, col in enumerate(columns):
+            if col == "EG %":
+                eg_col_idx = idx
+                break
+
+        if eg_col_idx is None:
+            return  # No EG % column in this table
+
+        # Find row with highest EG%
+        max_eg = float("-inf")
+        max_row = -1
+
+        for row in range(table.rowCount()):
+            item = table.item(row, eg_col_idx)
+            if item and item.text() not in ("-", ""):
+                try:
+                    # Remove % symbol if present and convert to float
+                    text = item.text().replace("%", "")
+                    val = float(text)
+                    if val > max_eg:
+                        max_eg = val
+                        max_row = row
+                except ValueError:
+                    continue
+
+        # Apply optimal row styling (only if we found a valid max)
+        if max_row >= 0 and max_eg > float("-inf"):
+            for col in range(table.columnCount()):
+                item = table.item(max_row, col)
+                if item:
+                    # Apply subtle cyan background to entire row
+                    # Only if cell doesn't already have positive styling
+                    current_bg = item.background().color()
+                    if current_bg.alpha() == 0:  # No existing background
+                        item.setBackground(QBrush(ROW_OPTIMAL_BG))
