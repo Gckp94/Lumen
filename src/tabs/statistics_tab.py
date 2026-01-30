@@ -8,9 +8,12 @@ import pandas as pd
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QBrush, QColor, QFont
 from PyQt6.QtWidgets import (
+    QFileDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMessageBox,
+    QPushButton,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -30,6 +33,7 @@ from src.core.statistics import (
     calculate_stop_loss_table,
 )
 from src.ui.constants import Colors, Fonts, Spacing
+from src.utils.table_export import table_to_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +329,34 @@ class StatisticsTab(QWidget):
         # Add both widgets to layout
         layout.addWidget(self._empty_label)
         layout.addWidget(self._tab_widget)
+
+        # Export button row
+        export_row = QHBoxLayout()
+        export_row.addStretch()
+
+        self._export_btn = QPushButton("Export to Markdown")
+        self._export_btn.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                padding: 8px 16px;
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: {Colors.BG_BORDER};
+            }}
+            QPushButton:pressed {{
+                background-color: {Colors.BG_SURFACE};
+            }}
+        """
+        )
+        self._export_btn.clicked.connect(self._on_export_clicked)
+        export_row.addWidget(self._export_btn)
+
+        layout.addLayout(export_row)
 
         # Initially show empty state
         self._show_empty_state(True)
@@ -1059,3 +1091,51 @@ class StatisticsTab(QWidget):
                     current_bg = item.background().color()
                     if current_bg.alpha() == 0:  # No existing background
                         item.setBackground(QBrush(ROW_OPTIMAL_BG))
+
+    def _on_export_clicked(self) -> None:
+        """Handle export button click - export all tables to markdown."""
+        # Collect all tables with their titles
+        tables = [
+            ("MAE Before Win", self._mae_table),
+            ("MFE Before Loss", self._mfe_table),
+            ("Stop Loss", self._stop_loss_table),
+            ("Offset", self._offset_table),
+            ("Scaling", self._scaling_table),
+            ("Cover", self._cover_table),
+        ]
+
+        # Build combined markdown
+        sections = []
+        sections.append("# Statistics Export")
+        sections.append("")
+
+        for title, table in tables:
+            if table.rowCount() > 0:
+                md = table_to_markdown(table, title=title)
+                if md:
+                    sections.append(md)
+                    sections.append("")
+
+        markdown_content = "\n".join(sections)
+
+        if not markdown_content.strip() or markdown_content == "# Statistics Export\n":
+            QMessageBox.information(self, "Export", "No data to export.")
+            return
+
+        # Open file dialog
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Statistics to Markdown",
+            "statistics_export.md",
+            "Markdown Files (*.md);;All Files (*)",
+        )
+
+        if file_path:
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(markdown_content)
+                QMessageBox.information(
+                    self, "Export Complete", f"Statistics exported to:\n{file_path}"
+                )
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", f"Failed to export:\n{e}")
