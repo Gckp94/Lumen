@@ -217,18 +217,18 @@ class StatisticsTab(QWidget):
         return table
 
     def _create_scaling_widget(self) -> QWidget:
-        """Create scaling sub-tab with spinbox control."""
+        """Create scaling sub-tab with spinbox controls for target and cover."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
         layout.setSpacing(Spacing.MD)
 
         # Scale Out control row
-        control_row = QHBoxLayout()
-        control_row.setSpacing(Spacing.SM)
+        scale_out_row = QHBoxLayout()
+        scale_out_row.setSpacing(Spacing.SM)
 
-        label = QLabel("Scale Out:")
-        label.setStyleSheet(
+        scale_out_label = QLabel("Scale Out:")
+        scale_out_label.setStyleSheet(
             f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
@@ -237,7 +237,7 @@ class StatisticsTab(QWidget):
             }}
         """
         )
-        control_row.addWidget(label)
+        scale_out_row.addWidget(scale_out_label)
 
         self._scale_out_spin = QSpinBox()
         self._scale_out_spin.setRange(0, 100)
@@ -259,14 +259,62 @@ class StatisticsTab(QWidget):
             }}
         """
         )
-        control_row.addWidget(self._scale_out_spin)
-        control_row.addStretch()
+        scale_out_row.addWidget(self._scale_out_spin)
+        scale_out_row.addStretch()
 
-        layout.addLayout(control_row)
+        layout.addLayout(scale_out_row)
 
-        # Scaling table
+        # Scaling table (Partial Target %)
         self._scaling_table = self._create_table()
         layout.addWidget(self._scaling_table)
+
+        # Spacer between sections
+        layout.addSpacing(Spacing.LG)
+
+        # Cover control row
+        cover_row = QHBoxLayout()
+        cover_row.setSpacing(Spacing.SM)
+
+        cover_label = QLabel("Cover:")
+        cover_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 13px;
+            }}
+        """
+        )
+        cover_row.addWidget(cover_label)
+
+        self._cover_spin = QSpinBox()
+        self._cover_spin.setRange(0, 100)
+        self._cover_spin.setValue(50)
+        self._cover_spin.setSingleStep(10)
+        self._cover_spin.setSuffix("%")
+        self._cover_spin.setStyleSheet(
+            f"""
+            QSpinBox {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.DATA}';
+                padding: 6px 12px;
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+            }}
+            QSpinBox:focus {{
+                border-color: {Colors.SIGNAL_CYAN};
+            }}
+        """
+        )
+        cover_row.addWidget(self._cover_spin)
+        cover_row.addStretch()
+
+        layout.addLayout(cover_row)
+
+        # Cover table (Partial Cover %)
+        self._cover_table = self._create_table()
+        layout.addWidget(self._cover_table)
 
         return widget
 

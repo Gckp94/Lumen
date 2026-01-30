@@ -358,6 +358,23 @@ class TestStatisticsTabTables:
         assert tab._scale_out_spin.minimum() == 0
         assert tab._scale_out_spin.maximum() == 100
 
+    def test_cover_spinbox_exists(self, app, test_df, test_mapping):
+        """Test that cover spinbox exists with correct range."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+
+        assert hasattr(tab, "_cover_spin")
+        assert tab._cover_spin.minimum() == 0
+        assert tab._cover_spin.maximum() == 100
+        assert tab._cover_spin.value() == 50
+
+    def test_cover_table_exists(self, app, test_df, test_mapping):
+        """Test that cover table exists."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+
+        assert hasattr(tab, "_cover_table")
+
 
 class TestStatisticsTabTablePopulation:
     """Test table population helper methods."""
