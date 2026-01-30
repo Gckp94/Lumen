@@ -21,6 +21,20 @@ MAE_WIN_BUCKETS = [
 # MAE thresholds for probability columns
 MAE_THRESHOLDS = [5, 10, 15, 20]
 
+# Bucket definitions for MFE before loss table
+# Same structure as MAE buckets but for loss magnitude (absolute value)
+MFE_LOSS_BUCKETS = [
+    (">0%", 0, 10),      # 0% < |loss| <= 10%
+    (">10%", 10, 20),    # 10% < |loss| <= 20%
+    (">20%", 20, 30),    # 20% < |loss| <= 30%
+    (">30%", 30, 40),    # 30% < |loss| <= 40%
+    (">40%", 40, 50),    # 40% < |loss| <= 50%
+    (">50%", 50, None),  # |loss| > 50%
+]
+
+# MFE thresholds for probability columns
+MFE_THRESHOLDS = [5, 10, 15, 20]
+
 
 def calculate_mae_before_win(df: pd.DataFrame, mapping: ColumnMapping) -> pd.DataFrame:
     """Calculate MAE probabilities for winning trades by gain bucket.
@@ -143,8 +157,108 @@ def calculate_mfe_before_loss(df: pd.DataFrame, mapping: ColumnMapping) -> pd.Da
 
     Returns:
         DataFrame with rows for each loss bucket and MFE probability columns.
+        Columns: % Loss per Trade, # of Plays, % of Total, Avg %, Median %,
+                 >5% MFE Probability, >10% MFE Probability,
+                 >15% MFE Probability, >20% MFE Probability
     """
-    raise NotImplementedError
+    # Filter to losing trades only (adjusted_gain_pct < 0)
+    losers = df[df["adjusted_gain_pct"] < 0].copy()
+    total_losers = len(losers)
+
+    # Handle empty case
+    if total_losers == 0:
+        return pd.DataFrame(columns=[
+            "% Loss per Trade", "# of Plays", "% of Total", "Avg %", "Median %",
+            ">5% MFE Probability", ">10% MFE Probability",
+            ">15% MFE Probability", ">20% MFE Probability"
+        ])
+
+    # Convert adjusted_gain_pct from decimal to percentage (absolute value for bucketing)
+    # Loss magnitude is always positive for display
+    losers["loss_pct_display"] = losers["adjusted_gain_pct"].abs() * 100
+
+    # Get mfe_pct column name from mapping
+    mfe_col = mapping.mfe_pct
+
+    # Build result rows
+    rows = []
+
+    # Overall row first
+    overall_row = _calculate_loss_bucket_row(
+        "Overall", losers, losers, total_losers, mfe_col
+    )
+    rows.append(overall_row)
+
+    # Bucket rows
+    for label, lower, upper in MFE_LOSS_BUCKETS:
+        if upper is None:
+            # >50% bucket: |loss| > 50%
+            bucket_mask = losers["loss_pct_display"] > lower
+        else:
+            # Standard bucket: lower < |loss| <= upper
+            bucket_mask = (losers["loss_pct_display"] > lower) & (losers["loss_pct_display"] <= upper)
+
+        bucket_df = losers[bucket_mask]
+        row = _calculate_loss_bucket_row(label, bucket_df, losers, total_losers, mfe_col)
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def _calculate_loss_bucket_row(
+    label: str,
+    bucket_df: pd.DataFrame,
+    all_losers: pd.DataFrame,
+    total_losers: int,
+    mfe_col: str
+) -> dict:
+    """Calculate metrics for a single loss bucket row.
+
+    Args:
+        label: Row label (e.g., "Overall", ">0%").
+        bucket_df: DataFrame of trades in this bucket.
+        all_losers: DataFrame of all losing trades (for MFE probability denominator).
+        total_losers: Total number of losers.
+        mfe_col: Column name for MFE percentage.
+
+    Returns:
+        Dictionary with row data.
+    """
+    count = len(bucket_df)
+
+    if count == 0:
+        return {
+            "% Loss per Trade": label,
+            "# of Plays": 0,
+            "% of Total": 0.0,
+            "Avg %": None,
+            "Median %": None,
+            ">5% MFE Probability": 0.0,
+            ">10% MFE Probability": 0.0,
+            ">15% MFE Probability": 0.0,
+            ">20% MFE Probability": 0.0,
+        }
+
+    # Calculate statistics (using absolute loss values)
+    avg_pct = bucket_df["loss_pct_display"].mean()
+    median_pct = bucket_df["loss_pct_display"].median()
+    pct_of_total = (count / total_losers) * 100
+
+    # Calculate MFE probabilities
+    # "Count where mfe_pct > threshold / total losers x 100"
+    mfe_probs = {}
+    for threshold in MFE_THRESHOLDS:
+        mfe_count = (bucket_df[mfe_col] > threshold).sum()
+        mfe_probs[f">{threshold}% MFE Probability"] = (mfe_count / total_losers) * 100
+
+    return {
+        "% Loss per Trade": label,
+        "# of Plays": count,
+        "% of Total": pct_of_total,
+        "Avg %": avg_pct,
+        "Median %": median_pct,
+        **mfe_probs,
+    }
 
 
 def calculate_stop_loss_table(
