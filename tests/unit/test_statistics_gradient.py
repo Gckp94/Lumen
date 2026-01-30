@@ -120,3 +120,75 @@ class TestCalculateGradientColors:
 
         assert bg_normal.green() > bg_inverted.green()
         assert bg_inverted.red() > bg_normal.red()
+
+
+class TestGradientStyler:
+    """Tests for GradientStyler class."""
+
+    def test_set_and_get_column_range(self):
+        """Should store and retrieve column ranges."""
+        from src.tabs.statistics_tab import GradientStyler, GRADIENT_LOW
+
+        styler = GradientStyler()
+        styler.set_column_range("EG %", -5.0, 15.0)
+
+        # Min value should get low gradient
+        bg, _ = styler.get_cell_colors("EG %", -5.0)
+        assert bg.red() == GRADIENT_LOW.red()
+
+    def test_excluded_column_returns_default(self):
+        """Excluded columns should return default colors."""
+        from src.tabs.statistics_tab import GradientStyler, CELL_DEFAULT_BG
+
+        styler = GradientStyler()
+        styler.set_column_range("Level", 10, 100)
+
+        bg, text = styler.get_cell_colors("Level", 50)
+
+        assert bg.alpha() == CELL_DEFAULT_BG.alpha()
+
+    def test_none_value_returns_default(self):
+        """None values should return default colors."""
+        from src.tabs.statistics_tab import GradientStyler, CELL_DEFAULT_BG
+
+        styler = GradientStyler()
+        styler.set_column_range("EG %", 0, 100)
+
+        bg, text = styler.get_cell_colors("EG %", None)
+
+        assert bg.alpha() == CELL_DEFAULT_BG.alpha()
+
+    def test_nan_value_returns_default(self):
+        """NaN values should return default colors."""
+        from src.tabs.statistics_tab import GradientStyler, CELL_DEFAULT_BG
+
+        styler = GradientStyler()
+        styler.set_column_range("EG %", 0, 100)
+
+        bg, text = styler.get_cell_colors("EG %", float('nan'))
+
+        assert bg.alpha() == CELL_DEFAULT_BG.alpha()
+
+    def test_unknown_column_returns_default(self):
+        """Unknown columns should return default colors."""
+        from src.tabs.statistics_tab import GradientStyler, CELL_DEFAULT_BG
+
+        styler = GradientStyler()
+        # Don't register any range
+
+        bg, text = styler.get_cell_colors("Unknown Column", 50)
+
+        assert bg.alpha() == CELL_DEFAULT_BG.alpha()
+
+    def test_clear_ranges(self):
+        """clear_ranges should remove all stored ranges."""
+        from src.tabs.statistics_tab import GradientStyler, CELL_DEFAULT_BG
+
+        styler = GradientStyler()
+        styler.set_column_range("EG %", 0, 100)
+        styler.clear_ranges()
+
+        bg, text = styler.get_cell_colors("EG %", 50)
+
+        # Should return default since range was cleared
+        assert bg.alpha() == CELL_DEFAULT_BG.alpha()

@@ -181,6 +181,73 @@ def calculate_gradient_colors(
     return (bg_color, text_color)
 
 
+# Columns to exclude from gradient styling (first/label columns)
+GRADIENT_EXCLUDED_COLUMNS = frozenset({
+    "Level",
+    "Stop Loss %",
+    "Offset %",
+    "Target %",
+    "Scale Out %",
+    "Cover %",
+    "Gain Bucket",
+})
+
+
+class GradientStyler:
+    """Manages gradient styling for table columns.
+
+    Usage:
+        styler = GradientStyler()
+        styler.set_column_range("EG %", -5.0, 15.0)
+        bg, text = styler.get_cell_colors("EG %", 8.5)
+    """
+
+    def __init__(self):
+        self._column_ranges: dict[str, Tuple[float, float]] = {}
+
+    def set_column_range(self, column_name: str, min_val: float, max_val: float) -> None:
+        """Register the min/max range for a column."""
+        self._column_ranges[column_name] = (min_val, max_val)
+
+    def clear_ranges(self) -> None:
+        """Clear all registered column ranges."""
+        self._column_ranges.clear()
+
+    def get_cell_colors(
+        self,
+        column_name: str,
+        value: float | None
+    ) -> Tuple[QColor, QColor]:
+        """Get background and text colors for a cell.
+
+        Args:
+            column_name: Name of the column
+            value: Cell's numeric value (or None)
+
+        Returns:
+            Tuple of (background_color, text_color)
+        """
+        # Excluded columns get default styling
+        if column_name in GRADIENT_EXCLUDED_COLUMNS:
+            return (CELL_DEFAULT_BG, CELL_DEFAULT_TEXT)
+
+        # Non-numeric values get default styling
+        if value is None:
+            return (CELL_DEFAULT_BG, CELL_DEFAULT_TEXT)
+
+        if isinstance(value, float) and math.isnan(value):
+            return (CELL_DEFAULT_BG, CELL_DEFAULT_TEXT)
+
+        # Get column range
+        range_data = self._column_ranges.get(column_name)
+        if range_data is None:
+            return (CELL_DEFAULT_BG, CELL_DEFAULT_TEXT)
+
+        min_val, max_val = range_data
+
+        return calculate_gradient_colors(value, min_val, max_val, invert=False)
+
+
 class StatisticsTab(QWidget):
     """Tab displaying 5 statistics tables as sub-tabs."""
 
