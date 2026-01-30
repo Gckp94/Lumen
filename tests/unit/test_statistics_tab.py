@@ -656,3 +656,203 @@ class TestStatisticsTabStyling:
         # Verify negative colors are coral-ish
         assert CELL_NEGATIVE_BG.red() > CELL_NEGATIVE_BG.green()
         assert CELL_NEGATIVE_TEXT.red() > CELL_NEGATIVE_TEXT.green()
+
+
+class TestStatisticsTabEmptyStates:
+    """Test empty state handling when no data is loaded or columns are missing."""
+
+    def test_shows_empty_message_no_data(self, app):
+        """Test empty state message when no data loaded."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+        tab.show()  # Need to show widget for visibility to work in PyQt
+
+        # Should show empty placeholder
+        assert hasattr(tab, "_empty_label"), "Tab should have empty label"
+        assert tab._empty_label.isVisible(), "Empty label should be visible when no data"
+        assert not tab._tab_widget.isVisible(), "Tab widget should be hidden when no data"
+        assert "Load trade data" in tab._empty_label.text()
+
+    def test_hides_empty_message_when_data_loaded(self, app):
+        """Test empty state hidden when data is loaded."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+        tab.show()  # Need to show widget for visibility to work in PyQt
+
+        # Initially should show empty state
+        assert tab._empty_label.isVisible()
+
+        # Load data
+        test_df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, -0.05, 0.15],
+            "mae_pct": [5.0, 15.0, 8.0],
+            "mfe_pct": [12.0, 5.0, 20.0],
+            "gain_pct": [0.10, -0.05, 0.15],
+            "ticker": ["AAPL"] * 3,
+            "date": ["2024-01-01"] * 3,
+            "time": ["09:30"] * 3,
+        })
+        test_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+
+        app_state.baseline_df = test_df
+        app_state.column_mapping = test_mapping
+
+        from src.core.models import TradingMetrics
+        dummy_metrics = TradingMetrics(
+            num_trades=3, win_rate=66.67, avg_winner=12.5, avg_loser=-5.0,
+            rr_ratio=2.5, ev=7.0, kelly=15.0
+        )
+        app_state.baseline_calculated.emit(dummy_metrics)
+
+        # Empty state should be hidden, tab widget visible
+        assert not tab._empty_label.isVisible(), "Empty label should be hidden when data loaded"
+        assert tab._tab_widget.isVisible(), "Tab widget should be visible when data loaded"
+
+    def test_disables_mfe_tables_when_missing(self, app):
+        """Test MFE-dependent tables disabled when mfe_pct column missing from data."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+
+        # Create DataFrame without mfe_pct column
+        test_df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, -0.05, 0.15],
+            "mae_pct": [5.0, 15.0, 8.0],
+            # No mfe_pct column
+            "gain_pct": [0.10, -0.05, 0.15],
+            "ticker": ["AAPL"] * 3,
+            "date": ["2024-01-01"] * 3,
+            "time": ["09:30"] * 3,
+        })
+
+        # Create mapping that references the missing column (simulates data that doesn't have it)
+        test_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",  # This column doesn't exist in the DataFrame
+        )
+
+        app_state.baseline_df = test_df
+        app_state.column_mapping = test_mapping
+
+        from src.core.models import TradingMetrics
+        dummy_metrics = TradingMetrics(
+            num_trades=3, win_rate=66.67, avg_winner=12.5, avg_loser=-5.0,
+            rr_ratio=2.5, ev=7.0, kelly=15.0
+        )
+        app_state.baseline_calculated.emit(dummy_metrics)
+
+        # MFE Before Loss tab (index 1) should be disabled
+        assert not tab._tab_widget.isTabEnabled(1), "MFE Before Loss tab should be disabled"
+        # Scaling tab (index 4) should be disabled
+        assert not tab._tab_widget.isTabEnabled(4), "Scaling tab should be disabled"
+
+        # MAE-dependent tabs should still be enabled
+        assert tab._tab_widget.isTabEnabled(0), "MAE Before Win tab should be enabled"
+        assert tab._tab_widget.isTabEnabled(2), "Stop Loss tab should be enabled"
+        assert tab._tab_widget.isTabEnabled(3), "Offset tab should be enabled"
+
+    def test_disables_mae_tables_when_missing(self, app):
+        """Test MAE-dependent tables disabled when mae_pct column missing from data."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+
+        # Create DataFrame without mae_pct column
+        test_df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, -0.05, 0.15],
+            # No mae_pct column
+            "mfe_pct": [12.0, 5.0, 20.0],
+            "gain_pct": [0.10, -0.05, 0.15],
+            "ticker": ["AAPL"] * 3,
+            "date": ["2024-01-01"] * 3,
+            "time": ["09:30"] * 3,
+        })
+
+        # Create mapping that references the missing column
+        test_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",  # This column doesn't exist in the DataFrame
+            mfe_pct="mfe_pct",
+        )
+
+        app_state.baseline_df = test_df
+        app_state.column_mapping = test_mapping
+
+        from src.core.models import TradingMetrics
+        dummy_metrics = TradingMetrics(
+            num_trades=3, win_rate=66.67, avg_winner=12.5, avg_loser=-5.0,
+            rr_ratio=2.5, ev=7.0, kelly=15.0
+        )
+        app_state.baseline_calculated.emit(dummy_metrics)
+
+        # MAE-dependent tabs should be disabled
+        assert not tab._tab_widget.isTabEnabled(0), "MAE Before Win tab should be disabled"
+        assert not tab._tab_widget.isTabEnabled(2), "Stop Loss tab should be disabled"
+        assert not tab._tab_widget.isTabEnabled(3), "Offset tab should be disabled"
+
+        # MFE-dependent tabs should still be enabled
+        assert tab._tab_widget.isTabEnabled(1), "MFE Before Loss tab should be enabled"
+        assert tab._tab_widget.isTabEnabled(4), "Scaling tab should be enabled"
+
+    def test_all_tabs_enabled_when_all_columns_present(self, app):
+        """Test all tabs enabled when both mae_pct and mfe_pct columns present."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+
+        # Create DataFrame with all columns
+        test_df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, -0.05, 0.15],
+            "mae_pct": [5.0, 15.0, 8.0],
+            "mfe_pct": [12.0, 5.0, 20.0],
+            "gain_pct": [0.10, -0.05, 0.15],
+            "ticker": ["AAPL"] * 3,
+            "date": ["2024-01-01"] * 3,
+            "time": ["09:30"] * 3,
+        })
+
+        test_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+
+        app_state.baseline_df = test_df
+        app_state.column_mapping = test_mapping
+
+        from src.core.models import TradingMetrics
+        dummy_metrics = TradingMetrics(
+            num_trades=3, win_rate=66.67, avg_winner=12.5, avg_loser=-5.0,
+            rr_ratio=2.5, ev=7.0, kelly=15.0
+        )
+        app_state.baseline_calculated.emit(dummy_metrics)
+
+        # All tabs should be enabled
+        for i in range(5):
+            assert tab._tab_widget.isTabEnabled(i), f"Tab {i} should be enabled"
+
+    def test_all_tabs_disabled_when_no_mapping(self, app):
+        """Test all tabs disabled when no column mapping is set."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+
+        # No column mapping set, should be in empty state with all tabs disabled
+        # When in empty state, tab_widget is hidden but tabs should be disabled
+        tab._check_column_availability(None)
+
+        for i in range(5):
+            assert not tab._tab_widget.isTabEnabled(i), f"Tab {i} should be disabled when no mapping"

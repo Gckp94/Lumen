@@ -131,6 +131,17 @@ class StatisticsTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
+        # Empty state label - shown when no data is loaded
+        self._empty_label = QLabel("Load trade data to view statistics")
+        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Colors.TEXT_SECONDARY};
+                font-family: '{Fonts.UI}';
+                font-size: 16px;
+            }}
+        """)
+
         # Sub-tabs using QTabWidget
         self._tab_widget = QTabWidget()
         self._style_tab_widget()
@@ -148,7 +159,12 @@ class StatisticsTab(QWidget):
         self._tab_widget.addTab(self._offset_table, "Offset")
         self._tab_widget.addTab(self._scaling_widget, "Scaling")
 
+        # Add both widgets to layout
+        layout.addWidget(self._empty_label)
         layout.addWidget(self._tab_widget)
+
+        # Initially show empty state
+        self._show_empty_state(True)
 
     def _style_tab_widget(self) -> None:
         """Apply Observatory theme styling to tab widget."""
@@ -272,10 +288,18 @@ class StatisticsTab(QWidget):
             return
 
         # Prefer filtered data if available, otherwise use baseline
+        df = None
         if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
-            self._update_all_tables(self._app_state.filtered_df)
+            df = self._app_state.filtered_df
         elif self._app_state.baseline_df is not None and not self._app_state.baseline_df.empty:
-            self._update_all_tables(self._app_state.baseline_df)
+            df = self._app_state.baseline_df
+
+        if df is not None:
+            # Hide empty state and show tables
+            self._show_empty_state(False)
+            # Check column availability and enable/disable tabs accordingly
+            self._check_column_availability(df)
+            self._update_all_tables(df)
 
     def _on_baseline_calculated(self, metrics: TradingMetrics) -> None:
         """Handle baseline metrics calculated signal.
@@ -292,6 +316,12 @@ class StatisticsTab(QWidget):
         if self._app_state.baseline_df is None or not self._app_state.column_mapping:
             return
 
+        # Hide empty state and show tables
+        self._show_empty_state(False)
+
+        # Check column availability and enable/disable tabs accordingly
+        self._check_column_availability(self._app_state.baseline_df)
+
         self._update_all_tables(self._app_state.baseline_df)
 
     def _on_filtered_data_updated(self, df: pd.DataFrame) -> None:
@@ -302,6 +332,12 @@ class StatisticsTab(QWidget):
         """
         if not self._app_state.column_mapping:
             return
+
+        # Hide empty state and show tables
+        self._show_empty_state(False)
+
+        # Check column availability and enable/disable tabs accordingly
+        self._check_column_availability(df)
 
         self._update_all_tables(df)
 
@@ -322,6 +358,49 @@ class StatisticsTab(QWidget):
             value: New scale out percentage (10-90).
         """
         self._refresh_scaling_table()
+
+    def _show_empty_state(self, show: bool) -> None:
+        """Show or hide the empty state.
+
+        Args:
+            show: True to show empty state, False to show tables.
+        """
+        self._empty_label.setVisible(show)
+        self._tab_widget.setVisible(not show)
+
+    def _check_column_availability(self, df: pd.DataFrame | None) -> None:
+        """Check which columns are available and enable/disable tabs accordingly.
+
+        Args:
+            df: The DataFrame to check for column availability, or None.
+        """
+        mapping = self._app_state.column_mapping
+
+        if mapping is None or df is None:
+            # Disable all tabs when no mapping or data
+            for i in range(self._tab_widget.count()):
+                self._tab_widget.setTabEnabled(i, False)
+            return
+
+        # Check if MAE and MFE columns exist in the actual DataFrame
+        df_columns = list(df.columns)
+        has_mae = mapping.mae_pct in df_columns
+        has_mfe = mapping.mfe_pct in df_columns
+
+        # MAE-dependent tabs (indices 0, 2, 3)
+        self._tab_widget.setTabEnabled(0, has_mae)  # MAE Before Win
+        self._tab_widget.setTabEnabled(2, has_mae)  # Stop Loss
+        self._tab_widget.setTabEnabled(3, has_mae)  # Offset
+
+        # MFE-dependent tabs (indices 1, 4)
+        self._tab_widget.setTabEnabled(1, has_mfe)  # MFE Before Loss
+        self._tab_widget.setTabEnabled(4, has_mfe)  # Scaling
+
+        # Log warnings for missing columns
+        if not has_mae:
+            logger.warning(f"MAE column '{mapping.mae_pct}' not found in data. MAE-dependent tabs disabled.")
+        if not has_mfe:
+            logger.warning(f"MFE column '{mapping.mfe_pct}' not found in data. MFE-dependent tabs disabled.")
 
     def _get_current_df(self) -> pd.DataFrame | None:
         """Get the current DataFrame to use for calculations.
