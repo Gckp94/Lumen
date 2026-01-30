@@ -71,6 +71,7 @@ def sample_column_mapping() -> "ColumnMapping":
         time="time",
         gain_pct="gain_pct",
         mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
         win_loss_derived=True,
     )
 
@@ -115,6 +116,8 @@ def sample_trades() -> pd.DataFrame:
             "date": ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"],
             "time": ["09:30:00", "10:00:00", "09:35:00", "11:00:00", "14:30:00"],
             "gain_pct": [-5.0, 0.0, 5.0, 10.0, 15.0],
+            "mae_pct": [2.0, 1.0, 0.5, 1.5, 1.0],
+            "mfe_pct": [0.5, 1.0, 6.0, 12.0, 16.0],
             "volume": [1000, 2000, 1500, 3000, 2500],
         }
     )

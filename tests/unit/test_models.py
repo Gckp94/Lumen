@@ -14,8 +14,9 @@ class TestColumnMapping:
             time="time",
             gain_pct="gain_pct",
             mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
         )
-        errors = mapping.validate(["ticker", "date", "time", "gain_pct", "mae_pct"])
+        errors = mapping.validate(["ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct"])
         assert errors == []
 
     def test_validate_missing_required(self) -> None:
@@ -26,13 +27,15 @@ class TestColumnMapping:
             time="time",
             gain_pct="gain_pct",
             mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
         )
-        errors = mapping.validate(["ticker", "date"])  # missing time, gain_pct, mae_pct
+        errors = mapping.validate(["ticker", "date"])  # missing time, gain_pct, mae_pct, mfe_pct
 
-        assert len(errors) == 3
+        assert len(errors) == 4
         assert "time" in errors[0]
         assert "gain_pct" in errors[1]
         assert "mae_pct" in errors[2]
+        assert "mfe_pct" in errors[3]
 
     def test_validate_missing_win_loss(self) -> None:
         """Validate returns error for missing win_loss column when specified."""
@@ -42,9 +45,10 @@ class TestColumnMapping:
             time="time",
             gain_pct="gain_pct",
             mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
             win_loss="result",
         )
-        errors = mapping.validate(["ticker", "date", "time", "gain_pct", "mae_pct"])
+        errors = mapping.validate(["ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct"])
 
         assert len(errors) == 1
         assert "Win/Loss" in errors[0]
@@ -58,9 +62,10 @@ class TestColumnMapping:
             time="time",
             gain_pct="gain_pct",
             mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
             win_loss=None,
         )
-        errors = mapping.validate(["ticker", "date", "time", "gain_pct", "mae_pct"])
+        errors = mapping.validate(["ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct"])
         assert errors == []
 
     def test_defaults(self) -> None:
@@ -71,6 +76,7 @@ class TestColumnMapping:
             time="ti",
             gain_pct="g",
             mae_pct="m",
+            mfe_pct="mf",
         )
         assert mapping.win_loss is None
         assert mapping.win_loss_derived is False
@@ -84,6 +90,7 @@ class TestColumnMapping:
             time="time",
             gain_pct="gain",
             mae_pct="mae",
+            mfe_pct="mfe",
             win_loss="result",
             win_loss_derived=True,
             breakeven_is_win=True,
@@ -93,9 +100,23 @@ class TestColumnMapping:
         assert mapping.time == "time"
         assert mapping.gain_pct == "gain"
         assert mapping.mae_pct == "mae"
+        assert mapping.mfe_pct == "mfe"
         assert mapping.win_loss == "result"
         assert mapping.win_loss_derived is True
         assert mapping.breakeven_is_win is True
+
+
+    def test_column_mapping_requires_mfe_pct(self) -> None:
+        """Test that ColumnMapping requires mfe_pct field."""
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+        assert mapping.mfe_pct == "mfe_pct"
 
 
 class TestDetectionResult:
@@ -110,7 +131,7 @@ class TestDetectionResult:
 
     def test_with_mapping(self) -> None:
         """DetectionResult with mapping."""
-        mapping = ColumnMapping(ticker="t", date="d", time="ti", gain_pct="g", mae_pct="m")
+        mapping = ColumnMapping(ticker="t", date="d", time="ti", gain_pct="g", mae_pct="m", mfe_pct="mf")
         result = DetectionResult(
             mapping=mapping,
             statuses={"ticker": "detected", "date": "detected"},

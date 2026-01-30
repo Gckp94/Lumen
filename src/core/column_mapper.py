@@ -24,10 +24,11 @@ class ColumnMapper:
         "time": ["time", "trade_time", "entry_time"],
         "gain_pct": ["gain", "return", "pnl", "profit", "%"],
         "mae_pct": ["mae", "max_adverse", "adverse", "drawdown", "mae_pct"],
+        "mfe_pct": ["mfe", "max_favorable", "favorable", "runup", "mfe_pct"],
         "win_loss": ["win", "loss", "result", "outcome"],
     }
 
-    REQUIRED_COLUMNS = ["ticker", "date", "time", "gain_pct", "mae_pct"]
+    REQUIRED_COLUMNS = ["ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct"]
 
     def __init__(self, cache_dir: Path | None = None) -> None:
         """Initialize ColumnMapper.
@@ -67,15 +68,17 @@ class ColumnMapper:
                 time=detected["time"],  # type: ignore[arg-type]
                 gain_pct=detected["gain_pct"],  # type: ignore[arg-type]
                 mae_pct=detected["mae_pct"],  # type: ignore[arg-type]
+                mfe_pct=detected["mfe_pct"],  # type: ignore[arg-type]
                 win_loss=detected.get("win_loss"),
             )
             logger.info(
-                "Column mapping completed: ticker=%s, date=%s, time=%s, gain=%s, mae=%s",
+                "Column mapping completed: ticker=%s, date=%s, time=%s, gain=%s, mae=%s, mfe=%s",
                 mapping.ticker,
                 mapping.date,
                 mapping.time,
                 mapping.gain_pct,
                 mapping.mae_pct,
+                mapping.mfe_pct,
             )
         else:
             missing = [col for col in self.REQUIRED_COLUMNS if statuses.get(col) != "detected"]

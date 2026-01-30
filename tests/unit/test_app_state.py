@@ -54,6 +54,7 @@ class TestAppStateHasData:
             time="time",
             gain_pct="gain_pct",
             mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
         )
 
         assert state.has_data is False
@@ -68,6 +69,7 @@ class TestAppStateHasData:
             time="time",
             gain_pct="gain_pct",
             mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
         )
 
         assert state.has_data is True
@@ -93,6 +95,7 @@ class TestAppStateSignals:
             time="time",
             gain_pct="gain_pct",
             mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
         )
 
         with qtbot.waitSignal(state.column_mapping_changed, timeout=100):

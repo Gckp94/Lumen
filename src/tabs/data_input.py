@@ -109,6 +109,7 @@ class ColumnConfigPanel(QWidget):
             ("time", "Time"),
             ("gain_pct", "Gain %"),
             ("mae_pct", "MAE %"),
+            ("mfe_pct", "MFE %"),
         ]
 
         row = 0
@@ -467,7 +468,7 @@ class ColumnConfigPanel(QWidget):
         selected: list[str] = []
 
         # Check required fields
-        required = ["ticker", "date", "time", "gain_pct", "mae_pct"]
+        required = ["ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct"]
         for field in required:
             value = self._combos[field].currentText()
             if not value:
@@ -507,18 +508,20 @@ class ColumnConfigPanel(QWidget):
             time=self._combos["time"].currentText(),
             gain_pct=self._combos["gain_pct"].currentText(),
             mae_pct=self._combos["mae_pct"].currentText(),
+            mfe_pct=self._combos["mfe_pct"].currentText(),
             win_loss=self._combos["win_loss"].currentText() or None,
             win_loss_derived=self._derive_checkbox.isChecked(),
             breakeven_is_win=self._breakeven_checkbox.isChecked(),
         )
 
         logger.info(
-            "Column mapping completed: ticker=%s, date=%s, time=%s, gain=%s, mae=%s",
+            "Column mapping completed: ticker=%s, date=%s, time=%s, gain=%s, mae=%s, mfe=%s",
             mapping.ticker,
             mapping.date,
             mapping.time,
             mapping.gain_pct,
             mapping.mae_pct,
+            mapping.mfe_pct,
         )
 
         self.mapping_completed.emit(mapping)
@@ -538,6 +541,7 @@ class ColumnConfigPanel(QWidget):
             time=self._combos["time"].currentText(),
             gain_pct=self._combos["gain_pct"].currentText(),
             mae_pct=self._combos["mae_pct"].currentText(),
+            mfe_pct=self._combos["mfe_pct"].currentText(),
             win_loss=self._combos["win_loss"].currentText() or None,
             win_loss_derived=self._derive_checkbox.isChecked(),
             breakeven_is_win=self._breakeven_checkbox.isChecked(),
@@ -660,7 +664,8 @@ class ColumnMappingSuccessPanel(QWidget):
             f"Date: {mapping.date}\n"
             f"Time: {mapping.time}\n"
             f"Gain %: {mapping.gain_pct}\n"
-            f"MAE %: {mapping.mae_pct}"
+            f"MAE %: {mapping.mae_pct}\n"
+            f"MFE %: {mapping.mfe_pct}"
         )
         if mapping.win_loss:
             summary += f"\nWin/Loss: {mapping.win_loss}"

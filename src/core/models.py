@@ -19,6 +19,7 @@ class ColumnMapping:
         time: Column name for trade time.
         gain_pct: Column name for gain percentage.
         mae_pct: Column name for Maximum Adverse Excursion percentage.
+        mfe_pct: Column name for Maximum Favorable Excursion percentage.
         win_loss: Optional column name for win/loss indicator.
         win_loss_derived: Whether win/loss is derived from gain_pct.
         breakeven_is_win: When deriving, is 0% gain considered a win?
@@ -29,6 +30,7 @@ class ColumnMapping:
     time: str
     gain_pct: str
     mae_pct: str
+    mfe_pct: str
     win_loss: str | None = None
     win_loss_derived: bool = False
     breakeven_is_win: bool = False
@@ -43,7 +45,7 @@ class ColumnMapping:
             List of validation error messages. Empty list if valid.
         """
         errors: list[str] = []
-        required = [self.ticker, self.date, self.time, self.gain_pct, self.mae_pct]
+        required = [self.ticker, self.date, self.time, self.gain_pct, self.mae_pct, self.mfe_pct]
         for col in required:
             if col not in df_columns:
                 errors.append(f"Column '{col}' not found in data")
