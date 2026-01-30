@@ -829,6 +829,133 @@ def _calculate_scaling_row(
     }
 
 
+def _calculate_cover_row(
+    df: pd.DataFrame,
+    mae_col: str,
+    threshold: int,
+    cover_pct: float,
+) -> dict:
+    """Calculate metrics for a single cover threshold level.
+
+    Args:
+        df: Trade data DataFrame.
+        mae_col: Column name for MAE percentage (percentage points).
+        threshold: Threshold level for partial cover (e.g., 10 for 10%).
+        cover_pct: Fraction of position to cover (0-1).
+
+    Returns:
+        Dictionary with metrics for this threshold level.
+    """
+    total_trades = len(df)
+
+    # Handle empty data
+    if total_trades == 0:
+        return {
+            "Partial Cover %": threshold,
+            "% of Trades": 0.0,
+            "Avg Blended Return %": None,
+            "Avg Full Hold Return %": None,
+            "Total Blended Return %": 0.0,
+            "Total Full Hold Return %": 0.0,
+            "Blended Win %": 0.0,
+            "Full Hold Win %": 0.0,
+            "Blended Profit Ratio": None,
+            "Full Hold Profit Ratio": None,
+            "Blended Edge %": None,
+            "Full Hold Edge %": None,
+            "Blended EG %": None,
+            "Full Hold EG %": None,
+        }
+
+    # Full hold returns (in decimal, e.g., 0.10 = 10%)
+    full_hold_returns = df["adjusted_gain_pct"].copy()
+
+    # Calculate blended returns for each trade
+    # If mae_pct >= threshold: blended = cover_pct * (-threshold/100) + (1-cover_pct) * full_hold
+    # If mae_pct < threshold: blended = full_hold (threshold not reached, no cover)
+    threshold_reached_mask = df[mae_col] >= threshold
+    reached_count = threshold_reached_mask.sum()
+
+    # Calculate blended returns
+    blended_returns = full_hold_returns.copy()
+    # For trades that reached the threshold, apply the blending formula
+    # Cover at a loss: -threshold/100 converts threshold to negative decimal
+    blended_returns[threshold_reached_mask] = (
+        cover_pct * (-threshold / 100.0)
+        + (1 - cover_pct) * full_hold_returns[threshold_reached_mask]
+    )
+
+    # % of Trades reaching threshold
+    pct_of_trades = (reached_count / total_trades) * 100
+
+    # Convert returns to percentages for display
+    blended_returns_pct = blended_returns * 100
+    full_hold_returns_pct = full_hold_returns * 100
+
+    # Calculate averages
+    avg_blended = blended_returns_pct.mean()
+    avg_full_hold = full_hold_returns_pct.mean()
+
+    # Calculate totals
+    total_blended = blended_returns_pct.sum()
+    total_full_hold = full_hold_returns_pct.sum()
+
+    # Calculate metrics for blended returns
+    blended_metrics = _calculate_return_metrics(blended_returns)
+
+    # Calculate metrics for full hold returns
+    full_hold_metrics = _calculate_return_metrics(full_hold_returns)
+
+    return {
+        "Partial Cover %": threshold,
+        "% of Trades": pct_of_trades,
+        "Avg Blended Return %": avg_blended,
+        "Avg Full Hold Return %": avg_full_hold,
+        "Total Blended Return %": total_blended,
+        "Total Full Hold Return %": total_full_hold,
+        "Blended Win %": blended_metrics["win_pct"],
+        "Full Hold Win %": full_hold_metrics["win_pct"],
+        "Blended Profit Ratio": blended_metrics["profit_ratio"],
+        "Full Hold Profit Ratio": full_hold_metrics["profit_ratio"],
+        "Blended Edge %": blended_metrics["edge_pct"],
+        "Full Hold Edge %": full_hold_metrics["edge_pct"],
+        "Blended EG %": blended_metrics["eg_pct"],
+        "Full Hold EG %": full_hold_metrics["eg_pct"],
+    }
+
+
+def calculate_partial_cover_table(
+    df: pd.DataFrame,
+    mapping: ColumnMapping,
+    cover_pct: float,
+) -> pd.DataFrame:
+    """Compare blended partial-cover returns vs full hold.
+
+    Analyzes covering part of a short position at various MAE thresholds vs. holding to close.
+
+    Args:
+        df: Trade data with adjusted_gain_pct and mae_pct columns.
+        mapping: Column mapping configuration.
+        cover_pct: Fraction of position to cover (0-1, e.g., 0.5 for 50%).
+
+    Returns:
+        DataFrame with rows for each threshold level comparing blended vs full hold.
+        Columns: Partial Cover %, % of Trades, Avg Blended Return %,
+                 Avg Full Hold Return %, Total Blended Return %,
+                 Total Full Hold Return %, Blended Win %, Full Hold Win %,
+                 Blended Profit Ratio, Full Hold Profit Ratio,
+                 Blended Edge %, Full Hold Edge %, Blended EG %, Full Hold EG %
+    """
+    rows = []
+    mae_col = mapping.mae_pct
+
+    for threshold in SCALING_TARGET_LEVELS:
+        row = _calculate_cover_row(df, mae_col, threshold, cover_pct)
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
 def _calculate_return_metrics(returns: pd.Series) -> dict:
     """Calculate win %, profit ratio, edge %, and EG % from returns.
 

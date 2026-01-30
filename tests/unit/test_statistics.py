@@ -8,6 +8,7 @@ from src.core.statistics import (
     calculate_mae_before_win,
     calculate_mfe_before_loss,
     calculate_offset_table,
+    calculate_partial_cover_table,
     calculate_scaling_table,
     calculate_stop_loss_table,
 )
@@ -1510,3 +1511,29 @@ class TestScalingEgCalculation:
             assert blended_eg < 40, f"Blended EG% {blended_eg} too high"
         if full_hold_eg is not None and not pd.isna(full_hold_eg):
             assert full_hold_eg < 40, f"Full Hold EG% {full_hold_eg} too high"
+
+
+class TestPartialCoverAnalysis:
+    """Tests for partial cover analysis calculations."""
+
+    def test_calculate_partial_cover_basic(self, sample_mapping):
+        """Test basic partial cover calculation."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, -0.05, 0.08, -0.12],
+                "adjusted_gain_pct": [0.10, -0.05, 0.08, -0.12],
+                "mae_pct": [8.0, 15.0, 5.0, 20.0],
+            }
+        )
+
+        result = calculate_partial_cover_table(df, sample_mapping, cover_pct=0.5)
+
+        # Should have rows for each threshold level
+        assert len(result) == 8  # SCALING_TARGET_LEVELS has 8 levels
+        assert "Partial Cover %" in result.columns
+        assert "% of Trades" in result.columns
+        assert "Avg Blended Return %" in result.columns
+
+        # First row is 5% threshold
+        first_row = result.iloc[0]
+        assert first_row["Partial Cover %"] == 5
