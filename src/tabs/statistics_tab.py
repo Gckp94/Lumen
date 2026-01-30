@@ -591,6 +591,15 @@ class StatisticsTab(QWidget):
         mapping = self._app_state.column_mapping
         params = self._app_state.adjustment_params
 
+        # Compute fresh adjusted_gain_pct to ensure Scaling/Cover tables use current efficiency
+        # This avoids race conditions with other tabs that also update adjusted_gain_pct
+        if mapping.mae_pct is not None and mapping.mae_pct in df.columns:
+            adjusted_gains = params.calculate_adjusted_gains(
+                df, mapping.gain_pct, mapping.mae_pct
+            )
+            df = df.copy()  # Don't modify the original
+            df["adjusted_gain_pct"] = adjusted_gains
+
         # Calculate and populate MAE Before Win table
         try:
             mae_df = calculate_mae_before_win(df, mapping)

@@ -6,7 +6,7 @@ import pytest
 from PyQt6.QtWidgets import QApplication
 
 from src.core.app_state import AppState
-from src.core.models import ColumnMapping, TradingMetrics
+from src.core.models import AdjustmentParams, ColumnMapping, TradingMetrics
 from src.tabs.statistics_tab import StatisticsTab
 
 
@@ -571,3 +571,81 @@ class TestStatisticsTabIntegration:
         assert tab._stop_loss_table.rowCount() > 0
         assert tab._offset_table.rowCount() > 0
         assert tab._scaling_table.rowCount() > 0
+
+    def test_efficiency_change_updates_scaling_table(
+        self, app, qtbot, sample_statistics_data: pd.DataFrame
+    ) -> None:
+        """Changing efficiency should recalculate Scaling table with fresh adjusted_gain_pct."""
+        # Setup initial data with known gain values
+        df = pd.DataFrame({
+            "ticker": ["AAPL", "GOOGL", "MSFT"],
+            "date": pd.date_range("2024-01-01", periods=3).tolist(),
+            "time": ["09:30:00", "09:35:00", "09:40:00"],
+            "gain_pct": [0.20, 0.15, -0.10],  # Decimal format: 20%, 15%, -10%
+            "mae_pct": [5.0, 10.0, 15.0],  # MAE in percentage points
+            "mfe_pct": [25.0, 20.0, 5.0],  # MFE in percentage points
+            "adjusted_gain_pct": [0.20, 0.15, -0.10],  # Initial: matches gain_pct (0% efficiency)
+        })
+
+        # Create app state with 0% efficiency initially
+        app_state = AppState()
+        app_state.raw_df = df
+        app_state.baseline_df = df.copy()
+        app_state.filtered_df = None
+        app_state.column_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+
+        # Initial params: 0% efficiency (so adjusted = original gains)
+        params_0 = AdjustmentParams(stop_loss=100, efficiency=0)
+        app_state.adjustment_params = params_0
+
+        # Create tab
+        tab = StatisticsTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Trigger initial table population
+        dummy_metrics = TradingMetrics(
+            num_trades=3,
+            win_rate=66.67,
+            avg_winner=17.5,
+            avg_loser=-10.0,
+            rr_ratio=1.75,
+            ev=10.0,
+            kelly=20.0,
+            winner_count=2,
+            loser_count=1,
+        )
+        app_state.baseline_calculated.emit(dummy_metrics)
+
+        # Wait for initial update
+        qtbot.wait(50)
+
+        # Get initial scaling table value (first row, Avg Full Hold Return % column - index 3)
+        initial_item = tab._scaling_table.item(0, 3)
+        initial_value = initial_item.text() if initial_item else ""
+
+        # Change efficiency to 5%
+        params_5 = AdjustmentParams(stop_loss=100, efficiency=5)
+        app_state.adjustment_params = params_5
+
+        # Emit signal (simulating efficiency change)
+        app_state.adjustment_params_changed.emit(params_5)
+
+        # Wait for update
+        qtbot.wait(150)
+
+        # Get updated scaling table value
+        updated_item = tab._scaling_table.item(0, 3)
+        updated_value = updated_item.text() if updated_item else ""
+
+        # Values should differ (5% efficiency reduces returns)
+        assert initial_value != updated_value, (
+            f"Scaling table should update when efficiency changes. "
+            f"Initial: {initial_value}, After 5% efficiency: {updated_value}"
+        )
