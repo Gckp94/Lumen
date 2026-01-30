@@ -146,15 +146,13 @@ class StatisticsTab(QWidget):
         self._tab_widget = QTabWidget()
         self._style_tab_widget()
 
-        # Create 5 sub-tabs
-        self._mae_table = self._create_table()
-        self._mfe_table = self._create_table()
+        # Create 4 sub-tabs (MAE and MFE combined)
+        self._mae_mfe_widget = self._create_mae_mfe_widget()
         self._stop_loss_table = self._create_table()
         self._offset_table = self._create_table()
         self._scaling_widget = self._create_scaling_widget()
 
-        self._tab_widget.addTab(self._mae_table, "MAE Before Win")
-        self._tab_widget.addTab(self._mfe_table, "MFE Before Loss")
+        self._tab_widget.addTab(self._mae_mfe_widget, "MAE/MFE")
         self._tab_widget.addTab(self._stop_loss_table, "Stop Loss")
         self._tab_widget.addTab(self._offset_table, "Offset")
         self._tab_widget.addTab(self._scaling_widget, "Scaling")
@@ -261,6 +259,50 @@ class StatisticsTab(QWidget):
         # Scaling table
         self._scaling_table = self._create_table()
         layout.addWidget(self._scaling_table)
+
+        return widget
+
+    def _create_mae_mfe_widget(self) -> QWidget:
+        """Create combined MAE/MFE sub-tab with stacked tables."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        layout.setSpacing(Spacing.MD)
+
+        # MAE section label
+        mae_label = QLabel("MAE Before Win")
+        mae_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """)
+        layout.addWidget(mae_label)
+
+        # MAE table
+        self._mae_table = self._create_table()
+        layout.addWidget(self._mae_table, 1)  # stretch factor 1
+
+        # Spacer
+        layout.addSpacing(Spacing.LG)
+
+        # MFE section label
+        mfe_label = QLabel("MFE Before Loss")
+        mfe_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """)
+        layout.addWidget(mfe_label)
+
+        # MFE table
+        self._mfe_table = self._create_table()
+        layout.addWidget(self._mfe_table, 1)  # stretch factor 1
 
         return widget
 
@@ -387,14 +429,15 @@ class StatisticsTab(QWidget):
         has_mae = mapping.mae_pct in df_columns
         has_mfe = mapping.mfe_pct in df_columns
 
-        # MAE-dependent tabs (indices 0, 2, 3)
-        self._tab_widget.setTabEnabled(0, has_mae)  # MAE Before Win
-        self._tab_widget.setTabEnabled(2, has_mae)  # Stop Loss
-        self._tab_widget.setTabEnabled(3, has_mae)  # Offset
+        # Combined MAE/MFE tab - enable if either column available
+        self._tab_widget.setTabEnabled(0, has_mae or has_mfe)  # MAE/MFE
 
-        # MFE-dependent tabs (indices 1, 4)
-        self._tab_widget.setTabEnabled(1, has_mfe)  # MFE Before Loss
-        self._tab_widget.setTabEnabled(4, has_mfe)  # Scaling
+        # MAE-dependent tabs
+        self._tab_widget.setTabEnabled(1, has_mae)  # Stop Loss
+        self._tab_widget.setTabEnabled(2, has_mae)  # Offset
+
+        # MFE-dependent tabs
+        self._tab_widget.setTabEnabled(3, has_mfe)  # Scaling
 
         # Log warnings for missing columns
         if not has_mae:
