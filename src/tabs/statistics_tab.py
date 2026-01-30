@@ -148,15 +148,13 @@ class StatisticsTab(QWidget):
         self._tab_widget = QTabWidget()
         self._style_tab_widget()
 
-        # Create 4 sub-tabs (MAE and MFE combined)
+        # Create 3 sub-tabs (MAE/MFE combined, Stop Loss/Offset combined)
         self._mae_mfe_widget = self._create_mae_mfe_widget()
-        self._stop_loss_table = self._create_table()
-        self._offset_table = self._create_table()
+        self._stop_loss_offset_widget = self._create_stop_loss_offset_widget()
         self._scaling_widget = self._create_scaling_widget()
 
         self._tab_widget.addTab(self._mae_mfe_widget, "MAE/MFE")
-        self._tab_widget.addTab(self._stop_loss_table, "Stop Loss")
-        self._tab_widget.addTab(self._offset_table, "Offset")
+        self._tab_widget.addTab(self._stop_loss_offset_widget, "Stop Loss/Offset")
         self._tab_widget.addTab(self._scaling_widget, "Scaling")
 
         # Add both widgets to layout
