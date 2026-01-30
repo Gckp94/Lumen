@@ -331,7 +331,7 @@ def calculate_stop_loss_table(
     """Simulate stop loss levels and calculate metrics.
 
     Args:
-        df: Trade data with gain_pct and mae_pct columns.
+        df: Trade data with adjusted_gain_pct and mae_pct columns.
         mapping: Column mapping configuration.
         efficiency: Efficiency percentage (0-1) applied to stopped trades.
 
@@ -388,12 +388,16 @@ def _calculate_stop_level_row(
 
     # Calculate adjusted returns for each trade
     # If mae_pct >= stop_level: stopped out, return = -stop_level/100 * efficiency
-    # Otherwise: use original gain_pct
+    # Otherwise: use adjusted_gain_pct (which already has efficiency applied)
     stopped_mask = df[mae_col] >= stop_level
     stopped_count = stopped_mask.sum()
 
-    # Calculate adjusted returns
-    adjusted_returns = df[gain_col].copy()
+    # Start with efficiency-adjusted gains (adjusted_gain_pct column)
+    # Fall back to gain_pct if adjusted_gain_pct not present (for tests)
+    base_col = "adjusted_gain_pct" if "adjusted_gain_pct" in df.columns else gain_col
+    adjusted_returns = df[base_col].copy()
+    
+    # For stopped trades, replace with the simulated stop loss return
     stop_loss_return = -(stop_level / 100.0) * efficiency
     adjusted_returns[stopped_mask] = stop_loss_return
 
@@ -563,10 +567,12 @@ def _calculate_offset_level_row(
     # Calculate adjusted returns
     # Original return was based on original entry to same exit
     # For offset entry, the return changes proportionally
-    # If original gain was g with entry at 1.0, and new entry is at new_entry,
-    # the exit price is: exit_price = 1.0 * (1 - gain_pct) for SHORT
+    # Use adjusted_gain_pct (which has efficiency applied) to derive exit price
+    # Fall back to gain_pct if adjusted_gain_pct not present (for tests)
+    # exit_price = 1.0 * (1 - adjusted_gain_pct) for SHORT
     # new_return = (new_entry - exit_price) / new_entry
-    exit_price = original_entry * (1 - qualifying_df[gain_col])
+    base_col = "adjusted_gain_pct" if "adjusted_gain_pct" in qualifying_df.columns else gain_col
+    exit_price = original_entry * (1 - qualifying_df[base_col])
     adjusted_returns = (new_entry - exit_price) / new_entry
 
     # Apply stop-loss using new_mae_pct if >= stop_loss
