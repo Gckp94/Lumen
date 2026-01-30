@@ -920,35 +920,50 @@ class FeatureExplorerTab(QWidget):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         suggested_name = f"lumen_export_{timestamp}.csv"
 
-        # Show save dialog
-        path_str, _ = QFileDialog.getSaveFileName(
+        # Show save dialog with CSV and Excel options
+        path_str, selected_filter = QFileDialog.getSaveFileName(
             self,
             "Export Filtered Data",
             suggested_name,
-            "CSV Files (*.csv);;All Files (*)",
+            "CSV Files (*.csv);;Excel Files (*.xlsx);;All Files (*)",
         )
 
         if not path_str:
             return  # User cancelled
 
-        # Ensure .csv extension
         path = Path(path_str)
-        if path.suffix.lower() != ".csv":
+
+        # Determine format based on extension or selected filter
+        is_excel = (
+            path.suffix.lower() == ".xlsx"
+            or "Excel" in selected_filter
+        )
+
+        # Ensure correct extension
+        if is_excel and path.suffix.lower() != ".xlsx":
+            path = path.with_suffix(".xlsx")
+        elif not is_excel and path.suffix.lower() != ".csv":
             path = path.with_suffix(".csv")
 
         try:
             exporter = ExportManager()
-            exporter.to_csv(
-                df=self._app_state.filtered_df,
-                path=path,
-                filters=self._app_state.filters,
-                first_trigger_enabled=self._app_state.first_trigger_enabled,
-                total_rows=(
+            export_args = {
+                "df": self._app_state.filtered_df,
+                "path": path,
+                "filters": self._app_state.filters,
+                "first_trigger_enabled": self._app_state.first_trigger_enabled,
+                "total_rows": (
                     len(self._app_state.raw_df)
                     if self._app_state.raw_df is not None
                     else None
                 ),
-            )
+            }
+
+            if is_excel:
+                exporter.to_excel(**export_args)
+            else:
+                exporter.to_csv(**export_args)
+
             Toast.display(
                 self,
                 f"Exported {len(self._app_state.filtered_df):,} rows to {path.name}",

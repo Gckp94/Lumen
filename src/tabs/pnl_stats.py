@@ -288,6 +288,8 @@ class PnLStatsTab(QWidget):
 
         if export_format == ExportFormat.CSV:
             self._export_data_csv(timestamp)
+        elif export_format == ExportFormat.EXCEL:
+            self._export_data_excel(timestamp)
         elif export_format == ExportFormat.PARQUET:
             self._export_data_parquet(timestamp)
         elif export_format == ExportFormat.METRICS_CSV:
@@ -338,6 +340,52 @@ class PnLStatsTab(QWidget):
 
             Toast.display(self, f"Export failed: {e}", "error", duration=5000)
             logger.error("CSV export failed: %s", e)
+
+    def _export_data_excel(self, timestamp: str) -> None:
+        """Export filtered data to Excel.
+
+        Args:
+            timestamp: Timestamp for filename
+        """
+        default_name = f"lumen_export_{timestamp}.xlsx"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Data as Excel",
+            default_name,
+            "Excel Files (*.xlsx)",
+        )
+
+        if not path:
+            return
+
+        df = self._app_state.filtered_df
+        if df is None:
+            df = self._app_state.raw_df
+
+        if df is None:
+            return
+
+        filters = self._app_state.filters
+        first_trigger = self._app_state.first_trigger_enabled
+        total_rows = len(self._app_state.raw_df) if self._app_state.raw_df is not None else None
+
+        export_manager = ExportManager()
+        try:
+            export_manager.to_excel(
+                df,
+                Path(path),
+                filters=filters,
+                first_trigger_enabled=first_trigger,
+                total_rows=total_rows,
+            )
+            from src.ui.components.toast import Toast
+
+            Toast.display(self, "Export complete", "success")
+        except Exception as e:
+            from src.ui.components.toast import Toast
+
+            Toast.display(self, f"Export failed: {e}", "error", duration=5000)
+            logger.error("Excel export failed: %s", e)
 
     def _export_data_parquet(self, timestamp: str) -> None:
         """Export filtered data to Parquet.

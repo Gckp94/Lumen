@@ -74,6 +74,50 @@ class ExportManager:
         except OSError as e:
             raise ExportError(f"Export failed: {e}") from e
 
+    def to_excel(
+        self,
+        df: pd.DataFrame,
+        path: Path,
+        sheet_name: str = "Data",
+        filters: list[FilterCriteria] | None = None,
+        first_trigger_enabled: bool = False,
+        total_rows: int | None = None,
+    ) -> None:
+        """Export to Excel (.xlsx) format.
+
+        Args:
+            df: DataFrame to export
+            path: Output file path
+            sheet_name: Name of the worksheet
+            filters: Active filters for metadata (optional)
+            first_trigger_enabled: First trigger toggle state
+            total_rows: Total rows before filtering (for metadata)
+
+        Raises:
+            ExportError: If export fails
+        """
+        try:
+            # Build metadata for a separate sheet
+            metadata = self._build_metadata(
+                df, filters, first_trigger_enabled, total_rows
+            )
+
+            # Write to Excel with openpyxl engine
+            with pd.ExcelWriter(path, engine="openpyxl") as writer:
+                # Write main data
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+                # Write metadata to a separate sheet
+                metadata_df = pd.DataFrame({"Export Info": metadata})
+                metadata_df.to_excel(writer, sheet_name="Metadata", index=False)
+
+            logger.info("Exported %d rows to Excel: %s", len(df), path)
+
+        except PermissionError as e:
+            raise ExportError(f"Permission denied: {path}") from e
+        except OSError as e:
+            raise ExportError(f"Export failed: {e}") from e
+
     def _build_metadata(
         self,
         df: pd.DataFrame,

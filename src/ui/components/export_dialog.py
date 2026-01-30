@@ -46,6 +46,7 @@ class ExportFormat(Enum):
 
     # Data formats
     CSV = "csv"
+    EXCEL = "xlsx"
     PARQUET = "parquet"
     METRICS_CSV = "metrics_csv"
     # Chart formats
@@ -313,12 +314,16 @@ class ExportDialog(QDialog):
         self._data_format_group.addButton(self._csv_radio, 0)
         layout.addWidget(self._csv_radio)
 
+        self._excel_radio = QRadioButton("Excel (.xlsx)")
+        self._data_format_group.addButton(self._excel_radio, 1)
+        layout.addWidget(self._excel_radio)
+
         self._parquet_radio = QRadioButton("Parquet (with embedded metadata)")
-        self._data_format_group.addButton(self._parquet_radio, 1)
+        self._data_format_group.addButton(self._parquet_radio, 2)
         layout.addWidget(self._parquet_radio)
 
         self._metrics_csv_radio = QRadioButton("Metrics CSV (comparison table)")
-        self._data_format_group.addButton(self._metrics_csv_radio, 2)
+        self._data_format_group.addButton(self._metrics_csv_radio, 3)
         layout.addWidget(self._metrics_csv_radio)
 
         layout.addStretch()
@@ -527,6 +532,8 @@ class ExportDialog(QDialog):
             if checked_id == 0:
                 return ExportFormat.CSV
             elif checked_id == 1:
+                return ExportFormat.EXCEL
+            elif checked_id == 2:
                 return ExportFormat.PARQUET
             return ExportFormat.METRICS_CSV
         elif self._selected_category == ExportCategory.CHARTS:
