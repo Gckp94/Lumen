@@ -1,6 +1,8 @@
 """Statistics tab with 5 analytical tables for trade analysis."""
 
 import logging
+import math
+from typing import Tuple
 
 import pandas as pd
 from PyQt6.QtCore import Qt
@@ -115,6 +117,68 @@ KELLY_COLUMNS = {
     "Half Kelly (Stop Adj)",
     "Quarter Kelly (Stop Adj)",
 }
+
+# =============================================================================
+# GRADIENT COLOR CONSTANTS (Observatory Theme)
+# =============================================================================
+
+# Three-point gradient anchors (for background colors with alpha)
+GRADIENT_LOW = QColor(255, 71, 87, 45)      # Coral-red (low values)
+GRADIENT_MID = QColor(148, 148, 168, 25)    # Neutral gray (middle values)
+GRADIENT_HIGH = QColor(0, 255, 180, 45)     # Teal-green (high values)
+
+# Text colors for each gradient region
+TEXT_LOW = QColor("#FF6B7A")                 # Softer coral for readability
+TEXT_MID = QColor("#B8B8C8")                 # Neutral light gray
+TEXT_HIGH = QColor("#4FFFB0")                # Soft teal-green
+
+# Fallback for non-numeric or excluded cells
+CELL_DEFAULT_BG = QColor(0, 0, 0, 0)         # Transparent
+CELL_DEFAULT_TEXT = QColor("#F4F4F8")        # Primary text
+
+
+# =============================================================================
+# GRADIENT INTERPOLATION FUNCTIONS
+# =============================================================================
+
+def lerp_color(color1: QColor, color2: QColor, t: float) -> QColor:
+    """Linear interpolation between two QColors."""
+    t = max(0.0, min(1.0, t))
+
+    r = int(color1.red() + (color2.red() - color1.red()) * t)
+    g = int(color1.green() + (color2.green() - color1.green()) * t)
+    b = int(color1.blue() + (color2.blue() - color1.blue()) * t)
+    a = int(color1.alpha() + (color2.alpha() - color1.alpha()) * t)
+
+    return QColor(r, g, b, a)
+
+
+def calculate_gradient_colors(
+    value: float,
+    min_val: float,
+    max_val: float,
+    invert: bool = False
+) -> Tuple[QColor, QColor]:
+    """Calculate background and text colors based on value position in range."""
+    if min_val == max_val:
+        return (GRADIENT_MID, TEXT_MID)
+
+    normalized = (value - min_val) / (max_val - min_val)
+    normalized = max(0.0, min(1.0, normalized))
+
+    if invert:
+        normalized = 1.0 - normalized
+
+    if normalized < 0.5:
+        t = normalized * 2
+        bg_color = lerp_color(GRADIENT_LOW, GRADIENT_MID, t)
+        text_color = lerp_color(TEXT_LOW, TEXT_MID, t)
+    else:
+        t = (normalized - 0.5) * 2
+        bg_color = lerp_color(GRADIENT_MID, GRADIENT_HIGH, t)
+        text_color = lerp_color(TEXT_MID, TEXT_HIGH, t)
+
+    return (bg_color, text_color)
 
 
 class StatisticsTab(QWidget):
