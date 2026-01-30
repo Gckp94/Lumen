@@ -37,36 +37,9 @@ from src.utils.table_export import table_to_markdown
 
 logger = logging.getLogger(__name__)
 
-# Conditional cell colors per design spec
-# Positive metrics (EG%, Edge%, positive returns)
-CELL_POSITIVE_BG = QColor(0, 255, 212, 30)  # Cyan tint (12% alpha ~ 30/255)
-CELL_POSITIVE_TEXT = QColor("#00FFD4")  # Plasma-cyan
-
-# Negative metrics (losses, negative edge)
-CELL_NEGATIVE_BG = QColor(255, 71, 87, 30)  # Coral tint (12% alpha ~ 30/255)
-CELL_NEGATIVE_TEXT = QColor("#FF4757")  # Solar-coral
-
 # Best row highlight (highest EG% per table)
 ROW_OPTIMAL_BG = QColor(0, 255, 212, 20)  # Subtle cyan glow (8% alpha ~ 20/255)
 ROW_OPTIMAL_BORDER = QColor("#00FFD4")  # Left border accent
-
-# Columns that should have conditional coloring based on positive/negative values
-STYLED_COLUMNS = {
-    "EG %",
-    "Edge %",
-    "Avg. Gain %",
-    "Median Gain %",
-    "EV %",
-    "Total Gain %",
-    "Avg Blended Return %",
-    "Avg Full Hold Return %",
-    "Total Blended Return %",
-    "Total Full Hold Return %",
-    "Blended Edge %",
-    "Full Hold Edge %",
-    "Blended EG %",
-    "Full Hold EG %",
-}
 
 # Columns that are ratios (3 decimal places)
 RATIO_COLUMNS = {
