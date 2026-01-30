@@ -868,5 +868,44 @@ class TestStatisticsTabEmptyStates:
         # When in empty state, tab_widget is hidden but tabs should be disabled
         tab._check_column_availability(None)
 
-        for i in range(4):
+        for i in range(tab._tab_widget.count()):
             assert not tab._tab_widget.isTabEnabled(i), f"Tab {i} should be disabled when no mapping"
+
+    def test_combined_stop_loss_offset_tab_disabled_without_mae(self, app):
+        """Test Stop Loss/Offset combined tab disabled when MAE column missing."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+
+        # Create DataFrame without mae_pct column
+        test_df = pd.DataFrame({
+            "adjusted_gain_pct": [0.10, -0.05, 0.15],
+            "mfe_pct": [12.0, 5.0, 20.0],
+            "gain_pct": [0.10, -0.05, 0.15],
+            "ticker": ["AAPL"] * 3,
+            "date": ["2024-01-01"] * 3,
+            "time": ["09:30"] * 3,
+        })
+
+        test_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+
+        app_state.baseline_df = test_df
+        app_state.column_mapping = test_mapping
+
+        from src.core.models import TradingMetrics
+        dummy_metrics = TradingMetrics(
+            num_trades=3, win_rate=66.67, avg_winner=12.5, avg_loser=-5.0,
+            rr_ratio=2.5, ev=7.0, kelly=15.0
+        )
+        app_state.baseline_calculated.emit(dummy_metrics)
+
+        # Stop Loss/Offset tab (index 1) should be disabled (MAE-dependent)
+        assert not tab._tab_widget.isTabEnabled(1), "Stop Loss/Offset tab should be disabled"
+        # Scaling tab (index 2) should be enabled (MFE-dependent)
+        assert tab._tab_widget.isTabEnabled(2), "Scaling tab should be enabled"

@@ -492,12 +492,11 @@ class StatisticsTab(QWidget):
         # Combined MAE/MFE tab - enable if either column available
         self._tab_widget.setTabEnabled(0, has_mae or has_mfe)  # MAE/MFE
 
-        # MAE-dependent tabs
-        self._tab_widget.setTabEnabled(1, has_mae)  # Stop Loss
-        self._tab_widget.setTabEnabled(2, has_mae)  # Offset
+        # Combined Stop Loss/Offset tab - MAE-dependent
+        self._tab_widget.setTabEnabled(1, has_mae)  # Stop Loss/Offset
 
-        # MFE-dependent tabs
-        self._tab_widget.setTabEnabled(3, has_mfe)  # Scaling
+        # Scaling tab - MFE-dependent
+        self._tab_widget.setTabEnabled(2, has_mfe)  # Scaling
 
         # Log warnings for missing columns
         if not has_mae:
