@@ -248,6 +248,38 @@ class GradientStyler:
         return calculate_gradient_colors(value, min_val, max_val, invert=False)
 
 
+def compute_column_ranges_from_df(
+    df: pd.DataFrame,
+    styler: GradientStyler,
+    exclude_first_column: bool = True
+) -> None:
+    """Pre-compute column ranges from a DataFrame and register them with the styler.
+
+    Args:
+        df: pandas DataFrame with table data
+        styler: GradientStyler instance to register ranges with
+        exclude_first_column: If True, skip the first column (usually labels)
+    """
+    styler.clear_ranges()
+
+    columns = list(df.columns)
+    if exclude_first_column and columns:
+        columns = columns[1:]
+
+    for col in columns:
+        if col in GRADIENT_EXCLUDED_COLUMNS:
+            continue
+
+        try:
+            values = df[col].dropna().tolist()
+            if values:
+                min_val, max_val = min(values), max(values)
+                styler.set_column_range(col, min_val, max_val)
+        except (TypeError, ValueError):
+            # Column contains non-numeric data
+            pass
+
+
 class StatisticsTab(QWidget):
     """Tab displaying 5 statistics tables as sub-tabs."""
 

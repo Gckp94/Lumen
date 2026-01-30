@@ -192,3 +192,58 @@ class TestGradientStyler:
 
         # Should return default since range was cleared
         assert bg.alpha() == CELL_DEFAULT_BG.alpha()
+
+
+class TestComputeColumnRanges:
+    """Tests for compute_column_ranges_from_df helper."""
+
+    def test_computes_ranges_from_dataframe(self):
+        """Should compute min/max for numeric columns."""
+        import pandas as pd
+        from src.tabs.statistics_tab import GradientStyler, compute_column_ranges_from_df
+
+        df = pd.DataFrame({
+            "Level": ["10%", "20%", "30%"],
+            "EG %": [5.0, 10.0, 15.0],
+            "Win %": [50.0, 60.0, 70.0],
+        })
+
+        styler = GradientStyler()
+        compute_column_ranges_from_df(df, styler, exclude_first_column=True)
+
+        # Check EG % range was set
+        assert "EG %" in styler._column_ranges
+        assert styler._column_ranges["EG %"] == (5.0, 15.0)
+
+    def test_excludes_first_column(self):
+        """Should skip first column when exclude_first_column=True."""
+        import pandas as pd
+        from src.tabs.statistics_tab import GradientStyler, compute_column_ranges_from_df
+
+        df = pd.DataFrame({
+            "Level": [10, 20, 30],  # Numeric but should be excluded
+            "EG %": [5.0, 10.0, 15.0],
+        })
+
+        styler = GradientStyler()
+        compute_column_ranges_from_df(df, styler, exclude_first_column=True)
+
+        # Level should not be in ranges
+        assert "Level" not in styler._column_ranges
+
+    def test_handles_nan_values(self):
+        """Should ignore NaN when computing ranges."""
+        import pandas as pd
+        import numpy as np
+        from src.tabs.statistics_tab import GradientStyler, compute_column_ranges_from_df
+
+        df = pd.DataFrame({
+            "Label": ["A", "B", "C"],
+            "Value": [10.0, np.nan, 30.0],
+        })
+
+        styler = GradientStyler()
+        compute_column_ranges_from_df(df, styler, exclude_first_column=True)
+
+        # Range should be computed from non-NaN values
+        assert styler._column_ranges["Value"] == (10.0, 30.0)
