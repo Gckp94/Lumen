@@ -271,6 +271,9 @@ def _calculate_loss_bucket_row(
 # Stop loss levels (fixed)
 STOP_LOSS_LEVELS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
+# Offset levels (fixed) for offset table
+OFFSET_LEVELS = [-20, -10, 0, 10, 20, 30, 40]
+
 
 def calculate_stop_loss_table(
     df: pd.DataFrame,
@@ -434,7 +437,168 @@ def calculate_offset_table(
     Returns:
         DataFrame with rows for each offset level and performance metrics.
     """
-    raise NotImplementedError
+    rows = []
+    gain_col = mapping.gain_pct
+    mae_col = mapping.mae_pct
+    mfe_col = mapping.mfe_pct
+
+    for offset in OFFSET_LEVELS:
+        row = _calculate_offset_level_row(df, gain_col, mae_col, mfe_col, offset, stop_loss, efficiency)
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def _calculate_offset_level_row(
+    df: pd.DataFrame,
+    gain_col: str,
+    mae_col: str,
+    mfe_col: str,
+    offset: int,
+    stop_loss: float,
+    efficiency: float,
+) -> dict:
+    """Calculate metrics for a single offset level.
+
+    Args:
+        df: Trade data DataFrame.
+        gain_col: Column name for gain percentage (decimal).
+        mae_col: Column name for MAE percentage (percentage points).
+        mfe_col: Column name for MFE percentage (percentage points).
+        offset: Offset level (e.g., -10 for -10%, 20 for +20%).
+        stop_loss: Stop loss percentage (e.g., 20.0 for 20%).
+        efficiency: Efficiency factor (0-1).
+
+    Returns:
+        Dictionary with metrics for this offset level.
+    """
+    # Filter qualifying trades based on offset
+    if offset < 0:
+        # Negative offset: price dropped before entry
+        # Include if mfe_pct >= abs(offset) (price dropped enough to reach lower entry)
+        qualifying_mask = df[mfe_col] >= abs(offset)
+    elif offset > 0:
+        # Positive offset: price rose before entry
+        # Include if mae_pct >= offset (price rose enough to reach higher entry)
+        qualifying_mask = df[mae_col] >= offset
+    else:
+        # 0% offset: all trades qualify
+        qualifying_mask = pd.Series([True] * len(df), index=df.index)
+
+    qualifying_df = df[qualifying_mask].copy()
+    num_trades = len(qualifying_df)
+
+    # Handle empty qualifying trades
+    if num_trades == 0:
+        return {
+            "Offset %": offset,
+            "# of Trades": 0,
+            "Win %": 0.0,
+            "Avg. Gain %": None,
+            "Median Gain %": None,
+            "EV %": None,
+            "Profit Ratio": None,
+            "Edge %": None,
+            "EG %": None,
+            "Max Loss %": 0.0,
+            "Total Gain %": 0.0,
+        }
+
+    # Recalculate MAE/MFE from new entry point
+    original_entry = 1.0
+    new_entry = original_entry * (1 + offset / 100)
+
+    # Derive price levels from original percentages
+    # For SHORT trades:
+    # mae_pct = how much price rose (bad for short) -> highest_price = 1.0 * (1 + mae_pct/100)
+    # mfe_pct = how much price dropped (good for short) -> lowest_price = 1.0 * (1 - mfe_pct/100)
+    highest_price = original_entry * (1 + qualifying_df[mae_col] / 100)
+    lowest_price = original_entry * (1 - qualifying_df[mfe_col] / 100)
+
+    # Recalculate from new entry
+    # For SHORT: MAE is how much higher price went above entry (bad)
+    # MFE is how much lower price went below entry (good)
+    new_mae_pct = (highest_price - new_entry) / new_entry * 100
+    new_mfe_pct = (new_entry - lowest_price) / new_entry * 100
+
+    # Calculate adjusted returns
+    # Original return was based on original entry to same exit
+    # For offset entry, the return changes proportionally
+    # If original gain was g with entry at 1.0, and new entry is at new_entry,
+    # the exit price is: exit_price = 1.0 * (1 - gain_pct) for SHORT
+    # new_return = (new_entry - exit_price) / new_entry
+    exit_price = original_entry * (1 - qualifying_df[gain_col])
+    adjusted_returns = (new_entry - exit_price) / new_entry
+
+    # Apply stop-loss using new_mae_pct if >= stop_loss
+    stopped_mask = new_mae_pct >= stop_loss
+    stopped_count = stopped_mask.sum()
+    stop_loss_return = -(stop_loss / 100.0) * efficiency
+    adjusted_returns[stopped_mask] = stop_loss_return
+
+    # Convert adjusted returns to percentage for display
+    adjusted_returns_pct = adjusted_returns * 100
+
+    # Calculate metrics
+    winners_mask = adjusted_returns > 0
+    losers_mask = adjusted_returns < 0
+
+    win_count = winners_mask.sum()
+    loss_count = losers_mask.sum()
+
+    # Win %
+    win_pct = (win_count / num_trades) * 100 if num_trades > 0 else 0.0
+
+    # Max Loss % (stopped out / qualifying × 100)
+    max_loss_pct = (stopped_count / num_trades) * 100 if num_trades > 0 else 0.0
+
+    # Avg. Gain % and Median Gain %
+    avg_gain_pct = adjusted_returns_pct.mean()
+    median_gain_pct = adjusted_returns_pct.median()
+
+    # EV % (expected value = avg return, same as Avg. Gain %)
+    ev_pct = avg_gain_pct
+
+    # Total Gain %
+    total_gain_pct = adjusted_returns_pct.sum()
+
+    # Calculate avg_win and avg_loss for profit ratio
+    avg_win = adjusted_returns[winners_mask].mean() if win_count > 0 else 0.0
+    avg_loss = adjusted_returns[losers_mask].mean() if loss_count > 0 else 0.0  # Negative
+
+    # Profit Ratio: avg_win / abs(avg_loss)
+    profit_ratio = avg_win / abs(avg_loss) if avg_loss != 0 else None
+
+    # Edge %: (profit_ratio + 1) × win_rate - 1 (as percentage)
+    win_rate = win_count / num_trades if num_trades > 0 else 0.0
+    if profit_ratio is not None:
+        edge_decimal = (profit_ratio + 1) * win_rate - 1
+        edge_pct = edge_decimal * 100
+    else:
+        edge_pct = None
+
+    # EG %: Kelly growth formula
+    # EG = win_rate - (1 - win_rate) / profit_ratio
+    if profit_ratio is not None and profit_ratio > 0:
+        loss_rate = 1 - win_rate
+        eg_decimal = win_rate - loss_rate / profit_ratio
+        eg_pct = eg_decimal * 100
+    else:
+        eg_pct = None
+
+    return {
+        "Offset %": offset,
+        "# of Trades": num_trades,
+        "Win %": win_pct,
+        "Avg. Gain %": avg_gain_pct,
+        "Median Gain %": median_gain_pct,
+        "EV %": ev_pct,
+        "Profit Ratio": profit_ratio,
+        "Edge %": edge_pct,
+        "EG %": eg_pct,
+        "Max Loss %": max_loss_pct,
+        "Total Gain %": total_gain_pct,
+    }
 
 
 def calculate_scaling_table(

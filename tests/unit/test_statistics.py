@@ -696,3 +696,227 @@ class TestCalculateStopLossTable:
         # EG formula: win_rate - (1 - win_rate) / profit_ratio
         # With 50% win rate, PR=2: EG = 0.5 - 0.5 / 2 = 0.5 - 0.25 = 0.25 = 25%
         assert row_10["EG %"] == pytest.approx(25.0, rel=0.01)
+
+
+# =============================================================================
+# Tests for calculate_offset_table
+# =============================================================================
+
+
+class TestCalculateOffsetTable:
+    """Tests for the calculate_offset_table function."""
+
+    def test_basic_data(self, sample_mapping):
+        """Test offset table with basic data."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, -0.05, 0.15],
+                "mae_pct": [5.0, 30.0, 10.0],
+                "mfe_pct": [15.0, 8.0, 25.0],
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+
+        assert len(result) == 7  # 7 offset levels
+        assert "Offset %" in result.columns
+        assert "# of Trades" in result.columns
+        assert "Win %" in result.columns
+        assert "Avg. Gain %" in result.columns
+        assert "Median Gain %" in result.columns
+        assert "EV %" in result.columns
+        assert "Profit Ratio" in result.columns
+        assert "Edge %" in result.columns
+        assert "EG %" in result.columns
+        assert "Max Loss %" in result.columns
+        assert "Total Gain %" in result.columns
+
+    def test_offset_levels(self, sample_mapping):
+        """Test that correct offset levels are present."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10],
+                "mae_pct": [50.0],
+                "mfe_pct": [50.0],
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+
+        expected_offsets = [-20, -10, 0, 10, 20, 30, 40]
+        assert list(result["Offset %"]) == expected_offsets
+
+    def test_zero_offset_includes_all(self, sample_mapping):
+        """Test that 0% offset includes all trades."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, -0.05],
+                "mae_pct": [5.0, 30.0],
+                "mfe_pct": [15.0, 8.0],
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+        row_0 = result[result["Offset %"] == 0].iloc[0]
+        assert row_0["# of Trades"] == 2
+
+    def test_positive_offset_filters_by_mae(self, sample_mapping):
+        """Test positive offset requires mae_pct >= offset (price rose before entry)."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.10, 0.10],
+                "mae_pct": [5.0, 15.0, 25.0],  # Only 25 qualifies for +20%
+                "mfe_pct": [10.0, 10.0, 10.0],
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=30.0, efficiency=1.0)
+        row_20 = result[result["Offset %"] == 20].iloc[0]
+        assert row_20["# of Trades"] == 1
+
+    def test_negative_offset_filters_by_mfe(self, sample_mapping):
+        """Test negative offset requires mfe_pct >= abs(offset) (price dropped before entry)."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.10, 0.10],
+                "mae_pct": [10.0, 10.0, 10.0],
+                "mfe_pct": [5.0, 15.0, 25.0],  # 15 and 25 qualify for -10%
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=30.0, efficiency=1.0)
+        row_minus10 = result[result["Offset %"] == -10].iloc[0]
+        assert row_minus10["# of Trades"] == 2
+
+    def test_new_mae_mfe_calculation_positive_offset(self, sample_mapping):
+        """Test MAE/MFE recalculation with positive offset for SHORT trades."""
+        # Original entry = 1.0
+        # +10% offset entry = 1.10 (short at higher price - good for short)
+        # mae_pct = 20% means highest_price = 1.20
+        # mfe_pct = 30% means lowest_price = 0.70
+        # new_mae = (1.20 - 1.10) / 1.10 * 100 = 9.09%
+        # new_mfe = (1.10 - 0.70) / 1.10 * 100 = 36.36%
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10],
+                "mae_pct": [20.0],  # qualifies for +10% offset
+                "mfe_pct": [30.0],
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+
+        # At +10% offset, should have 1 trade
+        row_10 = result[result["Offset %"] == 10].iloc[0]
+        assert row_10["# of Trades"] == 1
+
+    def test_new_mae_mfe_calculation_negative_offset(self, sample_mapping):
+        """Test MAE/MFE recalculation with negative offset for SHORT trades."""
+        # Original entry = 1.0
+        # -10% offset entry = 0.90 (short at lower price - worse for short)
+        # mae_pct = 20% means highest_price = 1.20
+        # mfe_pct = 30% means lowest_price = 0.70
+        # new_mae = (1.20 - 0.90) / 0.90 * 100 = 33.33%
+        # new_mfe = (0.90 - 0.70) / 0.90 * 100 = 22.22%
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10],
+                "mae_pct": [20.0],
+                "mfe_pct": [30.0],  # qualifies for -10% offset
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+
+        # At -10% offset, should have 1 trade
+        row_minus10 = result[result["Offset %"] == -10].iloc[0]
+        assert row_minus10["# of Trades"] == 1
+
+    def test_stop_loss_applied_to_adjusted_mae(self, sample_mapping):
+        """Test that stop loss is applied to recalculated MAE."""
+        # After offset, if new_mae >= stop_loss, trade is stopped
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10],
+                "mae_pct": [50.0],  # qualifies for all positive offsets
+                "mfe_pct": [50.0],  # qualifies for all negative offsets
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+
+        # At -20% offset (entry at 0.80):
+        # new_mae = (1.50 - 0.80) / 0.80 * 100 = 87.5% >= 20% stop, so stopped
+        row_minus20 = result[result["Offset %"] == -20].iloc[0]
+        assert row_minus20["Max Loss %"] == 100.0  # Trade would be stopped
+
+    def test_win_percentage_calculation(self, sample_mapping):
+        """Test Win % is calculated from adjusted returns."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.20, -0.05],  # 2 wins, 1 loss
+                "mae_pct": [5.0, 5.0, 5.0],
+                "mfe_pct": [5.0, 5.0, 5.0],
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+
+        # At 0% offset (no filtering), Win % = 2/3 * 100 = 66.67%
+        row_0 = result[result["Offset %"] == 0].iloc[0]
+        assert row_0["Win %"] == pytest.approx(66.67, rel=0.01)
+
+    def test_empty_qualifying_trades(self, sample_mapping):
+        """Test handling when no trades qualify for an offset."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10],
+                "mae_pct": [5.0],  # Doesn't qualify for +20% offset
+                "mfe_pct": [5.0],  # Doesn't qualify for -10% offset
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+
+        # At +20% offset, should have 0 trades (mae_pct 5 < 20)
+        row_20 = result[result["Offset %"] == 20].iloc[0]
+        assert row_20["# of Trades"] == 0
+
+    def test_total_gain_calculation(self, sample_mapping):
+        """Test Total Gain % is sum of adjusted returns."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.20],  # Sum = 0.30 = 30%
+                "mae_pct": [5.0, 5.0],
+                "mfe_pct": [5.0, 5.0],
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+
+        # At 0% offset (no adjustment to returns), Total Gain = 30%
+        row_0 = result[result["Offset %"] == 0].iloc[0]
+        assert row_0["Total Gain %"] == pytest.approx(30.0, rel=0.01)
+
+    def test_profit_ratio_calculation(self, sample_mapping):
+        """Test Profit Ratio = avg_win / abs(avg_loss)."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.20, -0.10],  # avg_win=0.20, avg_loss=-0.10
+                "mae_pct": [5.0, 5.0],
+                "mfe_pct": [5.0, 5.0],
+            }
+        )
+        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+
+        # Profit Ratio = 0.20 / 0.10 = 2.0
+        row_0 = result[result["Offset %"] == 0].iloc[0]
+        assert row_0["Profit Ratio"] == pytest.approx(2.0, rel=0.01)
+
+    def test_efficiency_applied(self, sample_mapping):
+        """Test efficiency is applied to stopped trades."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10],
+                "mae_pct": [25.0],  # Will be stopped at 20%
+                "mfe_pct": [10.0],
+            }
+        )
+        # At 0% offset, mae=25% >= 20% stop, so stopped
+        # With 80% efficiency, loss = -20% * 0.8 = -16%
+        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=0.8)
+
+        row_0 = result[result["Offset %"] == 0].iloc[0]
+        # Trade is stopped, so Win % = 0
+        assert row_0["Win %"] == 0.0
+        # Avg Gain should be -16%
+        assert row_0["Avg. Gain %"] == pytest.approx(-16.0, rel=0.01)
