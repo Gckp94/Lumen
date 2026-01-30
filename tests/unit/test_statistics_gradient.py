@@ -247,3 +247,39 @@ class TestComputeColumnRanges:
 
         # Range should be computed from non-NaN values
         assert styler._column_ranges["Value"] == (10.0, 30.0)
+
+    def test_excludes_gradient_excluded_columns(self):
+        """Should skip columns in GRADIENT_EXCLUDED_COLUMNS."""
+        import pandas as pd
+        from src.tabs.statistics_tab import GradientStyler, compute_column_ranges_from_df
+
+        df = pd.DataFrame({
+            "Label": ["A", "B", "C"],
+            "Level": [10, 20, 30],  # In GRADIENT_EXCLUDED_COLUMNS
+            "EG %": [5.0, 10.0, 15.0],
+        })
+
+        styler = GradientStyler()
+        compute_column_ranges_from_df(df, styler, exclude_first_column=True)
+
+        # Level should not be in ranges because it's in GRADIENT_EXCLUDED_COLUMNS
+        assert "Level" not in styler._column_ranges
+        # EG % should be included
+        assert "EG %" in styler._column_ranges
+
+    def test_includes_first_column_when_not_excluded(self):
+        """Should include first column when exclude_first_column=False."""
+        import pandas as pd
+        from src.tabs.statistics_tab import GradientStyler, compute_column_ranges_from_df
+
+        df = pd.DataFrame({
+            "Value1": [10.0, 20.0, 30.0],
+            "Value2": [5.0, 10.0, 15.0],
+        })
+
+        styler = GradientStyler()
+        compute_column_ranges_from_df(df, styler, exclude_first_column=False)
+
+        # Both columns should be in ranges
+        assert "Value1" in styler._column_ranges
+        assert "Value2" in styler._column_ranges
