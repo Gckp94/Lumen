@@ -286,6 +286,7 @@ class StatisticsTab(QWidget):
     def __init__(self, app_state: AppState, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._app_state = app_state
+        self._gradient_styler = GradientStyler()
         self._setup_ui()
         self._connect_signals()
         self._initialize_from_state()
@@ -895,12 +896,16 @@ class StatisticsTab(QWidget):
         columns = list(df.columns)
         table.setHorizontalHeaderLabels(columns)
 
+        # Compute column ranges for gradient styling (exclude first column)
+        compute_column_ranges_from_df(df, self._gradient_styler, exclude_first_column=True)
+
         # Populate cells with styling
         for row_idx, (_, row) in enumerate(df.iterrows()):
             for col_idx, value in enumerate(row):
                 column_name = columns[col_idx]
-                item = self._create_table_item(value, column_name, col_idx == 0)
-                self._style_cell(item, value, column_name)
+                is_first_column = col_idx == 0
+                item = self._create_table_item(value, column_name, is_first_column)
+                self._style_cell(item, value, column_name, is_first_column)
                 table.setItem(row_idx, col_idx, item)
 
         # Highlight optimal row (highest EG%) for tables that have EG % column
@@ -983,29 +988,32 @@ class StatisticsTab(QWidget):
         else:
             return str(value)
 
-    def _style_cell(self, item: QTableWidgetItem, value, column_name: str) -> None:
-        """Apply conditional styling to a cell based on value and column type.
+    def _style_cell(
+        self, item: QTableWidgetItem, value, column_name: str, is_first_column: bool = False
+    ) -> None:
+        """Apply gradient styling to a cell based on column value range.
 
         Args:
             item: The QTableWidgetItem to style.
             value: The numeric value (or None).
-            column_name: The column name for determining if styling applies.
+            column_name: The column name.
+            is_first_column: Whether this is the first (label) column.
         """
-        # Only style columns that should have conditional coloring
-        if column_name not in STYLED_COLUMNS:
+        # First column gets no gradient styling
+        if is_first_column:
             return
 
-        # Only style numeric values
-        if value is None or not isinstance(value, (int, float)):
-            return
+        # Convert value to float if numeric
+        numeric_value = None
+        if isinstance(value, (int, float)) and not (isinstance(value, float) and math.isnan(value)):
+            numeric_value = float(value)
 
-        # Apply color based on positive/negative
-        if value > 0:
-            item.setBackground(QBrush(CELL_POSITIVE_BG))
-            item.setForeground(QBrush(CELL_POSITIVE_TEXT))
-        elif value < 0:
-            item.setBackground(QBrush(CELL_NEGATIVE_BG))
-            item.setForeground(QBrush(CELL_NEGATIVE_TEXT))
+        # Get gradient colors
+        bg_color, text_color = self._gradient_styler.get_cell_colors(column_name, numeric_value)
+
+        # Apply colors
+        item.setBackground(QBrush(bg_color))
+        item.setForeground(QBrush(text_color))
 
     def _highlight_optimal_row(self, table: QTableWidget, columns: list[str]) -> None:
         """Highlight the row with the best EG% value.
