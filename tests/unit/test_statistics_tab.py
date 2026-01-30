@@ -3,7 +3,7 @@ import pytest
 import pandas as pd
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QFont
-from PyQt6.QtWidgets import QApplication, QTableWidget, QTabWidget
+from PyQt6.QtWidgets import QApplication, QTableWidget, QTabWidget, QWidget
 from src.tabs.statistics_tab import (
     StatisticsTab,
     CELL_POSITIVE_BG,
@@ -51,6 +51,18 @@ class TestStatisticsTab:
         for i in [1, 2]:
             widget = tab._tab_widget.widget(i)
             assert isinstance(widget, QTableWidget)
+
+    def test_stop_loss_offset_is_combined_widget(self, app):
+        """Test that Stop Loss/Offset sub-tab is a QWidget container with two tables."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+        # Stop Loss/Offset (index 1) should be a QWidget, not QTableWidget
+        widget = tab._tab_widget.widget(1)
+        assert isinstance(widget, QWidget)
+        assert not isinstance(widget, QTableWidget)
+        # Should have both tables as attributes
+        assert hasattr(tab, "_stop_loss_table")
+        assert hasattr(tab, "_offset_table")
 
 
 class TestStatisticsTabDataUpdates:

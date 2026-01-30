@@ -320,6 +320,54 @@ class StatisticsTab(QWidget):
 
         return widget
 
+    def _create_stop_loss_offset_widget(self) -> QWidget:
+        """Create combined Stop Loss/Offset sub-tab with stacked tables."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        layout.setSpacing(Spacing.MD)
+
+        # Stop Loss section label
+        stop_loss_label = QLabel("Stop Loss")
+        stop_loss_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """
+        )
+        layout.addWidget(stop_loss_label)
+
+        # Stop Loss table
+        self._stop_loss_table = self._create_table()
+        layout.addWidget(self._stop_loss_table, 1)  # stretch factor 1
+
+        # Spacer
+        layout.addSpacing(Spacing.LG)
+
+        # Offset section label
+        offset_label = QLabel("Offset")
+        offset_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """
+        )
+        layout.addWidget(offset_label)
+
+        # Offset table
+        self._offset_table = self._create_table()
+        layout.addWidget(self._offset_table, 1)  # stretch factor 1
+
+        return widget
+
     def _connect_signals(self) -> None:
         """Connect app state signals."""
         # Connect to baseline calculated signal for initial data display
