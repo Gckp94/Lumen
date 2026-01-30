@@ -1,23 +1,28 @@
 """Unit tests for statistics calculations."""
-import pytest
-import pandas as pd
 
+import pandas as pd
+import pytest
+
+from src.core.models import ColumnMapping
 from src.core.statistics import (
     calculate_mae_before_win,
     calculate_mfe_before_loss,
-    calculate_stop_loss_table,
     calculate_offset_table,
     calculate_scaling_table,
+    calculate_stop_loss_table,
 )
-from src.core.models import ColumnMapping
 
 
 @pytest.fixture
 def sample_mapping():
     """Create a sample column mapping for tests."""
     return ColumnMapping(
-        ticker="ticker", date="date", time="time",
-        gain_pct="gain_pct", mae_pct="mae_pct", mfe_pct="mfe_pct"
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
     )
 
 
@@ -34,16 +39,19 @@ def test_statistics_module_imports():
 # Tests for calculate_mae_before_win
 # =============================================================================
 
+
 class TestCalculateMaeBeforeWin:
     """Tests for the calculate_mae_before_win function."""
 
     def test_basic_data(self, sample_mapping):
         """Test MAE before win calculation with basic data."""
-        df = pd.DataFrame({
-            "gain_pct": [0.05, 0.15, 0.25, 0.08, -0.10],  # 4 winners, 1 loser
-            "adjusted_gain_pct": [0.05, 0.15, 0.25, 0.08, -0.10],
-            "mae_pct": [3.0, 8.0, 12.0, 6.0, 15.0],  # MAE in percentage points
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.05, 0.15, 0.25, 0.08, -0.10],  # 4 winners, 1 loser
+                "adjusted_gain_pct": [0.05, 0.15, 0.25, 0.08, -0.10],
+                "mae_pct": [3.0, 8.0, 12.0, 6.0, 15.0],  # MAE in percentage points
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
 
@@ -60,11 +68,13 @@ class TestCalculateMaeBeforeWin:
 
     def test_empty_data_no_winners(self, sample_mapping):
         """Test MAE calculation with no winners."""
-        df = pd.DataFrame({
-            "gain_pct": [-0.05, -0.10],
-            "adjusted_gain_pct": [-0.05, -0.10],
-            "mae_pct": [5.0, 10.0],
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [-0.05, -0.10],
+                "adjusted_gain_pct": [-0.05, -0.10],
+                "mae_pct": [5.0, 10.0],
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
         # Empty table when no winners
@@ -72,10 +82,12 @@ class TestCalculateMaeBeforeWin:
 
     def test_mae_probabilities(self, sample_mapping):
         """Test MAE probability calculations."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.05, 0.06, 0.07, 0.08],  # 4 winners in >0% bucket
-            "mae_pct": [3.0, 8.0, 12.0, 22.0],  # Various MAE levels
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.05, 0.06, 0.07, 0.08],  # 4 winners in >0% bucket
+                "mae_pct": [3.0, 8.0, 12.0, 22.0],  # Various MAE levels
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
 
@@ -92,17 +104,19 @@ class TestCalculateMaeBeforeWin:
     def test_bucket_assignment(self, sample_mapping):
         """Test correct bucket assignment based on adjusted_gain_pct."""
         # Create data with one trade in each bucket
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [
-                0.05,   # >0% bucket (0 < gain <= 10%)
-                0.15,   # >10% bucket (10 < gain <= 20%)
-                0.25,   # >20% bucket (20 < gain <= 30%)
-                0.35,   # >30% bucket (30 < gain <= 40%)
-                0.45,   # >40% bucket (40 < gain <= 50%)
-                0.55,   # >50% bucket (gain > 50%)
-            ],
-            "mae_pct": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [
+                    0.05,  # >0% bucket (0 < gain <= 10%)
+                    0.15,  # >10% bucket (10 < gain <= 20%)
+                    0.25,  # >20% bucket (20 < gain <= 30%)
+                    0.35,  # >30% bucket (30 < gain <= 40%)
+                    0.45,  # >40% bucket (40 < gain <= 50%)
+                    0.55,  # >50% bucket (gain > 50%)
+                ],
+                "mae_pct": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
 
@@ -116,10 +130,12 @@ class TestCalculateMaeBeforeWin:
 
     def test_avg_and_median_calculations(self, sample_mapping):
         """Test average and median percentage calculations."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.05, 0.08, 0.10],  # All in >0% bucket
-            "mae_pct": [5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.05, 0.08, 0.10],  # All in >0% bucket
+                "mae_pct": [5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
 
@@ -133,10 +149,12 @@ class TestCalculateMaeBeforeWin:
 
     def test_percent_of_total_calculation(self, sample_mapping):
         """Test % of Total column calculation."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.05, 0.05, 0.15, 0.25],  # 2 in >0%, 1 in >10%, 1 in >20%
-            "mae_pct": [5.0, 5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.05, 0.05, 0.15, 0.25],  # 2 in >0%, 1 in >10%, 1 in >20%
+                "mae_pct": [5.0, 5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
 
@@ -153,10 +171,12 @@ class TestCalculateMaeBeforeWin:
 
     def test_bucket_labels(self, sample_mapping):
         """Test that bucket labels are correct."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.05, 0.15, 0.25, 0.35, 0.45, 0.55],
-            "mae_pct": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.05, 0.15, 0.25, 0.35, 0.45, 0.55],
+                "mae_pct": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
 
@@ -165,10 +185,12 @@ class TestCalculateMaeBeforeWin:
 
     def test_all_columns_present(self, sample_mapping):
         """Test that all required columns are present in output."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.05],
-            "mae_pct": [5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.05],
+                "mae_pct": [5.0],
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
 
@@ -188,12 +210,14 @@ class TestCalculateMaeBeforeWin:
 
     def test_edge_case_exactly_on_boundary(self, sample_mapping):
         """Test trades exactly on bucket boundaries."""
-        df = pd.DataFrame({
-            # 0.10 = 10% should be in >0% bucket (0 < gain <= 10%)
-            # 0.20 = 20% should be in >10% bucket (10 < gain <= 20%)
-            "adjusted_gain_pct": [0.10, 0.20, 0.30, 0.40, 0.50],
-            "mae_pct": [5.0, 5.0, 5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                # 0.10 = 10% should be in >0% bucket (0 < gain <= 10%)
+                # 0.20 = 20% should be in >10% bucket (10 < gain <= 20%)
+                "adjusted_gain_pct": [0.10, 0.20, 0.30, 0.40, 0.50],
+                "mae_pct": [5.0, 5.0, 5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
 
@@ -207,10 +231,12 @@ class TestCalculateMaeBeforeWin:
 
     def test_empty_buckets_show_zero(self, sample_mapping):
         """Test that empty buckets still appear with zero counts."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.05],  # Only in >0% bucket
-            "mae_pct": [5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.05],  # Only in >0% bucket
+                "mae_pct": [5.0],
+            }
+        )
 
         result = calculate_mae_before_win(df, sample_mapping)
 
@@ -226,15 +252,18 @@ class TestCalculateMaeBeforeWin:
 # Tests for calculate_mfe_before_loss
 # =============================================================================
 
+
 class TestCalculateMfeBeforeLoss:
     """Tests for the calculate_mfe_before_loss function."""
 
     def test_basic_data(self, sample_mapping):
         """Test MFE before loss with basic data."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [-0.05, -0.15, -0.25, 0.10],  # 3 losers, 1 winner
-            "mfe_pct": [8.0, 12.0, 5.0, 20.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [-0.05, -0.15, -0.25, 0.10],  # 3 losers, 1 winner
+                "mfe_pct": [8.0, 12.0, 5.0, 20.0],
+            }
+        )
         result = calculate_mfe_before_loss(df, sample_mapping)
 
         assert len(result) == 7  # Overall + 6 buckets
@@ -244,10 +273,12 @@ class TestCalculateMfeBeforeLoss:
 
     def test_mfe_probabilities(self, sample_mapping):
         """Test MFE probability calculations."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [-0.05, -0.06, -0.07, -0.08],  # 4 losers
-            "mfe_pct": [3.0, 8.0, 12.0, 22.0],  # 3 > 5%, 2 > 10%, etc.
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [-0.05, -0.06, -0.07, -0.08],  # 4 losers
+                "mfe_pct": [3.0, 8.0, 12.0, 22.0],  # 3 > 5%, 2 > 10%, etc.
+            }
+        )
         result = calculate_mfe_before_loss(df, sample_mapping)
 
         overall = result.iloc[0]
@@ -258,10 +289,12 @@ class TestCalculateMfeBeforeLoss:
 
     def test_empty_data_no_losers(self, sample_mapping):
         """Test MFE calculation with no losers."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.05, 0.10],
-            "mfe_pct": [5.0, 10.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.05, 0.10],
+                "mfe_pct": [5.0, 10.0],
+            }
+        )
 
         result = calculate_mfe_before_loss(df, sample_mapping)
         # Empty table when no losers
@@ -270,17 +303,19 @@ class TestCalculateMfeBeforeLoss:
     def test_bucket_assignment(self, sample_mapping):
         """Test correct bucket assignment based on loss magnitude."""
         # Create data with one loser in each bucket (using absolute loss values)
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [
-                -0.05,   # >0% bucket (0 < |loss| <= 10%)
-                -0.15,   # >10% bucket (10 < |loss| <= 20%)
-                -0.25,   # >20% bucket (20 < |loss| <= 30%)
-                -0.35,   # >30% bucket (30 < |loss| <= 40%)
-                -0.45,   # >40% bucket (40 < |loss| <= 50%)
-                -0.55,   # >50% bucket (|loss| > 50%)
-            ],
-            "mfe_pct": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [
+                    -0.05,  # >0% bucket (0 < |loss| <= 10%)
+                    -0.15,  # >10% bucket (10 < |loss| <= 20%)
+                    -0.25,  # >20% bucket (20 < |loss| <= 30%)
+                    -0.35,  # >30% bucket (30 < |loss| <= 40%)
+                    -0.45,  # >40% bucket (40 < |loss| <= 50%)
+                    -0.55,  # >50% bucket (|loss| > 50%)
+                ],
+                "mfe_pct": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mfe_before_loss(df, sample_mapping)
 
@@ -293,10 +328,12 @@ class TestCalculateMfeBeforeLoss:
 
     def test_avg_and_median_calculations(self, sample_mapping):
         """Test average and median percentage calculations use absolute loss values."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [-0.05, -0.08, -0.10],  # All in >0% bucket
-            "mfe_pct": [5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [-0.05, -0.08, -0.10],  # All in >0% bucket
+                "mfe_pct": [5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mfe_before_loss(df, sample_mapping)
 
@@ -310,10 +347,12 @@ class TestCalculateMfeBeforeLoss:
 
     def test_percent_of_total_calculation(self, sample_mapping):
         """Test % of Total column calculation."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [-0.05, -0.05, -0.15, -0.25],  # 2 in >0%, 1 in >10%, 1 in >20%
-            "mfe_pct": [5.0, 5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [-0.05, -0.05, -0.15, -0.25],  # 2 in >0%, 1 in >10%, 1 in >20%
+                "mfe_pct": [5.0, 5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mfe_before_loss(df, sample_mapping)
 
@@ -330,10 +369,12 @@ class TestCalculateMfeBeforeLoss:
 
     def test_bucket_labels(self, sample_mapping):
         """Test that bucket labels are correct."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [-0.05, -0.15, -0.25, -0.35, -0.45, -0.55],
-            "mfe_pct": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [-0.05, -0.15, -0.25, -0.35, -0.45, -0.55],
+                "mfe_pct": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mfe_before_loss(df, sample_mapping)
 
@@ -342,10 +383,12 @@ class TestCalculateMfeBeforeLoss:
 
     def test_all_columns_present(self, sample_mapping):
         """Test that all required columns are present in output."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [-0.05],
-            "mfe_pct": [5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [-0.05],
+                "mfe_pct": [5.0],
+            }
+        )
 
         result = calculate_mfe_before_loss(df, sample_mapping)
 
@@ -365,12 +408,14 @@ class TestCalculateMfeBeforeLoss:
 
     def test_edge_case_exactly_on_boundary(self, sample_mapping):
         """Test trades exactly on bucket boundaries."""
-        df = pd.DataFrame({
-            # -0.10 = -10% loss should be in >0% bucket (0 < |loss| <= 10%)
-            # -0.20 = -20% loss should be in >10% bucket (10 < |loss| <= 20%)
-            "adjusted_gain_pct": [-0.10, -0.20, -0.30, -0.40, -0.50],
-            "mfe_pct": [5.0, 5.0, 5.0, 5.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                # -0.10 = -10% loss should be in >0% bucket (0 < |loss| <= 10%)
+                # -0.20 = -20% loss should be in >10% bucket (10 < |loss| <= 20%)
+                "adjusted_gain_pct": [-0.10, -0.20, -0.30, -0.40, -0.50],
+                "mfe_pct": [5.0, 5.0, 5.0, 5.0, 5.0],
+            }
+        )
 
         result = calculate_mfe_before_loss(df, sample_mapping)
 
@@ -384,10 +429,12 @@ class TestCalculateMfeBeforeLoss:
 
     def test_empty_buckets_show_zero(self, sample_mapping):
         """Test that empty buckets still appear with zero counts."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [-0.05],  # Only in >0% bucket
-            "mfe_pct": [5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [-0.05],  # Only in >0% bucket
+                "mfe_pct": [5.0],
+            }
+        )
 
         result = calculate_mfe_before_loss(df, sample_mapping)
 
@@ -403,15 +450,18 @@ class TestCalculateMfeBeforeLoss:
 # Tests for calculate_stop_loss_table
 # =============================================================================
 
+
 class TestCalculateStopLossTable:
     """Tests for the calculate_stop_loss_table function."""
 
     def test_basic_data(self, sample_mapping):
         """Test stop loss table with basic data."""
-        df = pd.DataFrame({
-            "gain_pct": [0.10, -0.05, 0.20, -0.15],  # 2 win, 2 loss
-            "mae_pct": [5.0, 25.0, 8.0, 35.0],  # 2 would be stopped at 20%
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, -0.05, 0.20, -0.15],  # 2 win, 2 loss
+                "mae_pct": [5.0, 25.0, 8.0, 35.0],  # 2 would be stopped at 20%
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         assert len(result) == 10  # 10 stop levels
@@ -427,10 +477,12 @@ class TestCalculateStopLossTable:
 
     def test_stop_levels(self, sample_mapping):
         """Test that correct stop levels are present."""
-        df = pd.DataFrame({
-            "gain_pct": [0.10, 0.20],
-            "mae_pct": [5.0, 8.0],
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.20],
+                "mae_pct": [5.0, 8.0],
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         expected_stops = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
@@ -438,10 +490,12 @@ class TestCalculateStopLossTable:
 
     def test_stop_loss_applied_correctly(self, sample_mapping):
         """Test that stop loss modifies returns."""
-        df = pd.DataFrame({
-            "gain_pct": [0.50, 0.50],  # Both would win 50%
-            "mae_pct": [15.0, 25.0],   # One stopped at 20%, one not
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.50, 0.50],  # Both would win 50%
+                "mae_pct": [15.0, 25.0],  # One stopped at 20%, one not
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         row_20 = result[result["Stop %"] == 20].iloc[0]
@@ -451,10 +505,12 @@ class TestCalculateStopLossTable:
         """Test that stopped out trades use correct return."""
         # Trade with mae_pct=25% will be stopped at 20% stop level
         # Return should be -0.20 (stop level / 100 * efficiency)
-        df = pd.DataFrame({
-            "gain_pct": [0.30],  # Would have won 30%
-            "mae_pct": [25.0],   # MAE >= 20%, so stopped at 20%
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.30],  # Would have won 30%
+                "mae_pct": [25.0],  # MAE >= 20%, so stopped at 20%
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         row_20 = result[result["Stop %"] == 20].iloc[0]
@@ -469,10 +525,12 @@ class TestCalculateStopLossTable:
 
     def test_efficiency_applied(self, sample_mapping):
         """Test that efficiency reduces stop loss magnitude."""
-        df = pd.DataFrame({
-            "gain_pct": [0.10],
-            "mae_pct": [25.0],  # Will be stopped at 20%
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10],
+                "mae_pct": [25.0],  # Will be stopped at 20%
+            }
+        )
         result_100 = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
         result_80 = calculate_stop_loss_table(df, sample_mapping, efficiency=0.8)
 
@@ -488,10 +546,12 @@ class TestCalculateStopLossTable:
 
     def test_win_percentage_calculation(self, sample_mapping):
         """Test Win % calculation: winners / total × 100."""
-        df = pd.DataFrame({
-            "gain_pct": [0.10, 0.20, -0.05, -0.10],  # 2 winners, 2 losers
-            "mae_pct": [5.0, 8.0, 3.0, 4.0],  # None stopped at any level
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.20, -0.05, -0.10],  # 2 winners, 2 losers
+                "mae_pct": [5.0, 8.0, 3.0, 4.0],  # None stopped at any level
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         # At any stop level where no trades are stopped, Win % = 50%
@@ -500,10 +560,12 @@ class TestCalculateStopLossTable:
 
     def test_profit_ratio_calculation(self, sample_mapping):
         """Test Profit Ratio calculation: avg_win / abs(avg_loss)."""
-        df = pd.DataFrame({
-            "gain_pct": [0.20, 0.10, -0.05, -0.05],  # avg_win=0.15, avg_loss=-0.05
-            "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.20, 0.10, -0.05, -0.05],  # avg_win=0.15, avg_loss=-0.05
+                "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         row_10 = result[result["Stop %"] == 10].iloc[0]
@@ -512,10 +574,12 @@ class TestCalculateStopLossTable:
 
     def test_edge_percentage_calculation(self, sample_mapping):
         """Test Edge % calculation: (profit_ratio + 1) × win_rate - 1."""
-        df = pd.DataFrame({
-            "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
-            "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
+                "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         row_10 = result[result["Stop %"] == 10].iloc[0]
@@ -527,10 +591,12 @@ class TestCalculateStopLossTable:
 
     def test_max_loss_percentage(self, sample_mapping):
         """Test Max Loss % calculation: stopped / total × 100."""
-        df = pd.DataFrame({
-            "gain_pct": [0.10, 0.10, 0.10, 0.10],
-            "mae_pct": [15.0, 25.0, 35.0, 45.0],  # Different MAE levels
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.10, 0.10, 0.10],
+                "mae_pct": [15.0, 25.0, 35.0, 45.0],  # Different MAE levels
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         # At 10% stop: all 4 stopped (all mae_pct >= 10)
@@ -555,10 +621,12 @@ class TestCalculateStopLossTable:
 
     def test_kelly_calculations(self, sample_mapping):
         """Test Kelly position sizing calculations."""
-        df = pd.DataFrame({
-            "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
-            "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
+                "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         row_20 = result[result["Stop %"] == 20].iloc[0]
@@ -573,10 +641,12 @@ class TestCalculateStopLossTable:
 
     def test_empty_dataframe(self, sample_mapping):
         """Test with empty dataframe."""
-        df = pd.DataFrame({
-            "gain_pct": [],
-            "mae_pct": [],
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [],
+                "mae_pct": [],
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         assert len(result) == 10  # Should still have 10 rows
@@ -585,10 +655,12 @@ class TestCalculateStopLossTable:
 
     def test_all_winners(self, sample_mapping):
         """Test with only winning trades."""
-        df = pd.DataFrame({
-            "gain_pct": [0.10, 0.20, 0.30],
-            "mae_pct": [5.0, 5.0, 5.0],  # None stopped at 10%+
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.20, 0.30],
+                "mae_pct": [5.0, 5.0, 5.0],  # None stopped at 10%+
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         row_10 = result[result["Stop %"] == 10].iloc[0]
@@ -596,10 +668,12 @@ class TestCalculateStopLossTable:
 
     def test_all_losers(self, sample_mapping):
         """Test with only losing trades."""
-        df = pd.DataFrame({
-            "gain_pct": [-0.10, -0.20, -0.30],
-            "mae_pct": [5.0, 5.0, 5.0],  # None stopped
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [-0.10, -0.20, -0.30],
+                "mae_pct": [5.0, 5.0, 5.0],  # None stopped
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
         row_10 = result[result["Stop %"] == 10].iloc[0]
@@ -608,16 +682,17 @@ class TestCalculateStopLossTable:
     def test_eg_formula(self, sample_mapping):
         """Test EG % (Expected Growth) formula calculation."""
         # Create a dataset with known expected values
-        df = pd.DataFrame({
-            "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
-            "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
+                "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
+            }
+        )
         result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
 
-        row_10 = result[result["Stop %"] == 10].iloc[0]
-        # EG % = edge_pct × win_rate - (1 - win_rate) × loss_rate / profit_ratio
-        # This is the Kelly criterion growth rate
-        # With 50% win rate, PR=2, edge=50%
-        # EG = 0.5 * 0.5 - 0.5 * 0.5 / 2 = 0.25 - 0.125 = 0.125 = 12.5%
-        # Note: Need to verify exact formula in implementation
+        # Verify EG % column exists and has expected value
         assert "EG %" in result.columns
+        row_10 = result[result["Stop %"] == 10].iloc[0]
+        # EG formula: win_rate - (1 - win_rate) / profit_ratio
+        # With 50% win rate, PR=2: EG = 0.5 - 0.5 / 2 = 0.5 - 0.25 = 0.25 = 25%
+        assert row_10["EG %"] == pytest.approx(25.0, rel=0.01)

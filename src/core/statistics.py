@@ -1,20 +1,19 @@
 """Statistics calculations for trade analysis tables."""
 
 import pandas as pd
-import numpy as np
-from src.core.models import ColumnMapping
 
+from src.core.models import ColumnMapping
 
 # Bucket definitions for MAE before win table
 # Format: (label, lower_bound_pct, upper_bound_pct)
 # Lower bound is exclusive (>), upper bound is inclusive (<=)
 # None means unbounded
 MAE_WIN_BUCKETS = [
-    (">0%", 0, 10),      # 0% < gain <= 10%
-    (">10%", 10, 20),    # 10% < gain <= 20%
-    (">20%", 20, 30),    # 20% < gain <= 30%
-    (">30%", 30, 40),    # 30% < gain <= 40%
-    (">40%", 40, 50),    # 40% < gain <= 50%
+    (">0%", 0, 10),  # 0% < gain <= 10%
+    (">10%", 10, 20),  # 10% < gain <= 20%
+    (">20%", 20, 30),  # 20% < gain <= 30%
+    (">30%", 30, 40),  # 30% < gain <= 40%
+    (">40%", 40, 50),  # 40% < gain <= 50%
     (">50%", 50, None),  # gain > 50%
 ]
 
@@ -24,11 +23,11 @@ MAE_THRESHOLDS = [5, 10, 15, 20]
 # Bucket definitions for MFE before loss table
 # Same structure as MAE buckets but for loss magnitude (absolute value)
 MFE_LOSS_BUCKETS = [
-    (">0%", 0, 10),      # 0% < |loss| <= 10%
-    (">10%", 10, 20),    # 10% < |loss| <= 20%
-    (">20%", 20, 30),    # 20% < |loss| <= 30%
-    (">30%", 30, 40),    # 30% < |loss| <= 40%
-    (">40%", 40, 50),    # 40% < |loss| <= 50%
+    (">0%", 0, 10),  # 0% < |loss| <= 10%
+    (">10%", 10, 20),  # 10% < |loss| <= 20%
+    (">20%", 20, 30),  # 20% < |loss| <= 30%
+    (">30%", 30, 40),  # 30% < |loss| <= 40%
+    (">40%", 40, 50),  # 40% < |loss| <= 50%
     (">50%", 50, None),  # |loss| > 50%
 ]
 
@@ -55,11 +54,19 @@ def calculate_mae_before_win(df: pd.DataFrame, mapping: ColumnMapping) -> pd.Dat
 
     # Handle empty case
     if total_winners == 0:
-        return pd.DataFrame(columns=[
-            "% Gain per Trade", "# of Plays", "% of Total", "Avg %", "Median %",
-            ">5% MAE Probability", ">10% MAE Probability",
-            ">15% MAE Probability", ">20% MAE Probability"
-        ])
+        return pd.DataFrame(
+            columns=[
+                "% Gain per Trade",
+                "# of Plays",
+                "% of Total",
+                "Avg %",
+                "Median %",
+                ">5% MAE Probability",
+                ">10% MAE Probability",
+                ">15% MAE Probability",
+                ">20% MAE Probability",
+            ]
+        )
 
     # Convert adjusted_gain_pct from decimal to percentage for bucketing
     winners["gain_pct_display"] = winners["adjusted_gain_pct"] * 100
@@ -71,9 +78,7 @@ def calculate_mae_before_win(df: pd.DataFrame, mapping: ColumnMapping) -> pd.Dat
     rows = []
 
     # Overall row first
-    overall_row = _calculate_bucket_row(
-        "Overall", winners, winners, total_winners, mae_col
-    )
+    overall_row = _calculate_bucket_row("Overall", winners, winners, total_winners, mae_col)
     rows.append(overall_row)
 
     # Bucket rows
@@ -83,7 +88,9 @@ def calculate_mae_before_win(df: pd.DataFrame, mapping: ColumnMapping) -> pd.Dat
             bucket_mask = winners["gain_pct_display"] > lower
         else:
             # Standard bucket: lower < gain <= upper
-            bucket_mask = (winners["gain_pct_display"] > lower) & (winners["gain_pct_display"] <= upper)
+            bucket_mask = (winners["gain_pct_display"] > lower) & (
+                winners["gain_pct_display"] <= upper
+            )
 
         bucket_df = winners[bucket_mask]
         row = _calculate_bucket_row(label, bucket_df, winners, total_winners, mae_col)
@@ -93,11 +100,7 @@ def calculate_mae_before_win(df: pd.DataFrame, mapping: ColumnMapping) -> pd.Dat
 
 
 def _calculate_bucket_row(
-    label: str,
-    bucket_df: pd.DataFrame,
-    all_winners: pd.DataFrame,
-    total_winners: int,
-    mae_col: str
+    label: str, bucket_df: pd.DataFrame, all_winners: pd.DataFrame, total_winners: int, mae_col: str
 ) -> dict:
     """Calculate metrics for a single bucket row.
 
@@ -167,11 +170,19 @@ def calculate_mfe_before_loss(df: pd.DataFrame, mapping: ColumnMapping) -> pd.Da
 
     # Handle empty case
     if total_losers == 0:
-        return pd.DataFrame(columns=[
-            "% Loss per Trade", "# of Plays", "% of Total", "Avg %", "Median %",
-            ">5% MFE Probability", ">10% MFE Probability",
-            ">15% MFE Probability", ">20% MFE Probability"
-        ])
+        return pd.DataFrame(
+            columns=[
+                "% Loss per Trade",
+                "# of Plays",
+                "% of Total",
+                "Avg %",
+                "Median %",
+                ">5% MFE Probability",
+                ">10% MFE Probability",
+                ">15% MFE Probability",
+                ">20% MFE Probability",
+            ]
+        )
 
     # Convert adjusted_gain_pct from decimal to percentage (absolute value for bucketing)
     # Loss magnitude is always positive for display
@@ -184,9 +195,7 @@ def calculate_mfe_before_loss(df: pd.DataFrame, mapping: ColumnMapping) -> pd.Da
     rows = []
 
     # Overall row first
-    overall_row = _calculate_loss_bucket_row(
-        "Overall", losers, losers, total_losers, mfe_col
-    )
+    overall_row = _calculate_loss_bucket_row("Overall", losers, losers, total_losers, mfe_col)
     rows.append(overall_row)
 
     # Bucket rows
@@ -196,7 +205,9 @@ def calculate_mfe_before_loss(df: pd.DataFrame, mapping: ColumnMapping) -> pd.Da
             bucket_mask = losers["loss_pct_display"] > lower
         else:
             # Standard bucket: lower < |loss| <= upper
-            bucket_mask = (losers["loss_pct_display"] > lower) & (losers["loss_pct_display"] <= upper)
+            bucket_mask = (losers["loss_pct_display"] > lower) & (
+                losers["loss_pct_display"] <= upper
+            )
 
         bucket_df = losers[bucket_mask]
         row = _calculate_loss_bucket_row(label, bucket_df, losers, total_losers, mfe_col)
@@ -206,11 +217,7 @@ def calculate_mfe_before_loss(df: pd.DataFrame, mapping: ColumnMapping) -> pd.Da
 
 
 def _calculate_loss_bucket_row(
-    label: str,
-    bucket_df: pd.DataFrame,
-    all_losers: pd.DataFrame,
-    total_losers: int,
-    mfe_col: str
+    label: str, bucket_df: pd.DataFrame, all_losers: pd.DataFrame, total_losers: int, mfe_col: str
 ) -> dict:
     """Calculate metrics for a single loss bucket row.
 
@@ -353,21 +360,11 @@ def _calculate_stop_level_row(
     max_loss_pct = (stopped_count / total_trades) * 100
 
     # Calculate avg_win and avg_loss for profit ratio
-    if win_count > 0:
-        avg_win = adjusted_returns[winners].mean()
-    else:
-        avg_win = 0.0
-
-    if loss_count > 0:
-        avg_loss = adjusted_returns[losers].mean()  # This is negative
-    else:
-        avg_loss = 0.0
+    avg_win = adjusted_returns[winners].mean() if win_count > 0 else 0.0
+    avg_loss = adjusted_returns[losers].mean() if loss_count > 0 else 0.0  # Negative
 
     # Profit Ratio: avg_win / abs(avg_loss)
-    if avg_loss != 0:
-        profit_ratio = avg_win / abs(avg_loss)
-    else:
-        profit_ratio = None
+    profit_ratio = avg_win / abs(avg_loss) if avg_loss != 0 else None
 
     # Edge %: (profit_ratio + 1) × win_rate - 1 (as percentage)
     # win_rate is a decimal (0-1)
