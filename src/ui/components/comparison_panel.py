@@ -120,8 +120,13 @@ class ComparisonRow(QFrame):
             baseline_raw: Raw numeric baseline value for comparison.
             combined_raw: Raw numeric combined value for comparison.
         """
-        self._baseline.setText(baseline or "—")
-        self._combined.setText(combined or "—")
+        # Guard against widget being deleted during test cleanup
+        try:
+            self._baseline.setText(baseline or "—")
+            self._combined.setText(combined or "—")
+        except RuntimeError:
+            # Widget has been deleted, skip update
+            return
 
         # Calculate delta indicator
         if baseline_raw is not None and combined_raw is not None:

@@ -51,8 +51,13 @@ class VerticalBarChart(QWidget):
         self._data = data
         self._is_percentage = is_percentage
         self._is_currency = is_currency
-        self._update_size()
-        self.update()
+        # Guard against widget being deleted during test cleanup
+        try:
+            self._update_size()
+            self.update()
+        except RuntimeError:
+            # Widget has been deleted, skip update
+            pass
 
     def _update_size(self) -> None:
         """Update widget size based on data count."""

@@ -39,7 +39,7 @@ class TestPortfolioOverviewIntegration:
         config = StrategyConfig(
             name="Test Strategy",
             file_path=str(sample_csv),
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             is_baseline=True,
         )
         tab._strategy_data[config.name] = df
@@ -79,7 +79,7 @@ class TestPortfolioOverviewIntegration:
         config1 = StrategyConfig(
             name="Baseline Strategy",
             file_path=str(csv1),
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             is_baseline=True,
         )
         tab._strategy_data[config1.name] = df1
@@ -89,7 +89,7 @@ class TestPortfolioOverviewIntegration:
         config2 = StrategyConfig(
             name="Candidate Strategy",
             file_path=str(csv2),
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
             is_candidate=True,
         )
         tab._strategy_data[config2.name] = df2

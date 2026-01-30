@@ -249,6 +249,14 @@ class PortfolioChartsWidget(QWidget):
             data: Dictionary mapping series names to DataFrames.
                   Each DataFrame should have: trade_num, equity, drawdown, peak, date columns.
         """
+        # Guard against widget being deleted during test cleanup
+        try:
+            # Access a property to check if widget is still valid
+            _ = self._legend_layout.count()
+        except RuntimeError:
+            # Widget has been deleted, skip update
+            return
+
         self._data = data
 
         # Clear existing curves

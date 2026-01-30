@@ -25,12 +25,15 @@ class TestMainWindowDocking:
         expected_tabs = [
             "Data Input",
             "Feature Explorer",
+            "Breakdown",
             "Data Binning",
             "PnL & Trading Stats",
-            "Breakdown",
             "Monte Carlo",
-            "Feature Insights",
             "Parameter Sensitivity",
+            "Feature Insights",
+            "Portfolio Overview",
+            "Portfolio Breakdown",
+            "Portfolio Metrics",
         ]
 
         assert window.dock_manager.dock_count() == len(expected_tabs)

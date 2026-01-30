@@ -55,7 +55,7 @@ class MonteCarloConfig:
             raise ValueError("num_simulations must be between 100 and 50,000")
         if self.initial_capital <= 0:
             raise ValueError("initial_capital must be positive")
-        if not 0 < self.ruin_threshold_pct < 100:
+        if not 0 <= self.ruin_threshold_pct < 100:
             raise ValueError("ruin_threshold_pct must be between 0 and 100")
         if not 0 < self.var_confidence_pct < 100:
             raise ValueError("var_confidence_pct must be between 0 and 100")

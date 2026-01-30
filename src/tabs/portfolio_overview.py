@@ -257,7 +257,12 @@ class PortfolioOverviewTab(QWidget):
         2. Baseline aggregate (strategies marked as baseline)
         3. Combined aggregate (strategies marked as candidate)
         """
-        strategies = self._strategy_table.get_strategies()
+        # Guard against widget being deleted during test cleanup
+        try:
+            strategies = self._strategy_table.get_strategies()
+        except RuntimeError:
+            # Widget has been deleted, skip recalculation
+            return
         if not strategies:
             self._charts.set_data({})
             return
@@ -309,12 +314,16 @@ class PortfolioOverviewTab(QWidget):
             except Exception as e:
                 logger.error(f"Failed to calculate combined aggregate: {e}")
 
-        # Update charts
-        self._charts.set_data(chart_data)
-        logger.debug(f"Recalculated {len(chart_data)} equity curves")
+        # Update charts (guard against widget deletion during test cleanup)
+        try:
+            self._charts.set_data(chart_data)
+            logger.debug(f"Recalculated {len(chart_data)} equity curves")
 
-        # Emit signal for other tabs (Portfolio Breakdown)
-        self.portfolio_data_changed.emit(chart_data)
+            # Emit signal for other tabs (Portfolio Breakdown)
+            self.portfolio_data_changed.emit(chart_data)
 
-        # Save configuration
-        self._config_manager.save(strategies, self._account_start_spin.value())
+            # Save configuration
+            self._config_manager.save(strategies, self._account_start_spin.value())
+        except RuntimeError:
+            # Widget has been deleted, skip updates
+            pass

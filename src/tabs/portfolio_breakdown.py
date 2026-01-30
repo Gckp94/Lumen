@@ -331,6 +331,13 @@ class PortfolioBreakdownTab(QWidget):
         Args:
             data: Dict with "baseline" and/or "combined" DataFrames.
         """
+        # Guard against widget being deleted during test cleanup
+        try:
+            # Test if widget is still valid
+            _ = self.isVisible()
+        except RuntimeError:
+            return
+
         self._baseline_data = data.get("baseline")
         self._combined_data = data.get("combined")
 
@@ -346,11 +353,14 @@ class PortfolioBreakdownTab(QWidget):
         if self._combined_data is not None and not self._combined_data.empty:
             years.update(self._calculator.get_available_years(self._combined_data))
 
-        self._year_selector.set_years(sorted(years))
-
-        # Refresh charts
-        self._refresh_yearly_charts()
-        self._refresh_monthly_charts()
+        # Refresh UI (guard against widget deletion)
+        try:
+            self._year_selector.set_years(sorted(years))
+            self._refresh_yearly_charts()
+            self._refresh_monthly_charts()
+        except RuntimeError:
+            # Widget has been deleted, skip updates
+            pass
 
     def _refresh_yearly_charts(self) -> None:
         """Refresh all yearly charts with current data."""

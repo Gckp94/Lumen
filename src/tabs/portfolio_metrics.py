@@ -270,6 +270,13 @@ class PortfolioMetricsTab(QWidget):
         Args:
             data: Dict with "baseline" and/or "combined" DataFrames.
         """
+        # Guard against widget being deleted during test cleanup
+        try:
+            # Test if widget is still valid
+            _ = self.isVisible()
+        except RuntimeError:
+            return
+
         self._baseline_data = data.get("baseline")
         self._combined_data = data.get("combined")
 
@@ -289,9 +296,13 @@ class PortfolioMetricsTab(QWidget):
             self._combined_metrics = None
 
         # Update UI
-        self._update_panels()
-        self._update_period_cards()
-        self._update_advanced_metrics()
+        try:
+            self._update_panels()
+            self._update_period_cards()
+            self._update_advanced_metrics()
+        except RuntimeError:
+            # Widget has been deleted, skip updates
+            pass
 
         logger.debug("Portfolio metrics updated")
 

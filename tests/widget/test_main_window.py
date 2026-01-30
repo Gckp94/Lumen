@@ -79,11 +79,11 @@ class TestViewMenu:
 class TestMainWindow:
     """Tests for the MainWindow class."""
 
-    def test_main_window_has_eight_docks(self, qtbot: QtBot) -> None:
-        """MainWindow contains exactly 8 docks."""
+    def test_main_window_has_eleven_docks(self, qtbot: QtBot) -> None:
+        """MainWindow contains exactly 11 docks."""
         window = MainWindow()
         qtbot.addWidget(window)
-        assert window.dock_manager.dock_count() == 8
+        assert window.dock_manager.dock_count() == 11
 
     def test_dock_titles_match_workflow(self, qtbot: QtBot) -> None:
         """Dock titles match expected workflow order."""
@@ -92,12 +92,15 @@ class TestMainWindow:
         expected = [
             "Data Input",
             "Feature Explorer",
+            "Breakdown",
             "Data Binning",
             "PnL & Trading Stats",
-            "Breakdown",
             "Monte Carlo",
-            "Feature Insights",
             "Parameter Sensitivity",
+            "Feature Insights",
+            "Portfolio Overview",
+            "Portfolio Breakdown",
+            "Portfolio Metrics",
         ]
         for title in expected:
             assert window.dock_manager.get_dock(title) is not None
@@ -120,12 +123,15 @@ class TestMainWindow:
         qtbot.addWidget(window)
         assert window.dock_manager.get_dock("Data Input") is not None
         assert window.dock_manager.get_dock("Feature Explorer") is not None
+        assert window.dock_manager.get_dock("Breakdown") is not None
         assert window.dock_manager.get_dock("Data Binning") is not None
         assert window.dock_manager.get_dock("PnL & Trading Stats") is not None
-        assert window.dock_manager.get_dock("Breakdown") is not None
         assert window.dock_manager.get_dock("Monte Carlo") is not None
-        assert window.dock_manager.get_dock("Feature Insights") is not None
         assert window.dock_manager.get_dock("Parameter Sensitivity") is not None
+        assert window.dock_manager.get_dock("Feature Insights") is not None
+        assert window.dock_manager.get_dock("Portfolio Overview") is not None
+        assert window.dock_manager.get_dock("Portfolio Breakdown") is not None
+        assert window.dock_manager.get_dock("Portfolio Metrics") is not None
 
     def test_window_minimum_size(self, qtbot: QtBot) -> None:
         """Window has correct minimum size."""
