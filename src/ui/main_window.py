@@ -20,6 +20,7 @@ from src.tabs.pnl_stats import PnLStatsTab
 from src.tabs.portfolio_breakdown import PortfolioBreakdownTab
 from src.tabs.portfolio_metrics import PortfolioMetricsTab
 from src.tabs.portfolio_overview import PortfolioOverviewTab
+from src.tabs.statistics_tab import StatisticsTab
 from src.ui.dock_manager import DockManager
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,7 @@ class MainWindow(QMainWindow):
             ("Portfolio Overview", portfolio_overview),
             ("Portfolio Breakdown", portfolio_breakdown),
             ("Portfolio Metrics", portfolio_metrics),
+            ("Statistics", StatisticsTab(self._app_state)),
         ]
 
         for title, widget in tabs:

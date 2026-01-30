@@ -34,6 +34,7 @@ class TestMainWindowDocking:
             "Portfolio Overview",
             "Portfolio Breakdown",
             "Portfolio Metrics",
+            "Statistics",
         ]
 
         assert window.dock_manager.dock_count() == len(expected_tabs)
