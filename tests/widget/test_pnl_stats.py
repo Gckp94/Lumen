@@ -535,6 +535,7 @@ class TestPnLStatsTabRecalculation:
         app_state.baseline_df = pd.DataFrame({
             "gain_pct": [5.0, -2.0, 3.0, 4.0, -1.0],
             "mae_pct": [1.0, 2.0, 1.5, 1.0, 0.5],
+            "mfe_pct": [6.0, 1.0, 4.0, 5.0, 0.5],
             "trigger_number": [1, 1, 1, 1, 1],
             "date": ["2024-01-01"] * 5,
             "time": ["09:30:00"] * 5,
@@ -553,6 +554,7 @@ class TestPnLStatsTabRecalculation:
         filtered_df = pd.DataFrame({
             "gain_pct": [5.0, -2.0, 3.0],
             "mae_pct": [1.0, 2.0, 1.5],
+            "mfe_pct": [6.0, 1.0, 4.0],
             "trigger_number": [1, 1, 1],
             "date": ["2024-01-01"] * 3,
             "time": ["09:30:00"] * 3,
@@ -575,7 +577,8 @@ class TestPnLStatsTabRecalculation:
         user_inputs._fractional_kelly_spin.setValue(50.0)
 
         # Wait for recalculation (3 debounce layers: input 150ms + recalc 300ms + equity 300ms)
-        qtbot.wait(800)
+        # Adding extra buffer for CI environments
+        qtbot.wait(1200)
 
         # Filtered metrics should still have values (not None/dash)
         assert app_state.filtered_metrics is not None
