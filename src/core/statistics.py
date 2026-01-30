@@ -4,6 +4,54 @@ import pandas as pd
 
 from src.core.models import ColumnMapping
 
+
+def calculate_expected_growth(
+    win_rate: float, profit_ratio: float | None
+) -> float | None:
+    """Calculate Expected Growth (EG%) using geometric growth formula.
+
+    EG represents the expected compound growth rate per trade when betting
+    the optimal Kelly fraction.
+
+    Formula: EG = ((1 + R * S)^p) * ((1 - S)^(1-p)) - 1
+    Where:
+        R = profit_ratio (avg_win / abs(avg_loss))
+        S = Kelly stake fraction
+        p = win probability (win_rate as decimal 0-1)
+
+    Args:
+        win_rate: Win probability as decimal (0.0 to 1.0)
+        profit_ratio: Ratio of avg_win to abs(avg_loss)
+
+    Returns:
+        EG as percentage (e.g., 30.0 for 30% growth), or None if invalid
+    """
+    if profit_ratio is None or profit_ratio <= 0:
+        return None
+    if not (0 < win_rate < 1):
+        return None
+
+    # Calculate Kelly stake
+    loss_rate = 1 - win_rate
+    kelly = win_rate - loss_rate / profit_ratio
+
+    # No positive growth if Kelly is <= 0
+    if kelly <= 0:
+        return None
+
+    # Kelly must be < 1 (can't bet more than 100%)
+    if kelly >= 1:
+        kelly = 0.99  # Cap at 99% to avoid math errors
+
+    # Geometric growth formula
+    stake = kelly
+    try:
+        eg = ((1 + profit_ratio * stake) ** win_rate) * ((1 - stake) ** loss_rate) - 1
+        return eg * 100  # Convert to percentage
+    except (ValueError, OverflowError):
+        return None
+
+
 # Bucket definitions for MAE before win table
 # Format: (label, lower_bound_pct, upper_bound_pct)
 # Lower bound is exclusive (>), upper bound is inclusive (<=)

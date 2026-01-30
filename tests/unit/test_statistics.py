@@ -1107,3 +1107,81 @@ class TestCalculateScalingTable:
         # At 25%: 1 trade qualifies (25% MFE >= 25%)
         row_25 = result[result["Partial Target %"] == 25].iloc[0]
         assert row_25["% of Trades"] == pytest.approx(33.33, rel=0.01)
+
+
+# =============================================================================
+# Tests for calculate_expected_growth
+# =============================================================================
+
+
+class TestExpectedGrowthCalculation:
+    """Tests for the calculate_expected_growth helper function."""
+
+    def test_eg_with_positive_kelly(self):
+        """Test EG calculation with valid Kelly stake."""
+        # 60% win rate, 2:1 profit ratio
+        win_rate = 0.6
+        profit_ratio = 2.0
+
+        from src.core.statistics import calculate_expected_growth
+
+        eg_pct = calculate_expected_growth(win_rate, profit_ratio)
+
+        # Kelly = 0.6 - 0.4/2 = 0.4
+        # EG at 40% stake should be positive but much less than Kelly
+        assert eg_pct is not None
+        assert 0 < eg_pct < 40  # EG should be less than Kelly %
+
+    def test_eg_with_zero_kelly(self):
+        """Test EG returns None when Kelly is zero or negative."""
+        # 50% win rate, 1:1 profit ratio = 0 edge
+        win_rate = 0.5
+        profit_ratio = 1.0
+
+        from src.core.statistics import calculate_expected_growth
+
+        eg_pct = calculate_expected_growth(win_rate, profit_ratio)
+
+        # Kelly = 0.5 - 0.5/1 = 0, no positive growth
+        assert eg_pct is None
+
+    def test_eg_with_none_profit_ratio(self):
+        """Test EG returns None when profit_ratio is None."""
+        from src.core.statistics import calculate_expected_growth
+
+        eg_pct = calculate_expected_growth(0.6, None)
+        assert eg_pct is None
+
+    def test_eg_known_value(self):
+        """Test EG against manually calculated value."""
+        # 60% win rate, 3:1 profit ratio
+        # Kelly = 0.6 - 0.4/3 = 0.467
+        # EG = (1 + 3*0.467)^0.6 * (1 - 0.467)^0.4 - 1
+        # EG = 2.401^0.6 * 0.533^0.4 - 1 ≈ 0.304 = 30.4%
+        win_rate = 0.6
+        profit_ratio = 3.0
+
+        from src.core.statistics import calculate_expected_growth
+
+        eg_pct = calculate_expected_growth(win_rate, profit_ratio)
+
+        assert eg_pct is not None
+        assert 25 < eg_pct < 35  # Should be around 30%
+
+    def test_eg_with_invalid_win_rate(self):
+        """Test EG returns None for invalid win_rate values."""
+        from src.core.statistics import calculate_expected_growth
+
+        # Boundary cases
+        assert calculate_expected_growth(0.0, 2.0) is None  # win_rate = 0
+        assert calculate_expected_growth(1.0, 2.0) is None  # win_rate = 1
+        # Out of range
+        assert calculate_expected_growth(-0.1, 2.0) is None  # negative
+        assert calculate_expected_growth(1.5, 2.0) is None  # > 1
+
+    def test_eg_with_negative_profit_ratio(self):
+        """Test EG returns None when profit_ratio is negative."""
+        from src.core.statistics import calculate_expected_growth
+
+        eg_pct = calculate_expected_growth(0.6, -1.0)
+        assert eg_pct is None
