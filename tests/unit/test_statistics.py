@@ -680,7 +680,7 @@ class TestCalculateStopLossTable:
         assert row_10["Win %"] == 0.0
 
     def test_eg_formula(self, sample_mapping):
-        """Test EG % (Expected Growth) formula calculation."""
+        """Test EG % (Expected Growth) uses geometric formula calculation."""
         # Create a dataset with known expected values
         df = pd.DataFrame(
             {
@@ -693,9 +693,11 @@ class TestCalculateStopLossTable:
         # Verify EG % column exists and has expected value
         assert "EG %" in result.columns
         row_10 = result[result["Stop %"] == 10].iloc[0]
-        # EG formula: win_rate - (1 - win_rate) / profit_ratio
-        # With 50% win rate, PR=2: EG = 0.5 - 0.5 / 2 = 0.5 - 0.25 = 0.25 = 25%
-        assert row_10["EG %"] == pytest.approx(25.0, rel=0.01)
+        # EG uses geometric growth formula: ((1 + R*S)^p) * ((1 - S)^(1-p)) - 1
+        # With 50% win rate, PR=2:
+        #   Kelly stake S = 0.5 - 0.5/2 = 0.25
+        #   EG = (1.5)^0.5 * (0.75)^0.5 - 1 = 1.2247 * 0.866 - 1 ≈ 6.07%
+        assert row_10["EG %"] == pytest.approx(6.07, rel=0.01)
 
 
 # =============================================================================
@@ -1185,3 +1187,28 @@ class TestExpectedGrowthCalculation:
 
         eg_pct = calculate_expected_growth(0.6, -1.0)
         assert eg_pct is None
+
+
+class TestStopLossEgCalculation:
+    """Tests for EG% in stop loss table using correct formula."""
+
+    def test_stop_loss_eg_uses_geometric_formula(self, sample_mapping):
+        """Verify EG% uses geometric growth, not Kelly formula."""
+        # Create data with known metrics
+        df = pd.DataFrame({
+            "gain_pct": [0.30, 0.20, 0.15, -0.10, -0.08],  # 60% win
+            "adjusted_gain_pct": [0.30, 0.20, 0.15, -0.10, -0.08],
+            "mae_pct": [5.0, 8.0, 6.0, 15.0, 12.0],  # MAE levels
+        })
+
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        # At 100% stop (no stops triggered), original metrics apply
+        row_100 = result[result["Stop %"] == 100].iloc[0]
+        eg_value = row_100["EG %"]
+
+        # EG% should be significantly less than Kelly %
+        # Kelly ≈ 46.7% for 60% WR and ~2.4:1 RR
+        # EG should be around 25-35%, NOT 46%
+        assert eg_value is not None
+        assert eg_value < 40, f"EG% {eg_value} should be < 40 (using geometric formula)"

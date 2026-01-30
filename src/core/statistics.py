@@ -427,17 +427,8 @@ def _calculate_stop_level_row(
         edge_decimal = None
         edge_pct = None
 
-    # EG %: Kelly growth formula
-    # EG = edge_pct × win_rate - (1 - win_rate) × loss_rate / profit_ratio
-    # Simplified: EG = win_rate * avg_win - loss_rate * avg_loss (expected value approach)
-    # Or using Kelly: g = p * ln(1 + b) + q * ln(1 - 1) where b is odds
-    # Let's use: EG = win_rate - (1 - win_rate) / profit_ratio (standard Kelly EV formula)
-    if profit_ratio is not None and profit_ratio > 0:
-        loss_rate = 1 - win_rate
-        eg_decimal = win_rate - loss_rate / profit_ratio
-        eg_pct = eg_decimal * 100
-    else:
-        eg_pct = None
+    # EG %: Geometric growth formula at full Kelly stake
+    eg_pct = calculate_expected_growth(win_rate, profit_ratio)
 
     # Full Kelly (Stop Adj): edge / profit_ratio / (stop_level/100)
     # edge here is in decimal form
