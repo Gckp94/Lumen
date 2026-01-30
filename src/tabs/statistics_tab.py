@@ -23,6 +23,7 @@ from src.core.statistics import (
     calculate_mae_before_win,
     calculate_mfe_before_loss,
     calculate_offset_table,
+    calculate_partial_cover_table,
     calculate_scaling_table,
     calculate_stop_loss_table,
 )
@@ -427,6 +428,7 @@ class StatisticsTab(QWidget):
 
         # Connect scale out spinbox to refresh scaling table
         self._scale_out_spin.valueChanged.connect(self._on_scale_out_changed)
+        self._cover_spin.valueChanged.connect(self._on_cover_changed)
 
     def _initialize_from_state(self) -> None:
         """Populate tables if data already exists in state.
@@ -508,6 +510,14 @@ class StatisticsTab(QWidget):
             value: New scale out percentage (10-90).
         """
         self._refresh_scaling_table()
+
+    def _on_cover_changed(self, value: int) -> None:
+        """Handle cover percentage spinbox value change.
+
+        Args:
+            value: New cover percentage (0-100).
+        """
+        self._refresh_cover_table()
 
     def _show_empty_state(self, show: bool) -> None:
         """Show or hide the empty state.
@@ -624,6 +634,15 @@ class StatisticsTab(QWidget):
             logger.warning(f"Error calculating Scaling table: {e}")
             self._scaling_table.setRowCount(0)
 
+        # Calculate and populate Cover table
+        try:
+            cover_pct = self._cover_spin.value() / 100.0
+            cover_df = calculate_partial_cover_table(df, mapping, cover_pct)
+            self._populate_table(self._cover_table, cover_df)
+        except Exception as e:
+            logger.warning(f"Error calculating Cover table: {e}")
+            self._cover_table.setRowCount(0)
+
     def _refresh_all_tables(self) -> None:
         """Refresh all tables with current data.
 
@@ -651,6 +670,24 @@ class StatisticsTab(QWidget):
         except Exception as e:
             logger.warning(f"Error refreshing Scaling table: {e}")
 
+    def _refresh_cover_table(self) -> None:
+        """Refresh only the cover table with current data."""
+        if not self._app_state.column_mapping:
+            return
+
+        mapping = self._app_state.column_mapping
+        df = self._get_current_df()
+
+        if df is None or df.empty:
+            return
+
+        try:
+            cover_pct = self._cover_spin.value() / 100.0
+            cover_df = calculate_partial_cover_table(df, mapping, cover_pct)
+            self._populate_table(self._cover_table, cover_df)
+        except Exception as e:
+            logger.warning(f"Error refreshing Cover table: {e}")
+
     def _clear_all_tables(self) -> None:
         """Clear all table contents."""
         self._mae_table.setRowCount(0)
@@ -663,6 +700,8 @@ class StatisticsTab(QWidget):
         self._offset_table.setColumnCount(0)
         self._scaling_table.setRowCount(0)
         self._scaling_table.setColumnCount(0)
+        self._cover_table.setRowCount(0)
+        self._cover_table.setColumnCount(0)
 
     def _populate_table(self, table: QTableWidget, df: pd.DataFrame) -> None:
         """Populate a QTableWidget from a DataFrame.
