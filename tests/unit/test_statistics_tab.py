@@ -29,28 +29,31 @@ class TestStatisticsTab:
         tab = StatisticsTab(app_state)
         assert tab is not None
 
-    def test_has_4_subtabs(self, app):
-        """Test that StatisticsTab has 4 sub-tabs."""
+    def test_has_3_subtabs(self, app):
+        """Test that StatisticsTab has 3 sub-tabs."""
         app_state = AppState()
         tab = StatisticsTab(app_state)
-        assert tab._tab_widget.count() == 4
+        assert tab._tab_widget.count() == 3
 
     def test_subtab_names(self, app):
         """Test correct sub-tab names."""
         app_state = AppState()
         tab = StatisticsTab(app_state)
-        names = [tab._tab_widget.tabText(i) for i in range(4)]
-        assert names == ["MAE/MFE", "Stop Loss", "Offset", "Scaling"]
+        names = [tab._tab_widget.tabText(i) for i in range(3)]
+        assert names == ["MAE/MFE", "Stop Loss/Offset", "Scaling"]
 
     def test_tables_are_tablewidgets(self, app):
-        """Test that Stop Loss and Offset sub-tabs contain QTableWidgets."""
+        """Test that all sub-tabs contain QTableWidgets (directly or nested)."""
         app_state = AppState()
         tab = StatisticsTab(app_state)
-        # First tab (MAE/MFE) is a QWidget container, not a QTableWidget
-        # Stop Loss (index 1) and Offset (index 2) are QTableWidgets
-        for i in [1, 2]:
-            widget = tab._tab_widget.widget(i)
-            assert isinstance(widget, QTableWidget)
+        # MAE/MFE (index 0) and Stop Loss/Offset (index 1) are QWidget containers
+        # Scaling (index 2) is also a QWidget container
+        # Verify the tables exist as attributes
+        assert isinstance(tab._mae_table, QTableWidget)
+        assert isinstance(tab._mfe_table, QTableWidget)
+        assert isinstance(tab._stop_loss_table, QTableWidget)
+        assert isinstance(tab._offset_table, QTableWidget)
+        assert isinstance(tab._scaling_table, QTableWidget)
 
     def test_stop_loss_offset_is_combined_widget(self, app):
         """Test that Stop Loss/Offset sub-tab is a QWidget container with two tables."""
