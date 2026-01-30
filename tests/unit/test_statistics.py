@@ -1537,3 +1537,51 @@ class TestPartialCoverAnalysis:
         # First row is 5% threshold
         first_row = result.iloc[0]
         assert first_row["Partial Cover %"] == 5
+
+    def test_calculate_partial_cover_empty_df(self, sample_mapping):
+        """Test partial cover with empty DataFrame."""
+        df = pd.DataFrame(
+            columns=["gain_pct", "adjusted_gain_pct", "mae_pct"]
+        )
+
+        result = calculate_partial_cover_table(df, sample_mapping, cover_pct=0.5)
+
+        assert len(result) == 8
+        # All rows should have 0% of trades
+        assert (result["% of Trades"] == 0.0).all()
+
+    def test_calculate_partial_cover_no_threshold_reached(self, sample_mapping):
+        """Test when no trades reach any threshold."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.05],
+                "adjusted_gain_pct": [0.10, 0.05],
+                "mae_pct": [2.0, 3.0],  # All below 5% threshold
+            }
+        )
+
+        result = calculate_partial_cover_table(df, sample_mapping, cover_pct=0.5)
+
+        # No trades reach even the lowest threshold (5%)
+        assert result.iloc[0]["% of Trades"] == 0.0
+        # Blended should equal full hold when no threshold reached
+        assert result.iloc[0]["Avg Blended Return %"] == result.iloc[0]["Avg Full Hold Return %"]
+
+    def test_calculate_partial_cover_blended_calculation(self, sample_mapping):
+        """Test blended return calculation when threshold is reached."""
+        # Single trade that reaches 10% MAE with 20% gain
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.20],
+                "adjusted_gain_pct": [0.20],
+                "mae_pct": [10.0],
+            }
+        )
+
+        result = calculate_partial_cover_table(df, sample_mapping, cover_pct=0.5)
+
+        # At 10% threshold (row index 1), blended = 0.5 * (-0.10) + 0.5 * 0.20 = 0.05 = 5%
+        row_10 = result[result["Partial Cover %"] == 10].iloc[0]
+        assert row_10["% of Trades"] == 100.0  # Trade reached threshold
+        # Blended return: 0.5 * (-10%) + 0.5 * (20%) = -5% + 10% = 5%
+        assert abs(row_10["Avg Blended Return %"] - 5.0) < 0.01
