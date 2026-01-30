@@ -464,6 +464,38 @@ class TestCalculateMfeBeforeLoss:
 # =============================================================================
 
 
+def test_stop_loss_table_includes_ev_avg_median_columns():
+    """Stop loss table should include EV %, Avg Gain %, and Median Gain % columns."""
+    df = pd.DataFrame({
+        "gain_pct": [0.20, 0.15, -0.10, 0.25, -0.05],
+        "mae_pct": [5, 10, 15, 8, 12],
+    })
+    mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
+    )
+    params = AdjustmentParams(stop_loss=100, efficiency=0)
+
+    result = calculate_stop_loss_table(df, mapping, params)
+
+    # Check new columns exist
+    assert "EV %" in result.columns
+    assert "Avg Gain %" in result.columns
+    assert "Median Gain %" in result.columns
+
+    # Check 100% stop row (no stops) has reasonable values
+    row_100 = result[result["Stop %"] == 100].iloc[0]
+    # EV should equal Avg Gain (both are mean return)
+    assert row_100["EV %"] == row_100["Avg Gain %"]
+    # With 5 trades: 20, 15, -10, 25, -5 -> mean = 9%, median = 15%
+    assert abs(row_100["Avg Gain %"] - 9.0) < 0.1
+    assert abs(row_100["Median Gain %"] - 15.0) < 0.1
+
+
 class TestCalculateStopLossTable:
     """Tests for the calculate_stop_loss_table function."""
 

@@ -339,8 +339,9 @@ def calculate_stop_loss_table(
 
     Returns:
         DataFrame with rows for each stop level and performance metrics.
-        Columns: Stop %, Win %, Profit Ratio, Edge %, EG %, Max Loss %,
-                 Full Kelly (Stop Adj), Half Kelly (Stop Adj), Quarter Kelly (Stop Adj)
+        Columns: Stop %, Win %, EV %, Avg Gain %, Median Gain %, Profit Ratio,
+                 Edge %, EG %, Max Loss %, Full Kelly (Stop Adj),
+                 Half Kelly (Stop Adj), Quarter Kelly (Stop Adj)
     """
     rows = []
     gain_col = mapping.gain_pct
@@ -407,6 +408,9 @@ def _calculate_stop_level_row(
         return {
             "Stop %": stop_level,
             "Win %": 0.0,
+            "EV %": None,
+            "Avg Gain %": None,
+            "Median Gain %": None,
             "Profit Ratio": None,
             "Edge %": None,
             "EG %": None,
@@ -445,6 +449,14 @@ def _calculate_stop_level_row(
 
     # Max Loss % (stopped out / total × 100)
     max_loss_pct = (stopped_count / total_trades) * 100
+
+    # Avg Gain % and Median Gain % (from adjusted returns converted to percentage)
+    adjusted_returns_pct = adjusted_returns * 100
+    avg_gain_pct = adjusted_returns_pct.mean()
+    median_gain_pct = adjusted_returns_pct.median()
+
+    # EV % (expected value = average return, same as Avg Gain %)
+    ev_pct = avg_gain_pct
 
     # Calculate avg_win and avg_loss for profit ratio
     avg_win = adjusted_returns[winners].mean() if win_count > 0 else 0.0
@@ -495,6 +507,9 @@ def _calculate_stop_level_row(
     return {
         "Stop %": stop_level,
         "Win %": win_pct,
+        "EV %": ev_pct,
+        "Avg Gain %": avg_gain_pct,
+        "Median Gain %": median_gain_pct,
         "Profit Ratio": profit_ratio,
         "Edge %": edge_pct,
         "EG %": eg_pct,
