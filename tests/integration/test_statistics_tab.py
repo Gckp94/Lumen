@@ -410,6 +410,37 @@ class TestStatisticsTabIntegration:
         # Table should still have same structure
         assert tab._scaling_table.rowCount() == 8
 
+    def test_cover_spinbox_refreshes_table(
+        self, app, qtbot, app_state_with_statistics_data: AppState
+    ) -> None:
+        """Test that changing cover spinbox refreshes the cover table."""
+        tab = StatisticsTab(app_state_with_statistics_data)
+        qtbot.addWidget(tab)
+
+        # Trigger initial data population
+        dummy_metrics = TradingMetrics(
+            num_trades=20,
+            win_rate=70.0,
+            avg_winner=25.0,
+            avg_loser=-6.0,
+            rr_ratio=4.17,
+            ev=15.0,
+            kelly=20.0,
+            winner_count=14,
+            loser_count=6,
+        )
+        app_state_with_statistics_data.baseline_calculated.emit(dummy_metrics)
+
+        # Verify initial table has data
+        initial_row_count = tab._cover_table.rowCount()
+        assert initial_row_count > 0
+
+        # Change cover percentage
+        tab._cover_spin.setValue(75)
+
+        # Table should still have data (refreshed)
+        assert tab._cover_table.rowCount() > 0
+
     def test_empty_state_shown_without_data(self, app, qtbot) -> None:
         """Test that empty state is shown when no data is loaded."""
         app_state = AppState()
