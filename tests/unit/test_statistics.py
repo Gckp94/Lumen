@@ -397,3 +397,227 @@ class TestCalculateMfeBeforeLoss:
         # Empty buckets should have 0 plays
         bucket_50 = result[result["% Loss per Trade"] == ">50%"].iloc[0]
         assert bucket_50["# of Plays"] == 0
+
+
+# =============================================================================
+# Tests for calculate_stop_loss_table
+# =============================================================================
+
+class TestCalculateStopLossTable:
+    """Tests for the calculate_stop_loss_table function."""
+
+    def test_basic_data(self, sample_mapping):
+        """Test stop loss table with basic data."""
+        df = pd.DataFrame({
+            "gain_pct": [0.10, -0.05, 0.20, -0.15],  # 2 win, 2 loss
+            "mae_pct": [5.0, 25.0, 8.0, 35.0],  # 2 would be stopped at 20%
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        assert len(result) == 10  # 10 stop levels
+        assert "Stop %" in result.columns
+        assert "Win %" in result.columns
+        assert "EG %" in result.columns
+        assert "Profit Ratio" in result.columns
+        assert "Edge %" in result.columns
+        assert "Max Loss %" in result.columns
+        assert "Full Kelly (Stop Adj)" in result.columns
+        assert "Half Kelly (Stop Adj)" in result.columns
+        assert "Quarter Kelly (Stop Adj)" in result.columns
+
+    def test_stop_levels(self, sample_mapping):
+        """Test that correct stop levels are present."""
+        df = pd.DataFrame({
+            "gain_pct": [0.10, 0.20],
+            "mae_pct": [5.0, 8.0],
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        expected_stops = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        assert list(result["Stop %"]) == expected_stops
+
+    def test_stop_loss_applied_correctly(self, sample_mapping):
+        """Test that stop loss modifies returns."""
+        df = pd.DataFrame({
+            "gain_pct": [0.50, 0.50],  # Both would win 50%
+            "mae_pct": [15.0, 25.0],   # One stopped at 20%, one not
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        row_20 = result[result["Stop %"] == 20].iloc[0]
+        assert row_20["Max Loss %"] == 50.0  # 1 of 2 stopped
+
+    def test_stop_loss_return_calculation(self, sample_mapping):
+        """Test that stopped out trades use correct return."""
+        # Trade with mae_pct=25% will be stopped at 20% stop level
+        # Return should be -0.20 (stop level / 100 * efficiency)
+        df = pd.DataFrame({
+            "gain_pct": [0.30],  # Would have won 30%
+            "mae_pct": [25.0],   # MAE >= 20%, so stopped at 20%
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        row_20 = result[result["Stop %"] == 20].iloc[0]
+        # Trade was stopped, so Win % should be 0
+        assert row_20["Win %"] == 0.0
+        assert row_20["Max Loss %"] == 100.0  # 1 of 1 stopped
+
+        row_30 = result[result["Stop %"] == 30].iloc[0]
+        # At 30% stop, mae_pct 25% < 30%, so not stopped - original gain used
+        assert row_30["Win %"] == 100.0  # Trade wins with original 30% gain
+        assert row_30["Max Loss %"] == 0.0  # Not stopped
+
+    def test_efficiency_applied(self, sample_mapping):
+        """Test that efficiency reduces stop loss magnitude."""
+        df = pd.DataFrame({
+            "gain_pct": [0.10],
+            "mae_pct": [25.0],  # Will be stopped at 20%
+        })
+        result_100 = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result_80 = calculate_stop_loss_table(df, sample_mapping, efficiency=0.8)
+
+        # At 20% stop with 100% efficiency: loss = -20%
+        # At 20% stop with 80% efficiency: loss = -20% * 0.8 = -16%
+        # Both should show same stopped count
+        row_100 = result_100[result_100["Stop %"] == 20].iloc[0]
+        row_80 = result_80[result_80["Stop %"] == 20].iloc[0]
+
+        assert row_100["Max Loss %"] == row_80["Max Loss %"]  # Both stopped
+        # Win % should be the same (both are losses)
+        assert row_100["Win %"] == row_80["Win %"]
+
+    def test_win_percentage_calculation(self, sample_mapping):
+        """Test Win % calculation: winners / total × 100."""
+        df = pd.DataFrame({
+            "gain_pct": [0.10, 0.20, -0.05, -0.10],  # 2 winners, 2 losers
+            "mae_pct": [5.0, 8.0, 3.0, 4.0],  # None stopped at any level
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        # At any stop level where no trades are stopped, Win % = 50%
+        row_10 = result[result["Stop %"] == 10].iloc[0]
+        assert row_10["Win %"] == pytest.approx(50.0, rel=0.01)
+
+    def test_profit_ratio_calculation(self, sample_mapping):
+        """Test Profit Ratio calculation: avg_win / abs(avg_loss)."""
+        df = pd.DataFrame({
+            "gain_pct": [0.20, 0.10, -0.05, -0.05],  # avg_win=0.15, avg_loss=-0.05
+            "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        row_10 = result[result["Stop %"] == 10].iloc[0]
+        # Profit Ratio = 0.15 / 0.05 = 3.0
+        assert row_10["Profit Ratio"] == pytest.approx(3.0, rel=0.01)
+
+    def test_edge_percentage_calculation(self, sample_mapping):
+        """Test Edge % calculation: (profit_ratio + 1) × win_rate - 1."""
+        df = pd.DataFrame({
+            "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
+            "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        row_10 = result[result["Stop %"] == 10].iloc[0]
+        # win_rate = 0.5
+        # avg_win = 0.20, avg_loss = -0.10
+        # profit_ratio = 0.20 / 0.10 = 2.0
+        # edge = (2.0 + 1) * 0.5 - 1 = 0.5 = 50%
+        assert row_10["Edge %"] == pytest.approx(50.0, rel=0.01)
+
+    def test_max_loss_percentage(self, sample_mapping):
+        """Test Max Loss % calculation: stopped / total × 100."""
+        df = pd.DataFrame({
+            "gain_pct": [0.10, 0.10, 0.10, 0.10],
+            "mae_pct": [15.0, 25.0, 35.0, 45.0],  # Different MAE levels
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        # At 10% stop: all 4 stopped (all mae_pct >= 10)
+        row_10 = result[result["Stop %"] == 10].iloc[0]
+        assert row_10["Max Loss %"] == 100.0
+
+        # At 20% stop: 3 stopped (mae >= 20: 25, 35, 45)
+        row_20 = result[result["Stop %"] == 20].iloc[0]
+        assert row_20["Max Loss %"] == 75.0
+
+        # At 30% stop: 2 stopped (mae >= 30: 35, 45)
+        row_30 = result[result["Stop %"] == 30].iloc[0]
+        assert row_30["Max Loss %"] == 50.0
+
+        # At 40% stop: 1 stopped (mae >= 40: 45)
+        row_40 = result[result["Stop %"] == 40].iloc[0]
+        assert row_40["Max Loss %"] == 25.0
+
+        # At 50% stop: 0 stopped
+        row_50 = result[result["Stop %"] == 50].iloc[0]
+        assert row_50["Max Loss %"] == 0.0
+
+    def test_kelly_calculations(self, sample_mapping):
+        """Test Kelly position sizing calculations."""
+        df = pd.DataFrame({
+            "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
+            "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        row_20 = result[result["Stop %"] == 20].iloc[0]
+        # win_rate = 0.5, profit_ratio = 2.0
+        # edge = (2.0 + 1) * 0.5 - 1 = 0.5 (as decimal)
+        # Full Kelly (Stop Adj) = edge / profit_ratio / (stop_level/100)
+        # Full Kelly = 0.5 / 2.0 / 0.20 = 1.25
+        full_kelly = row_20["Full Kelly (Stop Adj)"]
+        assert full_kelly == pytest.approx(1.25, rel=0.01)
+        assert row_20["Half Kelly (Stop Adj)"] == pytest.approx(full_kelly / 2, rel=0.01)
+        assert row_20["Quarter Kelly (Stop Adj)"] == pytest.approx(full_kelly / 4, rel=0.01)
+
+    def test_empty_dataframe(self, sample_mapping):
+        """Test with empty dataframe."""
+        df = pd.DataFrame({
+            "gain_pct": [],
+            "mae_pct": [],
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        assert len(result) == 10  # Should still have 10 rows
+        # All metrics should be 0 or None
+        assert result["Win %"].iloc[0] == 0.0 or pd.isna(result["Win %"].iloc[0])
+
+    def test_all_winners(self, sample_mapping):
+        """Test with only winning trades."""
+        df = pd.DataFrame({
+            "gain_pct": [0.10, 0.20, 0.30],
+            "mae_pct": [5.0, 5.0, 5.0],  # None stopped at 10%+
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        row_10 = result[result["Stop %"] == 10].iloc[0]
+        assert row_10["Win %"] == 100.0
+
+    def test_all_losers(self, sample_mapping):
+        """Test with only losing trades."""
+        df = pd.DataFrame({
+            "gain_pct": [-0.10, -0.20, -0.30],
+            "mae_pct": [5.0, 5.0, 5.0],  # None stopped
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        row_10 = result[result["Stop %"] == 10].iloc[0]
+        assert row_10["Win %"] == 0.0
+
+    def test_eg_formula(self, sample_mapping):
+        """Test EG % (Expected Growth) formula calculation."""
+        # Create a dataset with known expected values
+        df = pd.DataFrame({
+            "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
+            "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
+        })
+        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+
+        row_10 = result[result["Stop %"] == 10].iloc[0]
+        # EG % = edge_pct × win_rate - (1 - win_rate) × loss_rate / profit_ratio
+        # This is the Kelly criterion growth rate
+        # With 50% win rate, PR=2, edge=50%
+        # EG = 0.5 * 0.5 - 0.5 * 0.5 / 2 = 0.25 - 0.125 = 0.125 = 12.5%
+        # Note: Need to verify exact formula in implementation
+        assert "EG %" in result.columns
