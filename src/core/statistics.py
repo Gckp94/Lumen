@@ -807,13 +807,8 @@ def _calculate_return_metrics(returns: pd.Series) -> dict:
     else:
         edge_pct = None
 
-    # EG %: win_rate - (1 - win_rate) / profit_ratio
-    if profit_ratio is not None and profit_ratio > 0:
-        loss_rate = 1 - win_rate
-        eg_decimal = win_rate - loss_rate / profit_ratio
-        eg_pct = eg_decimal * 100
-    else:
-        eg_pct = None
+    # EG %: Geometric growth formula at full Kelly stake
+    eg_pct = calculate_expected_growth(win_rate, profit_ratio)
 
     return {
         "win_pct": win_pct,

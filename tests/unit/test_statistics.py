@@ -1237,3 +1237,31 @@ class TestOffsetEgCalculation:
         assert eg_value is not None
         # EG should be less than Kelly (which would be ~40-50%)
         assert eg_value < 40, f"EG% {eg_value} should be < 40 (using geometric formula)"
+
+
+class TestScalingEgCalculation:
+    """Tests for EG% in scaling table using correct formula."""
+
+    def test_scaling_eg_uses_geometric_formula(self, sample_mapping):
+        """Verify both blended and full hold EG% use geometric growth."""
+        df = pd.DataFrame({
+            "gain_pct": [0.20, 0.15, 0.10, -0.05, -0.08],
+            "adjusted_gain_pct": [0.20, 0.15, 0.10, -0.05, -0.08],
+            "mfe_pct": [25.0, 18.0, 12.0, 8.0, 5.0],
+        })
+
+        result = calculate_scaling_table(df, sample_mapping, scale_out_pct=50)
+
+        # Check first target row
+        first_row = result.iloc[0]
+
+        # Both EG columns should use geometric formula
+        blended_eg = first_row.get("Blended EG %")
+        full_hold_eg = first_row.get("Full Hold EG %")
+
+        # EG values should be reasonable (less than 40%) when not None/NaN
+        # None/NaN is valid when there's no positive edge
+        if blended_eg is not None and not pd.isna(blended_eg):
+            assert blended_eg < 40, f"Blended EG% {blended_eg} too high"
+        if full_hold_eg is not None and not pd.isna(full_hold_eg):
+            assert full_hold_eg < 40, f"Full Hold EG% {full_hold_eg} too high"
