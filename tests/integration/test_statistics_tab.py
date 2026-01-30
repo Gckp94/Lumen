@@ -461,14 +461,14 @@ class TestStatisticsTabIntegration:
         )
         app_state.baseline_calculated.emit(dummy_metrics)
 
-        # MAE-dependent tabs should be disabled (indices 0, 2, 3)
-        assert not tab._tab_widget.isTabEnabled(0)  # MAE Before Win
-        assert not tab._tab_widget.isTabEnabled(2)  # Stop Loss
-        assert not tab._tab_widget.isTabEnabled(3)  # Offset
+        # MAE-dependent tabs should be disabled (indices 1, 2)
+        assert not tab._tab_widget.isTabEnabled(1)  # Stop Loss
+        assert not tab._tab_widget.isTabEnabled(2)  # Offset
 
-        # MFE-dependent tabs should be enabled (indices 1, 4)
-        assert tab._tab_widget.isTabEnabled(1)  # MFE Before Loss
-        assert tab._tab_widget.isTabEnabled(4)  # Scaling
+        # MAE/MFE tab (index 0) should be enabled (has MFE)
+        assert tab._tab_widget.isTabEnabled(0)  # MAE/MFE (has MFE)
+        # Scaling tab (index 3) should be enabled (MFE-dependent)
+        assert tab._tab_widget.isTabEnabled(3)  # Scaling
 
     def test_tab_disable_without_mfe_column(
         self, app, qtbot, sample_statistics_data: pd.DataFrame
@@ -510,14 +510,14 @@ class TestStatisticsTabIntegration:
         )
         app_state.baseline_calculated.emit(dummy_metrics)
 
-        # MAE-dependent tabs should be enabled (indices 0, 2, 3)
-        assert tab._tab_widget.isTabEnabled(0)  # MAE Before Win
-        assert tab._tab_widget.isTabEnabled(2)  # Stop Loss
-        assert tab._tab_widget.isTabEnabled(3)  # Offset
+        # MAE-dependent tabs should be enabled (indices 1, 2)
+        assert tab._tab_widget.isTabEnabled(1)  # Stop Loss
+        assert tab._tab_widget.isTabEnabled(2)  # Offset
 
-        # MFE-dependent tabs should be disabled (indices 1, 4)
-        assert not tab._tab_widget.isTabEnabled(1)  # MFE Before Loss
-        assert not tab._tab_widget.isTabEnabled(4)  # Scaling
+        # MAE/MFE tab (index 0) should be enabled (has MAE)
+        assert tab._tab_widget.isTabEnabled(0)  # MAE/MFE (has MAE)
+        # Scaling tab (index 3) should be disabled (MFE-dependent)
+        assert not tab._tab_widget.isTabEnabled(3)  # Scaling
 
     def test_initialize_from_existing_state(
         self, app, qtbot, app_state_with_statistics_data: AppState
