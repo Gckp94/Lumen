@@ -240,7 +240,7 @@ class StatisticsTab(QWidget):
         control_row.addWidget(label)
 
         self._scale_out_spin = QSpinBox()
-        self._scale_out_spin.setRange(10, 90)
+        self._scale_out_spin.setRange(0, 100)
         self._scale_out_spin.setValue(50)
         self._scale_out_spin.setSingleStep(10)
         self._scale_out_spin.setSuffix("%")

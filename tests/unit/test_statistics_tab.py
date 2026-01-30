@@ -322,6 +322,43 @@ class TestStatisticsTabDataUpdates:
         assert tab._mae_table.rowCount() == 7  # Still 7 rows, but different counts
 
 
+class TestStatisticsTabTables:
+    """Test statistics tab table configurations."""
+
+    @pytest.fixture
+    def test_df(self) -> pd.DataFrame:
+        """Create test DataFrame with required columns."""
+        return pd.DataFrame({
+            "adjusted_gain_pct": [0.10, -0.05, 0.15, -0.08, 0.20, -0.03],
+            "mae_pct": [5.0, 15.0, 8.0, 12.0, 6.0, 18.0],
+            "mfe_pct": [12.0, 5.0, 20.0, 8.0, 25.0, 4.0],
+            "gain_pct": [0.10, -0.05, 0.15, -0.08, 0.20, -0.03],
+            "ticker": ["AAPL"] * 6,
+            "date": ["2024-01-01"] * 6,
+            "time": ["09:30"] * 6,
+        })
+
+    @pytest.fixture
+    def test_mapping(self) -> ColumnMapping:
+        """Create test column mapping."""
+        return ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+
+    def test_scale_out_spinbox_range(self, app, test_df, test_mapping):
+        """Test that scale out spinbox allows 0-100% range."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+
+        assert tab._scale_out_spin.minimum() == 0
+        assert tab._scale_out_spin.maximum() == 100
+
+
 class TestStatisticsTabTablePopulation:
     """Test table population helper methods."""
 
