@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from src.core.models import ColumnMapping
+from src.core.models import AdjustmentParams, ColumnMapping
 from src.core.statistics import (
     calculate_mae_before_win,
     calculate_mfe_before_loss,
@@ -24,6 +24,18 @@ def sample_mapping():
         mae_pct="mae_pct",
         mfe_pct="mfe_pct",
     )
+
+
+@pytest.fixture
+def default_adjustment_params():
+    """Create default adjustment params for tests (no slippage, 100% stop)."""
+    return AdjustmentParams(stop_loss=100.0, efficiency=0.0)
+
+
+@pytest.fixture
+def offset_adjustment_params():
+    """Create adjustment params for offset tests (20% stop, no slippage)."""
+    return AdjustmentParams(stop_loss=20.0, efficiency=0.0)
 
 
 def test_statistics_module_imports():
@@ -454,7 +466,7 @@ class TestCalculateMfeBeforeLoss:
 class TestCalculateStopLossTable:
     """Tests for the calculate_stop_loss_table function."""
 
-    def test_basic_data(self, sample_mapping):
+    def test_basic_data(self, sample_mapping, default_adjustment_params):
         """Test stop loss table with basic data."""
         df = pd.DataFrame(
             {
@@ -462,7 +474,7 @@ class TestCalculateStopLossTable:
                 "mae_pct": [5.0, 25.0, 8.0, 35.0],  # 2 would be stopped at 20%
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         assert len(result) == 10  # 10 stop levels
         assert "Stop %" in result.columns
@@ -475,7 +487,7 @@ class TestCalculateStopLossTable:
         assert "Half Kelly (Stop Adj)" in result.columns
         assert "Quarter Kelly (Stop Adj)" in result.columns
 
-    def test_stop_levels(self, sample_mapping):
+    def test_stop_levels(self, sample_mapping, default_adjustment_params):
         """Test that correct stop levels are present."""
         df = pd.DataFrame(
             {
@@ -483,12 +495,12 @@ class TestCalculateStopLossTable:
                 "mae_pct": [5.0, 8.0],
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         expected_stops = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
         assert list(result["Stop %"]) == expected_stops
 
-    def test_stop_loss_applied_correctly(self, sample_mapping):
+    def test_stop_loss_applied_correctly(self, sample_mapping, default_adjustment_params):
         """Test that stop loss modifies returns."""
         df = pd.DataFrame(
             {
@@ -496,22 +508,22 @@ class TestCalculateStopLossTable:
                 "mae_pct": [15.0, 25.0],  # One stopped at 20%, one not
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         row_20 = result[result["Stop %"] == 20].iloc[0]
         assert row_20["Max Loss %"] == 50.0  # 1 of 2 stopped
 
-    def test_stop_loss_return_calculation(self, sample_mapping):
+    def test_stop_loss_return_calculation(self, sample_mapping, default_adjustment_params):
         """Test that stopped out trades use correct return."""
         # Trade with mae_pct=25% will be stopped at 20% stop level
-        # Return should be -0.20 (stop level / 100 * efficiency)
+        # Return should be negative (stopped out loss)
         df = pd.DataFrame(
             {
                 "gain_pct": [0.30],  # Would have won 30%
                 "mae_pct": [25.0],  # MAE >= 20%, so stopped at 20%
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         row_20 = result[result["Stop %"] == 20].iloc[0]
         # Trade was stopped, so Win % should be 0
@@ -524,27 +536,30 @@ class TestCalculateStopLossTable:
         assert row_30["Max Loss %"] == 0.0  # Not stopped
 
     def test_efficiency_applied(self, sample_mapping):
-        """Test that efficiency reduces stop loss magnitude."""
+        """Test that slippage (efficiency) affects returns."""
         df = pd.DataFrame(
             {
                 "gain_pct": [0.10],
                 "mae_pct": [25.0],  # Will be stopped at 20%
             }
         )
-        result_100 = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
-        result_80 = calculate_stop_loss_table(df, sample_mapping, efficiency=0.8)
+        # No slippage
+        params_no_slippage = AdjustmentParams(stop_loss=100.0, efficiency=0.0)
+        # 5% slippage
+        params_with_slippage = AdjustmentParams(stop_loss=100.0, efficiency=5.0)
 
-        # At 20% stop with 100% efficiency: loss = -20%
-        # At 20% stop with 80% efficiency: loss = -20% * 0.8 = -16%
-        # Both should show same stopped count
-        row_100 = result_100[result_100["Stop %"] == 20].iloc[0]
-        row_80 = result_80[result_80["Stop %"] == 20].iloc[0]
+        result_no_slippage = calculate_stop_loss_table(df, sample_mapping, params_no_slippage)
+        result_with_slippage = calculate_stop_loss_table(df, sample_mapping, params_with_slippage)
 
-        assert row_100["Max Loss %"] == row_80["Max Loss %"]  # Both stopped
+        # Both should show same stopped count at 20% stop level
+        row_no_slippage = result_no_slippage[result_no_slippage["Stop %"] == 20].iloc[0]
+        row_with_slippage = result_with_slippage[result_with_slippage["Stop %"] == 20].iloc[0]
+
+        assert row_no_slippage["Max Loss %"] == row_with_slippage["Max Loss %"]  # Both stopped
         # Win % should be the same (both are losses)
-        assert row_100["Win %"] == row_80["Win %"]
+        assert row_no_slippage["Win %"] == row_with_slippage["Win %"]
 
-    def test_win_percentage_calculation(self, sample_mapping):
+    def test_win_percentage_calculation(self, sample_mapping, default_adjustment_params):
         """Test Win % calculation: winners / total × 100."""
         df = pd.DataFrame(
             {
@@ -552,13 +567,13 @@ class TestCalculateStopLossTable:
                 "mae_pct": [5.0, 8.0, 3.0, 4.0],  # None stopped at any level
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         # At any stop level where no trades are stopped, Win % = 50%
         row_10 = result[result["Stop %"] == 10].iloc[0]
         assert row_10["Win %"] == pytest.approx(50.0, rel=0.01)
 
-    def test_profit_ratio_calculation(self, sample_mapping):
+    def test_profit_ratio_calculation(self, sample_mapping, default_adjustment_params):
         """Test Profit Ratio calculation: avg_win / abs(avg_loss)."""
         df = pd.DataFrame(
             {
@@ -566,13 +581,13 @@ class TestCalculateStopLossTable:
                 "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         row_10 = result[result["Stop %"] == 10].iloc[0]
         # Profit Ratio = 0.15 / 0.05 = 3.0
         assert row_10["Profit Ratio"] == pytest.approx(3.0, rel=0.01)
 
-    def test_edge_percentage_calculation(self, sample_mapping):
+    def test_edge_percentage_calculation(self, sample_mapping, default_adjustment_params):
         """Test Edge % calculation: (profit_ratio + 1) × win_rate - 1."""
         df = pd.DataFrame(
             {
@@ -580,7 +595,7 @@ class TestCalculateStopLossTable:
                 "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         row_10 = result[result["Stop %"] == 10].iloc[0]
         # win_rate = 0.5
@@ -589,7 +604,7 @@ class TestCalculateStopLossTable:
         # edge = (2.0 + 1) * 0.5 - 1 = 0.5 = 50%
         assert row_10["Edge %"] == pytest.approx(50.0, rel=0.01)
 
-    def test_max_loss_percentage(self, sample_mapping):
+    def test_max_loss_percentage(self, sample_mapping, default_adjustment_params):
         """Test Max Loss % calculation: stopped / total × 100."""
         df = pd.DataFrame(
             {
@@ -597,7 +612,7 @@ class TestCalculateStopLossTable:
                 "mae_pct": [15.0, 25.0, 35.0, 45.0],  # Different MAE levels
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         # At 10% stop: all 4 stopped (all mae_pct >= 10)
         row_10 = result[result["Stop %"] == 10].iloc[0]
@@ -619,7 +634,7 @@ class TestCalculateStopLossTable:
         row_50 = result[result["Stop %"] == 50].iloc[0]
         assert row_50["Max Loss %"] == 0.0
 
-    def test_kelly_calculations(self, sample_mapping):
+    def test_kelly_calculations(self, sample_mapping, default_adjustment_params):
         """Test Kelly position sizing calculations."""
         df = pd.DataFrame(
             {
@@ -627,19 +642,19 @@ class TestCalculateStopLossTable:
                 "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         row_20 = result[result["Stop %"] == 20].iloc[0]
         # win_rate = 0.5, profit_ratio = 2.0
         # edge = (2.0 + 1) * 0.5 - 1 = 0.5 (as decimal)
-        # Full Kelly (Stop Adj) = edge / profit_ratio / (stop_level/100)
-        # Full Kelly = 0.5 / 2.0 / 0.20 = 1.25
+        # Full Kelly (Stop Adj) = edge / profit_ratio / (stop_level/100) * 100 (percentage)
+        # Full Kelly = 0.5 / 2.0 / 0.20 * 100 = 125.0%
         full_kelly = row_20["Full Kelly (Stop Adj)"]
-        assert full_kelly == pytest.approx(1.25, rel=0.01)
+        assert full_kelly == pytest.approx(125.0, rel=0.01)
         assert row_20["Half Kelly (Stop Adj)"] == pytest.approx(full_kelly / 2, rel=0.01)
         assert row_20["Quarter Kelly (Stop Adj)"] == pytest.approx(full_kelly / 4, rel=0.01)
 
-    def test_empty_dataframe(self, sample_mapping):
+    def test_empty_dataframe(self, sample_mapping, default_adjustment_params):
         """Test with empty dataframe."""
         df = pd.DataFrame(
             {
@@ -647,13 +662,13 @@ class TestCalculateStopLossTable:
                 "mae_pct": [],
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         assert len(result) == 10  # Should still have 10 rows
         # All metrics should be 0 or None
         assert result["Win %"].iloc[0] == 0.0 or pd.isna(result["Win %"].iloc[0])
 
-    def test_all_winners(self, sample_mapping):
+    def test_all_winners(self, sample_mapping, default_adjustment_params):
         """Test with only winning trades."""
         df = pd.DataFrame(
             {
@@ -661,12 +676,12 @@ class TestCalculateStopLossTable:
                 "mae_pct": [5.0, 5.0, 5.0],  # None stopped at 10%+
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         row_10 = result[result["Stop %"] == 10].iloc[0]
         assert row_10["Win %"] == 100.0
 
-    def test_all_losers(self, sample_mapping):
+    def test_all_losers(self, sample_mapping, default_adjustment_params):
         """Test with only losing trades."""
         df = pd.DataFrame(
             {
@@ -674,12 +689,12 @@ class TestCalculateStopLossTable:
                 "mae_pct": [5.0, 5.0, 5.0],  # None stopped
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         row_10 = result[result["Stop %"] == 10].iloc[0]
         assert row_10["Win %"] == 0.0
 
-    def test_eg_formula(self, sample_mapping):
+    def test_eg_formula(self, sample_mapping, default_adjustment_params):
         """Test EG % (Expected Growth) uses geometric formula calculation."""
         # Create a dataset with known expected values
         df = pd.DataFrame(
@@ -688,7 +703,7 @@ class TestCalculateStopLossTable:
                 "mae_pct": [5.0, 5.0, 3.0, 3.0],  # None stopped
             }
         )
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         # Verify EG % column exists and has expected value
         assert "EG %" in result.columns
@@ -708,7 +723,7 @@ class TestCalculateStopLossTable:
 class TestCalculateOffsetTable:
     """Tests for the calculate_offset_table function."""
 
-    def test_basic_data(self, sample_mapping):
+    def test_basic_data(self, sample_mapping, offset_adjustment_params):
         """Test offset table with basic data."""
         df = pd.DataFrame(
             {
@@ -717,7 +732,7 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [15.0, 8.0, 25.0],
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+        result = calculate_offset_table(df, sample_mapping, offset_adjustment_params)
 
         assert len(result) == 7  # 7 offset levels
         assert "Offset %" in result.columns
@@ -732,7 +747,7 @@ class TestCalculateOffsetTable:
         assert "Max Loss %" in result.columns
         assert "Total Gain %" in result.columns
 
-    def test_offset_levels(self, sample_mapping):
+    def test_offset_levels(self, sample_mapping, offset_adjustment_params):
         """Test that correct offset levels are present."""
         df = pd.DataFrame(
             {
@@ -741,12 +756,12 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [50.0],
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+        result = calculate_offset_table(df, sample_mapping, offset_adjustment_params)
 
         expected_offsets = [-20, -10, 0, 10, 20, 30, 40]
         assert list(result["Offset %"]) == expected_offsets
 
-    def test_zero_offset_includes_all(self, sample_mapping):
+    def test_zero_offset_includes_all(self, sample_mapping, offset_adjustment_params):
         """Test that 0% offset includes all trades."""
         df = pd.DataFrame(
             {
@@ -755,7 +770,7 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [15.0, 8.0],
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+        result = calculate_offset_table(df, sample_mapping, offset_adjustment_params)
         row_0 = result[result["Offset %"] == 0].iloc[0]
         assert row_0["# of Trades"] == 2
 
@@ -768,7 +783,8 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [10.0, 10.0, 10.0],
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=30.0, efficiency=1.0)
+        params = AdjustmentParams(stop_loss=30.0, efficiency=0.0)
+        result = calculate_offset_table(df, sample_mapping, params)
         row_20 = result[result["Offset %"] == 20].iloc[0]
         assert row_20["# of Trades"] == 1
 
@@ -781,7 +797,8 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [5.0, 15.0, 25.0],  # 15 and 25 qualify for -10%
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=30.0, efficiency=1.0)
+        params = AdjustmentParams(stop_loss=30.0, efficiency=0.0)
+        result = calculate_offset_table(df, sample_mapping, params)
         row_minus10 = result[result["Offset %"] == -10].iloc[0]
         assert row_minus10["# of Trades"] == 2
 
@@ -800,7 +817,8 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [30.0],
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+        params = AdjustmentParams(stop_loss=50.0, efficiency=0.0)
+        result = calculate_offset_table(df, sample_mapping, params)
 
         # At +10% offset, should have 1 trade
         row_10 = result[result["Offset %"] == 10].iloc[0]
@@ -821,13 +839,14 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [30.0],  # qualifies for -10% offset
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+        params = AdjustmentParams(stop_loss=50.0, efficiency=0.0)
+        result = calculate_offset_table(df, sample_mapping, params)
 
         # At -10% offset, should have 1 trade
         row_minus10 = result[result["Offset %"] == -10].iloc[0]
         assert row_minus10["# of Trades"] == 1
 
-    def test_stop_loss_applied_to_adjusted_mae(self, sample_mapping):
+    def test_stop_loss_applied_to_adjusted_mae(self, sample_mapping, offset_adjustment_params):
         """Test that stop loss is applied to recalculated MAE."""
         # After offset, if new_mae >= stop_loss, trade is stopped
         df = pd.DataFrame(
@@ -837,7 +856,7 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [50.0],  # qualifies for all negative offsets
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+        result = calculate_offset_table(df, sample_mapping, offset_adjustment_params)
 
         # At -20% offset (entry at 0.80):
         # new_mae = (1.50 - 0.80) / 0.80 * 100 = 87.5% >= 20% stop, so stopped
@@ -853,13 +872,14 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [5.0, 5.0, 5.0],
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+        params = AdjustmentParams(stop_loss=50.0, efficiency=0.0)
+        result = calculate_offset_table(df, sample_mapping, params)
 
         # At 0% offset (no filtering), Win % = 2/3 * 100 = 66.67%
         row_0 = result[result["Offset %"] == 0].iloc[0]
         assert row_0["Win %"] == pytest.approx(66.67, rel=0.01)
 
-    def test_empty_qualifying_trades(self, sample_mapping):
+    def test_empty_qualifying_trades(self, sample_mapping, offset_adjustment_params):
         """Test handling when no trades qualify for an offset."""
         df = pd.DataFrame(
             {
@@ -868,7 +888,7 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [5.0],  # Doesn't qualify for -10% offset
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=1.0)
+        result = calculate_offset_table(df, sample_mapping, offset_adjustment_params)
 
         # At +20% offset, should have 0 trades (mae_pct 5 < 20)
         row_20 = result[result["Offset %"] == 20].iloc[0]
@@ -883,7 +903,8 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [5.0, 5.0],
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+        params = AdjustmentParams(stop_loss=50.0, efficiency=0.0)
+        result = calculate_offset_table(df, sample_mapping, params)
 
         # At 0% offset (no adjustment to returns), Total Gain = 30%
         row_0 = result[result["Offset %"] == 0].iloc[0]
@@ -898,30 +919,29 @@ class TestCalculateOffsetTable:
                 "mfe_pct": [5.0, 5.0],
             }
         )
-        result = calculate_offset_table(df, sample_mapping, stop_loss=50.0, efficiency=1.0)
+        params = AdjustmentParams(stop_loss=50.0, efficiency=0.0)
+        result = calculate_offset_table(df, sample_mapping, params)
 
         # Profit Ratio = 0.20 / 0.10 = 2.0
         row_0 = result[result["Offset %"] == 0].iloc[0]
         assert row_0["Profit Ratio"] == pytest.approx(2.0, rel=0.01)
 
     def test_efficiency_applied(self, sample_mapping):
-        """Test efficiency is applied to stopped trades."""
+        """Test efficiency (slippage) is applied to all trades."""
         df = pd.DataFrame(
             {
-                "gain_pct": [0.10],
-                "mae_pct": [25.0],  # Will be stopped at 20%
+                "gain_pct": [0.10],  # 10% gain
+                "mae_pct": [5.0],  # Won't be stopped at 20%
                 "mfe_pct": [10.0],
             }
         )
-        # At 0% offset, mae=25% >= 20% stop, so stopped
-        # With 80% efficiency, loss = -20% * 0.8 = -16%
-        result = calculate_offset_table(df, sample_mapping, stop_loss=20.0, efficiency=0.8)
+        # With 5% slippage, a 10% gain becomes 5% gain
+        params = AdjustmentParams(stop_loss=20.0, efficiency=5.0)
+        result = calculate_offset_table(df, sample_mapping, params)
 
         row_0 = result[result["Offset %"] == 0].iloc[0]
-        # Trade is stopped, so Win % = 0
-        assert row_0["Win %"] == 0.0
-        # Avg Gain should be -16%
-        assert row_0["Avg. Gain %"] == pytest.approx(-16.0, rel=0.01)
+        # 10% gain - 5% slippage = 5% gain
+        assert row_0["Avg. Gain %"] == pytest.approx(5.0, rel=0.01)
 
 
 # =============================================================================
@@ -934,10 +954,12 @@ class TestCalculateScalingTable:
 
     def test_basic_data(self, sample_mapping):
         """Test scaling table with basic data."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.10, 0.20, -0.05],
-            "mfe_pct": [15.0, 8.0, 3.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.10, 0.20, -0.05],
+                "mfe_pct": [15.0, 8.0, 3.0],
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         assert len(result) == 8  # 8 target levels
@@ -946,10 +968,12 @@ class TestCalculateScalingTable:
 
     def test_target_levels(self, sample_mapping):
         """Test correct target levels."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.10],
-            "mfe_pct": [50.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.10],
+                "mfe_pct": [50.0],
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         targets = result["Partial Target %"].tolist()
@@ -957,10 +981,12 @@ class TestCalculateScalingTable:
 
     def test_percent_of_trades(self, sample_mapping):
         """Test % of trades reaching target."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.10, 0.10, 0.10],
-            "mfe_pct": [8.0, 12.0, 22.0],  # 1 at 10%, 2 at 10+%, 3 total
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.10, 0.10, 0.10],
+                "mfe_pct": [8.0, 12.0, 22.0],  # 1 at 10%, 2 at 10+%, 3 total
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         row_10 = result[result["Partial Target %"] == 10].iloc[0]
@@ -968,10 +994,12 @@ class TestCalculateScalingTable:
 
     def test_blended_return_calculation(self, sample_mapping):
         """Test blended return formula."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.20],  # 20% full hold return
-            "mfe_pct": [15.0],  # Reaches 10% target
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.20],  # 20% full hold return
+                "mfe_pct": [15.0],  # Reaches 10% target
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         row_10 = result[result["Partial Target %"] == 10].iloc[0]
@@ -980,10 +1008,12 @@ class TestCalculateScalingTable:
 
     def test_no_target_reached_uses_full_hold(self, sample_mapping):
         """Test that trades not reaching target use full hold."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.20],  # 20% return
-            "mfe_pct": [8.0],  # Only reaches 8%, not 10%
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.20],  # 20% return
+                "mfe_pct": [8.0],  # Only reaches 8%, not 10%
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         row_10 = result[result["Partial Target %"] == 10].iloc[0]
@@ -992,10 +1022,12 @@ class TestCalculateScalingTable:
 
     def test_all_columns_present(self, sample_mapping):
         """Test that all required columns are present."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.10, -0.05],
-            "mfe_pct": [15.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.10, -0.05],
+                "mfe_pct": [15.0, 5.0],
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         expected_columns = [
@@ -1019,10 +1051,12 @@ class TestCalculateScalingTable:
 
     def test_full_hold_return_unchanged(self, sample_mapping):
         """Test full hold return is always original return."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.15, 0.25],  # 15% and 25% returns
-            "mfe_pct": [50.0, 50.0],  # Both reach all targets
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.15, 0.25],  # 15% and 25% returns
+                "mfe_pct": [50.0, 50.0],  # Both reach all targets
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         # Full hold average should always be (15 + 25) / 2 = 20%
@@ -1031,10 +1065,12 @@ class TestCalculateScalingTable:
 
     def test_total_returns(self, sample_mapping):
         """Test total return calculations."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.10, 0.20],  # 10% and 20% returns
-            "mfe_pct": [15.0, 15.0],  # Both reach 10% target
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.10, 0.20],  # 10% and 20% returns
+                "mfe_pct": [15.0, 15.0],  # Both reach 10% target
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         row_10 = result[result["Partial Target %"] == 10].iloc[0]
@@ -1047,10 +1083,12 @@ class TestCalculateScalingTable:
 
     def test_win_rate_calculation(self, sample_mapping):
         """Test win rate calculations for blended and full hold."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.05, -0.15],  # 1 win, 1 loss (full hold)
-            "mfe_pct": [20.0, 20.0],  # Both reach 10% target
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.05, -0.15],  # 1 win, 1 loss (full hold)
+                "mfe_pct": [20.0, 20.0],  # Both reach 10% target
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         row_10 = result[result["Partial Target %"] == 10].iloc[0]
@@ -1062,10 +1100,12 @@ class TestCalculateScalingTable:
 
     def test_different_scale_out_percentages(self, sample_mapping):
         """Test different scale out percentages."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.30],  # 30% full hold return
-            "mfe_pct": [20.0],  # Reaches 10% target
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.30],  # 30% full hold return
+                "mfe_pct": [20.0],  # Reaches 10% target
+            }
+        )
 
         # With 50% scale out at 10%: blended = 0.5*10 + 0.5*30 = 20%
         result_50 = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
@@ -1079,10 +1119,12 @@ class TestCalculateScalingTable:
 
     def test_empty_dataframe(self, sample_mapping):
         """Test with empty dataframe."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [],
-            "mfe_pct": [],
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [],
+                "mfe_pct": [],
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         # Should still have 8 rows (one for each target level)
@@ -1092,10 +1134,12 @@ class TestCalculateScalingTable:
 
     def test_mixed_reaching_targets(self, sample_mapping):
         """Test with trades that reach different target levels."""
-        df = pd.DataFrame({
-            "adjusted_gain_pct": [0.10, 0.10, 0.10],
-            "mfe_pct": [7.0, 12.0, 25.0],  # MFE values for each trade
-        })
+        df = pd.DataFrame(
+            {
+                "adjusted_gain_pct": [0.10, 0.10, 0.10],
+                "mfe_pct": [7.0, 12.0, 25.0],  # MFE values for each trade
+            }
+        )
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=0.5)
 
         # At 5%: all 3 trades qualify (7%, 12%, 25% MFE all >= 5%)
@@ -1192,16 +1236,17 @@ class TestExpectedGrowthCalculation:
 class TestStopLossEgCalculation:
     """Tests for EG% in stop loss table using correct formula."""
 
-    def test_stop_loss_eg_uses_geometric_formula(self, sample_mapping):
+    def test_stop_loss_eg_uses_geometric_formula(self, sample_mapping, default_adjustment_params):
         """Verify EG% uses geometric growth, not Kelly formula."""
         # Create data with known metrics
-        df = pd.DataFrame({
-            "gain_pct": [0.30, 0.20, 0.15, -0.10, -0.08],  # 60% win
-            "adjusted_gain_pct": [0.30, 0.20, 0.15, -0.10, -0.08],
-            "mae_pct": [5.0, 8.0, 6.0, 15.0, 12.0],  # MAE levels
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.30, 0.20, 0.15, -0.10, -0.08],  # 60% win
+                "mae_pct": [5.0, 8.0, 6.0, 15.0, 12.0],  # MAE levels
+            }
+        )
 
-        result = calculate_stop_loss_table(df, sample_mapping, efficiency=1.0)
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
 
         # At 100% stop (no stops triggered), original metrics apply
         row_100 = result[result["Stop %"] == 100].iloc[0]
@@ -1214,21 +1259,219 @@ class TestStopLossEgCalculation:
         assert eg_value < 40, f"EG% {eg_value} should be < 40 (using geometric formula)"
 
 
+class TestStatisticsBaselineConsistency:
+    """Tests to verify Statistics table matches baseline metrics at 100% stop."""
+
+    def test_profit_ratio_matches_baseline_at_100_stop(
+        self, sample_mapping, default_adjustment_params
+    ):
+        """Profit Ratio at 100% stop should match baseline calculation.
+
+        This test verifies that Statistics produces consistent profit ratios.
+        """
+        # Create data similar to user's scenario:
+        # - ~74% win rate (needs profit ratio < 1, so losses > wins on average)
+        # - Small wins, larger losses → profit_ratio ~0.5
+        #
+        # 100 trades: 74 winners, 26 losers
+        # avg_win = 5%, avg_loss = -10% → profit_ratio = 0.5
+        winners = [0.05] * 74  # 5% gain each
+        losers = [-0.10] * 26  # 10% loss each
+
+        # MAE values: all below 100% so no stops at 100% level
+        mae_values = [5.0] * 74 + [8.0] * 26
+
+        df = pd.DataFrame(
+            {
+                "gain_pct": winners + losers,
+                "mae_pct": mae_values,
+            }
+        )
+
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
+
+        # At 100% stop, no trades are stopped
+        row_100 = result[result["Stop %"] == 100].iloc[0]
+        stats_profit_ratio = row_100["Profit Ratio"]
+        stats_win_pct = row_100["Win %"]
+
+        # Calculate expected baseline values
+        # avg_win = sum of winners / count = 0.05 * 74 / 74 = 0.05
+        # avg_loss = sum of losers / count = -0.10 * 26 / 26 = -0.10
+        # profit_ratio = avg_win / |avg_loss| = 0.05 / 0.10 = 0.5
+        expected_profit_ratio = 0.05 / 0.10
+        expected_win_pct = 74.0  # 74%
+
+        assert (
+            abs(stats_win_pct - expected_win_pct) < 0.1
+        ), f"Win % mismatch: got {stats_win_pct}, expected {expected_win_pct}"
+        assert (
+            abs(stats_profit_ratio - expected_profit_ratio) < 0.01
+        ), f"Profit Ratio mismatch: got {stats_profit_ratio}, expected {expected_profit_ratio}"
+
+    def test_profit_ratio_with_stop_adjusted_gains(self, sample_mapping, default_adjustment_params):
+        """Test with gains and verify profit ratio calculation.
+
+        Uses default adjustment params (no slippage, high stop).
+        """
+        # 74 winners at 15%, 26 losers at -13%
+        winners = [0.15] * 74
+        losers = [-0.13] * 26
+
+        df = pd.DataFrame(
+            {
+                "gain_pct": winners + losers,
+                "mae_pct": [5.0] * 74 + [15.0] * 26,  # Losers had > 8% MAE originally
+            }
+        )
+
+        result = calculate_stop_loss_table(df, sample_mapping, default_adjustment_params)
+        row_100 = result[result["Stop %"] == 100].iloc[0]
+        stats_profit_ratio = row_100["Profit Ratio"]
+
+        # Expected: 0.15 / 0.13 = 1.15
+        expected_profit_ratio = 0.15 / 0.13
+
+        assert (
+            abs(stats_profit_ratio - expected_profit_ratio) < 0.01
+        ), f"Profit Ratio mismatch: got {stats_profit_ratio}, expected {expected_profit_ratio}"
+
+
+class TestStatisticsMetricsConsistency:
+    """Tests comparing Statistics table with MetricsCalculator baseline."""
+
+    def test_profit_ratio_consistency_with_metrics_calculator(self, sample_mapping):
+        """Compare Statistics 100% stop with MetricsCalculator baseline.
+
+        This test simulates the actual data flow:
+        1. Create data with known values
+        2. Use same AdjustmentParams for both
+        3. Verify profit ratios match
+        """
+        from src.core.metrics import MetricsCalculator
+
+        # Create test data with big losses that will be capped
+        # Winners: 10% gain, MAE 5%
+        # Losers: -30% loss (will be capped), MAE 35%
+        winners_gain = [0.10] * 74
+        losers_gain = [-0.30] * 26
+        winners_mae = [5.0] * 74
+        losers_mae = [35.0] * 26
+
+        df = pd.DataFrame(
+            {
+                "gain_pct": winners_gain + losers_gain,
+                "mae_pct": winners_mae + losers_mae,
+            }
+        )
+
+        # Apply adjustments (stop_loss=8%, efficiency=5%)
+        params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+
+        # Calculate baseline metrics using MetricsCalculator
+        calculator = MetricsCalculator()
+        metrics, _, _ = calculator.calculate(
+            df=df,
+            gain_col="gain_pct",
+            derived=True,
+            adjustment_params=params,
+            mae_col="mae_pct",
+        )
+
+        # Calculate statistics table with same params
+        result = calculate_stop_loss_table(df, sample_mapping, params)
+        row_100 = result[result["Stop %"] == 100].iloc[0]
+
+        # Compare profit ratios
+        # rr_ratio is used for "Profit Ratio" display in baseline
+        baseline_profit_ratio = metrics.rr_ratio
+        stats_profit_ratio = row_100["Profit Ratio"]
+
+        # These should be equal (or very close)
+        assert baseline_profit_ratio is not None, "Baseline profit ratio should not be None"
+        assert stats_profit_ratio is not None, "Statistics profit ratio should not be None"
+
+        diff = abs(baseline_profit_ratio - stats_profit_ratio)
+        assert diff < 0.01, (
+            f"Profit Ratio mismatch: baseline={baseline_profit_ratio:.4f}, "
+            f"statistics={stats_profit_ratio:.4f}, diff={diff:.6f}"
+        )
+
+    def test_adjusted_gain_pct_matches_baseline_calculation(self, sample_mapping):
+        """Verify Statistics computes adjusted gains consistently with baseline."""
+        from src.core.metrics import MetricsCalculator
+
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.20, -0.50, 0.15, -0.25, 0.10],
+                "mae_pct": [3.0, 40.0, 5.0, 30.0, 2.0],  # 2 trades exceed 8% stop
+            }
+        )
+
+        params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+
+        # Method 1: Calculate adjusted gains
+        adjusted_gains = params.calculate_adjusted_gains(df, "gain_pct", "mae_pct")
+
+        # Method 2: MetricsCalculator calculates internally
+        calculator = MetricsCalculator()
+        metrics, _, _ = calculator.calculate(
+            df=df,
+            gain_col="gain_pct",
+            derived=True,
+            adjustment_params=params,
+            mae_col="mae_pct",
+        )
+
+        # Method 3: Statistics computes adjusted gains with same params
+        result = calculate_stop_loss_table(df, sample_mapping, params)
+        row_100 = result[result["Stop %"] == 100].iloc[0]
+
+        # Verify adjusted gains calculation:
+        # Expected adjusted gains:
+        # Trade 1: 20% gain, 3% MAE < 8% stop → 20 - 5 = 15% → 0.15
+        # Trade 2: -50% loss, 40% MAE > 8% stop → -8 - 5 = -13% → -0.13
+        # Trade 3: 15% gain, 5% MAE < 8% stop → 15 - 5 = 10% → 0.10
+        # Trade 4: -25% loss, 30% MAE > 8% stop → -8 - 5 = -13% → -0.13
+        # Trade 5: 10% gain, 2% MAE < 8% stop → 10 - 5 = 5% → 0.05
+
+        expected = [0.15, -0.13, 0.10, -0.13, 0.05]
+        for i, (actual, exp) in enumerate(zip(adjusted_gains, expected, strict=True)):
+            assert abs(actual - exp) < 0.001, f"Trade {i}: expected {exp}, got {actual}"
+
+        # Statistics at 100% stop should use these adjusted values
+        # Winners: 0.15, 0.10, 0.05 → avg = 0.10
+        # Losers: -0.13, -0.13 → avg = -0.13
+        # Profit Ratio = 0.10 / 0.13 ≈ 0.769
+        expected_profit_ratio = 0.10 / 0.13
+        assert abs(row_100["Profit Ratio"] - expected_profit_ratio) < 0.01, (
+            f"Stats profit ratio mismatch: got {row_100['Profit Ratio']}, "
+            f"expected {expected_profit_ratio}"
+        )
+
+        # Baseline should also show ~0.769 (within rounding)
+        assert abs(metrics.rr_ratio - expected_profit_ratio) < 0.01, (
+            f"Baseline profit ratio mismatch: got {metrics.rr_ratio}, "
+            f"expected {expected_profit_ratio}"
+        )
+
+
 class TestOffsetEgCalculation:
     """Tests for EG% in offset table using correct formula."""
 
     def test_offset_eg_uses_geometric_formula(self, sample_mapping):
         """Verify EG% uses geometric growth, not Kelly formula."""
-        df = pd.DataFrame({
-            "gain_pct": [0.25, 0.18, 0.12, -0.08, -0.06],
-            "adjusted_gain_pct": [0.25, 0.18, 0.12, -0.08, -0.06],
-            "mae_pct": [5.0, 7.0, 4.0, 12.0, 10.0],
-            "mfe_pct": [30.0, 22.0, 15.0, 8.0, 5.0],
-        })
-
-        result = calculate_offset_table(
-            df, sample_mapping, stop_loss=100, efficiency=1.0
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.25, 0.18, 0.12, -0.08, -0.06],
+                "adjusted_gain_pct": [0.25, 0.18, 0.12, -0.08, -0.06],
+                "mae_pct": [5.0, 7.0, 4.0, 12.0, 10.0],
+                "mfe_pct": [30.0, 22.0, 15.0, 8.0, 5.0],
+            }
         )
+
+        params = AdjustmentParams(stop_loss=100.0, efficiency=1.0)
+        result = calculate_offset_table(df, sample_mapping, params)
 
         # 0% offset row should have all trades
         row_0 = result[result["Offset %"] == 0].iloc[0]
@@ -1244,11 +1487,13 @@ class TestScalingEgCalculation:
 
     def test_scaling_eg_uses_geometric_formula(self, sample_mapping):
         """Verify both blended and full hold EG% use geometric growth."""
-        df = pd.DataFrame({
-            "gain_pct": [0.20, 0.15, 0.10, -0.05, -0.08],
-            "adjusted_gain_pct": [0.20, 0.15, 0.10, -0.05, -0.08],
-            "mfe_pct": [25.0, 18.0, 12.0, 8.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.20, 0.15, 0.10, -0.05, -0.08],
+                "adjusted_gain_pct": [0.20, 0.15, 0.10, -0.05, -0.08],
+                "mfe_pct": [25.0, 18.0, 12.0, 8.0, 5.0],
+            }
+        )
 
         result = calculate_scaling_table(df, sample_mapping, scale_out_pct=50)
 

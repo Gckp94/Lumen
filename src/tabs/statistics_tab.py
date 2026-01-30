@@ -10,9 +10,9 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QLabel,
     QSpinBox,
-    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -134,13 +134,15 @@ class StatisticsTab(QWidget):
         # Empty state label - shown when no data is loaded
         self._empty_label = QLabel("Load trade data to view statistics")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_label.setStyleSheet(f"""
+        self._empty_label.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_SECONDARY};
                 font-family: '{Fonts.UI}';
                 font-size: 16px;
             }}
-        """)
+        """
+        )
 
         # Sub-tabs using QTabWidget
         self._tab_widget = QTabWidget()
@@ -166,7 +168,8 @@ class StatisticsTab(QWidget):
 
     def _style_tab_widget(self) -> None:
         """Apply Observatory theme styling to tab widget."""
-        self._tab_widget.setStyleSheet(f"""
+        self._tab_widget.setStyleSheet(
+            f"""
             QTabWidget::pane {{
                 background-color: {Colors.BG_SURFACE};
                 border: none;
@@ -186,12 +189,14 @@ class StatisticsTab(QWidget):
             QTabBar::tab:hover:!selected {{
                 background-color: {Colors.BG_BORDER};
             }}
-        """)
+        """
+        )
 
     def _create_table(self) -> QTableWidget:
         """Create a styled table widget."""
         table = QTableWidget()
-        table.setStyleSheet(f"""
+        table.setStyleSheet(
+            f"""
             QTableWidget {{
                 background-color: {Colors.BG_SURFACE};
                 color: {Colors.TEXT_PRIMARY};
@@ -209,7 +214,8 @@ class StatisticsTab(QWidget):
             QTableWidget::item {{
                 padding: 8px;
             }}
-        """)
+        """
+        )
         return table
 
     def _create_scaling_widget(self) -> QWidget:
@@ -224,13 +230,15 @@ class StatisticsTab(QWidget):
         control_row.setSpacing(Spacing.SM)
 
         label = QLabel("Scale Out:")
-        label.setStyleSheet(f"""
+        label.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
                 font-family: '{Fonts.UI}';
                 font-size: 13px;
             }}
-        """)
+        """
+        )
         control_row.addWidget(label)
 
         self._scale_out_spin = QSpinBox()
@@ -238,7 +246,8 @@ class StatisticsTab(QWidget):
         self._scale_out_spin.setValue(50)
         self._scale_out_spin.setSingleStep(10)
         self._scale_out_spin.setSuffix("%")
-        self._scale_out_spin.setStyleSheet(f"""
+        self._scale_out_spin.setStyleSheet(
+            f"""
             QSpinBox {{
                 background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
@@ -250,7 +259,8 @@ class StatisticsTab(QWidget):
             QSpinBox:focus {{
                 border-color: {Colors.SIGNAL_CYAN};
             }}
-        """)
+        """
+        )
         control_row.addWidget(self._scale_out_spin)
         control_row.addStretch()
 
@@ -271,14 +281,16 @@ class StatisticsTab(QWidget):
 
         # MAE section label
         mae_label = QLabel("MAE Before Win")
-        mae_label.setStyleSheet(f"""
+        mae_label.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
                 font-family: '{Fonts.UI}';
                 font-size: 14px;
                 font-weight: 600;
             }}
-        """)
+        """
+        )
         layout.addWidget(mae_label)
 
         # MAE table
@@ -290,14 +302,16 @@ class StatisticsTab(QWidget):
 
         # MFE section label
         mfe_label = QLabel("MFE Before Loss")
-        mfe_label.setStyleSheet(f"""
+        mfe_label.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
                 font-family: '{Fonts.UI}';
                 font-size: 14px;
                 font-weight: 600;
             }}
-        """)
+        """
+        )
         layout.addWidget(mfe_label)
 
         # MFE table
@@ -441,9 +455,13 @@ class StatisticsTab(QWidget):
 
         # Log warnings for missing columns
         if not has_mae:
-            logger.warning(f"MAE column '{mapping.mae_pct}' not found in data. MAE-dependent tabs disabled.")
+            logger.warning(
+                f"MAE column '{mapping.mae_pct}' not found in data. MAE-dependent tabs disabled."
+            )
         if not has_mfe:
-            logger.warning(f"MFE column '{mapping.mfe_pct}' not found in data. MFE-dependent tabs disabled.")
+            logger.warning(
+                f"MFE column '{mapping.mfe_pct}' not found in data. MFE-dependent tabs disabled."
+            )
 
     def _get_current_df(self) -> pd.DataFrame | None:
         """Get the current DataFrame to use for calculations.
@@ -487,18 +505,18 @@ class StatisticsTab(QWidget):
             self._mfe_table.setRowCount(0)
 
         # Calculate and populate Stop Loss table
-        # Efficiency is stored as percentage (5 = 5%), but function expects 0-1
+        # Pass AdjustmentParams directly - function will compute adjusted gains fresh
         try:
-            efficiency = params.efficiency / 100.0 if params.efficiency > 1 else params.efficiency
-            stop_loss_df = calculate_stop_loss_table(df, mapping, efficiency)
+            stop_loss_df = calculate_stop_loss_table(df, mapping, params)
             self._populate_table(self._stop_loss_table, stop_loss_df)
         except Exception as e:
             logger.warning(f"Error calculating Stop Loss table: {e}")
             self._stop_loss_table.setRowCount(0)
 
         # Calculate and populate Offset table
+        # Pass AdjustmentParams directly - function will compute adjusted gains fresh
         try:
-            offset_df = calculate_offset_table(df, mapping, params.stop_loss, efficiency)
+            offset_df = calculate_offset_table(df, mapping, params)
             self._populate_table(self._offset_table, offset_df)
         except Exception as e:
             logger.warning(f"Error calculating Offset table: {e}")
@@ -661,9 +679,7 @@ class StatisticsTab(QWidget):
         else:
             return str(value)
 
-    def _style_cell(
-        self, item: QTableWidgetItem, value, column_name: str
-    ) -> None:
+    def _style_cell(self, item: QTableWidgetItem, value, column_name: str) -> None:
         """Apply conditional styling to a cell based on value and column type.
 
         Args:
@@ -687,9 +703,7 @@ class StatisticsTab(QWidget):
             item.setBackground(QBrush(CELL_NEGATIVE_BG))
             item.setForeground(QBrush(CELL_NEGATIVE_TEXT))
 
-    def _highlight_optimal_row(
-        self, table: QTableWidget, columns: list[str]
-    ) -> None:
+    def _highlight_optimal_row(self, table: QTableWidget, columns: list[str]) -> None:
         """Highlight the row with the best EG% value.
 
         Args:

@@ -1,13 +1,15 @@
 """Statistics calculations for trade analysis tables."""
 
+import logging
+
 import pandas as pd
 
-from src.core.models import ColumnMapping
+from src.core.models import AdjustmentParams, ColumnMapping
+
+logger = logging.getLogger(__name__)
 
 
-def calculate_expected_growth(
-    win_rate: float, profit_ratio: float | None
-) -> float | None:
+def calculate_expected_growth(win_rate: float, profit_ratio: float | None) -> float | None:
     """Calculate Expected Growth (EG%) using geometric growth formula.
 
     EG represents the expected compound growth rate per trade when betting
@@ -326,14 +328,14 @@ OFFSET_LEVELS = [-20, -10, 0, 10, 20, 30, 40]
 def calculate_stop_loss_table(
     df: pd.DataFrame,
     mapping: ColumnMapping,
-    efficiency: float,
+    adjustment_params: AdjustmentParams,
 ) -> pd.DataFrame:
     """Simulate stop loss levels and calculate metrics.
 
     Args:
-        df: Trade data with adjusted_gain_pct and mae_pct columns.
+        df: Trade data with gain_pct and mae_pct columns.
         mapping: Column mapping configuration.
-        efficiency: Efficiency percentage (0-1) applied to stopped trades.
+        adjustment_params: Adjustment parameters (stop_loss, efficiency).
 
     Returns:
         DataFrame with rows for each stop level and performance metrics.
@@ -344,16 +346,44 @@ def calculate_stop_loss_table(
     gain_col = mapping.gain_pct
     mae_col = mapping.mae_pct
 
+    # Compute adjusted gains fresh using the same method as MetricsCalculator
+    # This ensures consistency between Statistics and baseline metrics
+    adjusted_gains = adjustment_params.calculate_adjusted_gains(df, gain_col, mae_col)
+
+    # Diagnostic logging
+    logger.info(
+        "STATISTICS DIAGNOSTIC: calculate_stop_loss_table called - "
+        "stop_loss=%.1f, efficiency=%.1f, num_rows=%d, "
+        "adjusted_gains min=%.6f, max=%.6f, mean=%.6f",
+        adjustment_params.stop_loss,
+        adjustment_params.efficiency,
+        len(df),
+        adjusted_gains.min() if len(adjusted_gains) > 0 else 0,
+        adjusted_gains.max() if len(adjusted_gains) > 0 else 0,
+        adjusted_gains.mean() if len(adjusted_gains) > 0 else 0,
+    )
+
     for stop_level in STOP_LOSS_LEVELS:
-        row = _calculate_stop_level_row(df, gain_col, mae_col, stop_level, efficiency)
+        row = _calculate_stop_level_row(
+            df, adjusted_gains, mae_col, stop_level, adjustment_params.efficiency
+        )
         rows.append(row)
+
+    # Log the 100% stop row for comparison with baseline
+    row_100 = rows[-1]  # Last row should be 100% stop
+    logger.info(
+        "STATISTICS DIAGNOSTIC: 100%% stop row - Win%%=%.2f, Profit_Ratio=%.4f, Edge%%=%.4f",
+        row_100.get("Win %", 0),
+        row_100.get("Profit Ratio") or 0,
+        row_100.get("Edge %") or 0,
+    )
 
     return pd.DataFrame(rows)
 
 
 def _calculate_stop_level_row(
     df: pd.DataFrame,
-    gain_col: str,
+    adjusted_gains: pd.Series,
     mae_col: str,
     stop_level: int,
     efficiency: float,
@@ -362,10 +392,10 @@ def _calculate_stop_level_row(
 
     Args:
         df: Trade data DataFrame.
-        gain_col: Column name for gain percentage (decimal).
+        adjusted_gains: Pre-computed adjusted gains (decimal format, from AdjustmentParams).
         mae_col: Column name for MAE percentage (percentage points).
         stop_level: Stop loss level (e.g., 20 for 20%).
-        efficiency: Efficiency factor (0-1).
+        efficiency: Efficiency/slippage percentage (e.g., 5 for 5% slippage).
 
     Returns:
         Dictionary with metrics for this stop level.
@@ -386,22 +416,24 @@ def _calculate_stop_level_row(
             "Quarter Kelly (Stop Adj)": None,
         }
 
-    # Calculate adjusted returns for each trade
-    # If mae_pct >= stop_level: stopped out, return = -stop_level/100 * efficiency
-    # Otherwise: use adjusted_gain_pct (which already has efficiency applied)
-    stopped_mask = df[mae_col] >= stop_level
+    # Identify trades that would be stopped at this stop level
+    # mae_col is in percentage format (e.g., 27 = 27%)
+    # Use > (not >=) to match AdjustmentParams: mae <= stop_loss means NOT stopped
+    stopped_mask = df[mae_col] > stop_level
     stopped_count = stopped_mask.sum()
 
-    # Start with efficiency-adjusted gains (adjusted_gain_pct column)
-    # Fall back to gain_pct if adjusted_gain_pct not present (for tests)
-    base_col = "adjusted_gain_pct" if "adjusted_gain_pct" in df.columns else gain_col
-    adjusted_returns = df[base_col].copy()
-    
-    # For stopped trades, replace with the simulated stop loss return
-    stop_loss_return = -(stop_level / 100.0) * efficiency
+    # Start with the adjusted gains (decimal format, e.g., 0.15 = 15%)
+    adjusted_returns = adjusted_gains.copy()
+
+    # For stopped trades at THIS stop level, replace with simulated stop loss return
+    # The stop loss return = -stop_level% with efficiency slippage subtracted
+    # This matches how calculate_adjusted_gains works: gain - efficiency
+    # So a stopped trade at 20% stop with 5% slippage = -20% - 5% = -25%
+    # In decimal: -0.25
+    stop_loss_return = -(stop_level + efficiency) / 100.0
     adjusted_returns[stopped_mask] = stop_loss_return
 
-    # Calculate metrics from adjusted returns
+    # Calculate metrics from adjusted returns (in decimal format)
     winners = adjusted_returns > 0
     losers = adjusted_returns < 0
 
@@ -421,6 +453,20 @@ def _calculate_stop_level_row(
     # Profit Ratio: avg_win / abs(avg_loss)
     profit_ratio = avg_win / abs(avg_loss) if avg_loss != 0 else None
 
+    # Diagnostic logging for 100% stop level (comparing with baseline)
+    if stop_level == 100:
+        logger.info(
+            "STATISTICS DIAGNOSTIC: 100%% stop level details - "
+            "stopped_count=%d, win_count=%d, loss_count=%d, "
+            "avg_win=%.6f, avg_loss=%.6f, profit_ratio=%.4f",
+            stopped_count,
+            win_count,
+            loss_count,
+            avg_win,
+            avg_loss,
+            profit_ratio or 0,
+        )
+
     # Edge %: (profit_ratio + 1) × win_rate - 1 (as percentage)
     # win_rate is a decimal (0-1)
     win_rate = win_count / total_trades
@@ -434,11 +480,11 @@ def _calculate_stop_level_row(
     # EG %: Geometric growth formula at full Kelly stake
     eg_pct = calculate_expected_growth(win_rate, profit_ratio)
 
-    # Full Kelly (Stop Adj): edge / profit_ratio / (stop_level/100)
-    # edge here is in decimal form
+    # Full Kelly (Stop Adj): edge / profit_ratio / (stop_level/100) * 100
+    # edge_decimal is in decimal form (0.13 = 13%), result should be percentage
     if profit_ratio is not None and profit_ratio > 0 and edge_decimal is not None:
         stop_decimal = stop_level / 100.0
-        full_kelly = edge_decimal / profit_ratio / stop_decimal
+        full_kelly = (edge_decimal / profit_ratio / stop_decimal) * 100  # Convert to percentage
         half_kelly = full_kelly / 2
         quarter_kelly = full_kelly / 4
     else:
@@ -462,8 +508,7 @@ def _calculate_stop_level_row(
 def calculate_offset_table(
     df: pd.DataFrame,
     mapping: ColumnMapping,
-    stop_loss: float,
-    efficiency: float,
+    adjustment_params: AdjustmentParams,
 ) -> pd.DataFrame:
     """Simulate entry offsets with recalculated MAE/MFE and returns.
 
@@ -474,8 +519,7 @@ def calculate_offset_table(
     Args:
         df: Trade data with gain_pct, mae_pct, and mfe_pct columns.
         mapping: Column mapping configuration.
-        stop_loss: Stop loss percentage (e.g., 20.0 for 20%).
-        efficiency: Efficiency percentage (0-1) applied to stopped trades.
+        adjustment_params: Adjustment parameters (stop_loss, efficiency).
 
     Returns:
         DataFrame with rows for each offset level and performance metrics.
@@ -486,7 +530,9 @@ def calculate_offset_table(
     mfe_col = mapping.mfe_pct
 
     for offset in OFFSET_LEVELS:
-        row = _calculate_offset_level_row(df, gain_col, mae_col, mfe_col, offset, stop_loss, efficiency)
+        row = _calculate_offset_level_row(
+            df, gain_col, mae_col, mfe_col, offset, adjustment_params
+        )
         rows.append(row)
 
     return pd.DataFrame(rows)
@@ -498,8 +544,7 @@ def _calculate_offset_level_row(
     mae_col: str,
     mfe_col: str,
     offset: int,
-    stop_loss: float,
-    efficiency: float,
+    adjustment_params: AdjustmentParams,
 ) -> dict:
     """Calculate metrics for a single offset level.
 
@@ -509,12 +554,14 @@ def _calculate_offset_level_row(
         mae_col: Column name for MAE percentage (percentage points).
         mfe_col: Column name for MFE percentage (percentage points).
         offset: Offset level (e.g., -10 for -10%, 20 for +20%).
-        stop_loss: Stop loss percentage (e.g., 20.0 for 20%).
-        efficiency: Efficiency factor (0-1).
+        adjustment_params: Adjustment parameters (stop_loss, efficiency).
 
     Returns:
         Dictionary with metrics for this offset level.
     """
+    stop_loss = adjustment_params.stop_loss
+    efficiency = adjustment_params.efficiency
+
     # Filter qualifying trades based on offset
     if offset < 0:
         # Negative offset: price dropped before entry
@@ -560,29 +607,40 @@ def _calculate_offset_level_row(
 
     # Recalculate from new entry
     # For SHORT: MAE is how much higher price went above entry (bad)
-    # MFE is how much lower price went below entry (good)
     new_mae_pct = (highest_price - new_entry) / new_entry * 100
-    new_mfe_pct = (new_entry - lowest_price) / new_entry * 100
 
-    # Calculate adjusted returns
-    # Original return was based on original entry to same exit
-    # For offset entry, the return changes proportionally
-    # Use adjusted_gain_pct (which has efficiency applied) to derive exit price
-    # Fall back to gain_pct if adjusted_gain_pct not present (for tests)
-    # exit_price = 1.0 * (1 - adjusted_gain_pct) for SHORT
-    # new_return = (new_entry - exit_price) / new_entry
-    base_col = "adjusted_gain_pct" if "adjusted_gain_pct" in qualifying_df.columns else gain_col
-    exit_price = original_entry * (1 - qualifying_df[base_col])
-    adjusted_returns = (new_entry - exit_price) / new_entry
+    # Calculate adjusted returns from the offset entry point
+    # Use ORIGINAL gains (not pre-adjusted) to derive exit price
+    # This ensures we apply adjustments consistently from this entry point
+    original_gains = qualifying_df[gain_col].astype(float)
 
-    # Apply stop-loss using new_mae_pct if >= stop_loss
-    stopped_mask = new_mae_pct >= stop_loss
+    # exit_price = 1.0 * (1 - original_gain) for SHORT
+    exit_price = original_entry * (1 - original_gains)
+
+    # new_return = (new_entry - exit_price) / new_entry for SHORT
+    # This is the raw return from the offset entry point
+    raw_returns = (new_entry - exit_price) / new_entry
+
+    # Convert to percentage for adjustment calculation (matching AdjustmentParams format)
+    raw_returns_pct = raw_returns * 100
+
+    # Apply stop-loss: if new_mae > stop_loss, trade is stopped
+    # (matching AdjustmentParams: mae <= stop_loss means NOT stopped)
+    stopped_mask = new_mae_pct > stop_loss
     stopped_count = stopped_mask.sum()
-    stop_loss_return = -(stop_loss / 100.0) * efficiency
-    adjusted_returns[stopped_mask] = stop_loss_return
 
-    # Convert adjusted returns to percentage for display
-    adjusted_returns_pct = adjusted_returns * 100
+    # Stopped trades get -stop_loss return (in percentage)
+    raw_returns_pct[stopped_mask] = -stop_loss
+
+    # Clip any losses to not exceed stop_loss (matching AdjustmentParams)
+    # This ensures consistency even if MAE data is inconsistent
+    raw_returns_pct = raw_returns_pct.clip(lower=-stop_loss)
+
+    # Apply efficiency deduction (slippage) to all trades
+    adjusted_returns_pct = raw_returns_pct - efficiency
+
+    # Convert back to decimal for metric calculations
+    adjusted_returns = adjusted_returns_pct / 100
 
     # Calculate metrics
     winners_mask = adjusted_returns > 0
