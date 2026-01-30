@@ -1212,3 +1212,28 @@ class TestStopLossEgCalculation:
         # EG should be around 25-35%, NOT 46%
         assert eg_value is not None
         assert eg_value < 40, f"EG% {eg_value} should be < 40 (using geometric formula)"
+
+
+class TestOffsetEgCalculation:
+    """Tests for EG% in offset table using correct formula."""
+
+    def test_offset_eg_uses_geometric_formula(self, sample_mapping):
+        """Verify EG% uses geometric growth, not Kelly formula."""
+        df = pd.DataFrame({
+            "gain_pct": [0.25, 0.18, 0.12, -0.08, -0.06],
+            "adjusted_gain_pct": [0.25, 0.18, 0.12, -0.08, -0.06],
+            "mae_pct": [5.0, 7.0, 4.0, 12.0, 10.0],
+            "mfe_pct": [30.0, 22.0, 15.0, 8.0, 5.0],
+        })
+
+        result = calculate_offset_table(
+            df, sample_mapping, stop_loss=100, efficiency=1.0
+        )
+
+        # 0% offset row should have all trades
+        row_0 = result[result["Offset %"] == 0].iloc[0]
+        eg_value = row_0["EG %"]
+
+        assert eg_value is not None
+        # EG should be less than Kelly (which would be ~40-50%)
+        assert eg_value < 40, f"EG% {eg_value} should be < 40 (using geometric formula)"
