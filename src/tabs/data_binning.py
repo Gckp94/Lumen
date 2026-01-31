@@ -545,6 +545,81 @@ class DataBinningTab(QWidget):
         # Emit config changed
         self._emit_bin_config_changed()
 
+    def _generate_bins_from_percentiles(
+        self, column_name: str, num_splits: int
+    ) -> None:
+        """Generate bin rows from percentile splits.
+
+        Args:
+            column_name: Column to calculate percentiles from.
+            num_splits: Number of bins to create (4, 5, or 10).
+        """
+        if self._app_state.baseline_df is None:
+            return
+
+        df = self._app_state.baseline_df
+        if column_name not in df.columns:
+            return
+
+        # Get percentile breakpoints
+        from src.core.binning_engine import BinningEngine
+
+        engine = BinningEngine()
+        data = df[column_name]
+        breakpoints = engine.get_percentile_splits(data, num_splits)
+
+        if not breakpoints:
+            logger.warning("No breakpoints calculated for %s", column_name)
+            return
+
+        # Clear existing bins (except we'll re-add nulls)
+        self._clear_bin_rows()
+
+        # Get min/max for first and last bin boundaries
+        clean_data = data.dropna()
+        data_min = clean_data.min()
+        data_max = clean_data.max()
+
+        # Create bin rows for each segment
+        # First bin: min to first breakpoint
+        prev_value = data_min
+        for breakpoint in breakpoints:
+            row = BinConfigRow(
+                operator="range",
+                is_removable=True,
+                is_time_column=self._is_time_column,
+            )
+            self._add_bin_row(row)
+            row.set_values(prev_value, breakpoint)
+            prev_value = breakpoint
+
+        # Last bin: last breakpoint to max
+        last_row = BinConfigRow(
+            operator="range",
+            is_removable=True,
+            is_time_column=self._is_time_column,
+        )
+        self._add_bin_row(last_row)
+        last_row.set_values(prev_value, data_max)
+
+        # Add nulls bin at the end
+        nulls_row = BinConfigRow(
+            operator="nulls",
+            is_removable=False,
+            is_time_column=self._is_time_column,
+        )
+        self._add_bin_row(nulls_row)
+
+        # Emit config changed to update charts
+        self._emit_bin_config_changed()
+
+        logger.debug(
+            "Generated %d bins from %s percentiles for column %s",
+            num_splits,
+            {4: "quartile", 5: "quintile", 10: "decile"}.get(num_splits, ""),
+            column_name,
+        )
+
     def _clear_bin_rows(self) -> None:
         """Clear all bin configuration rows."""
         for row in self._bin_rows:

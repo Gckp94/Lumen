@@ -1079,6 +1079,58 @@ class TestAutoSplitButtonsEnabled:
         assert tab._decile_btn.isEnabled()
 
 
+class TestGenerateBinsFromPercentiles:
+    """Tests for automatic bin generation from percentiles."""
+
+    def test_quartile_generates_four_bins_plus_nulls(self, qtbot: QtBot) -> None:
+        """Quartile split generates 4 range bins + nulls bin."""
+        app_state = AppState()
+        df = pd.DataFrame({"value": list(range(1, 101))})
+        app_state.baseline_df = df
+
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+        tab._populate_column_dropdown(df)
+        tab._column_dropdown.setCurrentText("value")
+
+        tab._generate_bins_from_percentiles("value", 4)
+
+        # Should have 4 range bins + 1 nulls bin = 5 total
+        assert len(tab._bin_rows) == 5
+        # Last bin should be nulls
+        assert tab._bin_rows[-1].get_operator() == "nulls"
+
+    def test_quintile_generates_five_bins_plus_nulls(self, qtbot: QtBot) -> None:
+        """Quintile split generates 5 range bins + nulls bin."""
+        app_state = AppState()
+        df = pd.DataFrame({"value": list(range(1, 101))})
+        app_state.baseline_df = df
+
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+        tab._populate_column_dropdown(df)
+        tab._column_dropdown.setCurrentText("value")
+
+        tab._generate_bins_from_percentiles("value", 5)
+
+        assert len(tab._bin_rows) == 6  # 5 bins + nulls
+
+    def test_decile_generates_ten_bins_plus_nulls(self, qtbot: QtBot) -> None:
+        """Decile split generates 10 range bins + nulls bin."""
+        app_state = AppState()
+        df = pd.DataFrame({"value": list(range(1, 101))})
+        app_state.baseline_df = df
+
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+        tab._populate_column_dropdown(df)
+        tab._column_dropdown.setCurrentText("value")
+
+        tab._generate_bins_from_percentiles("value", 10)
+
+        assert len(tab._bin_rows) == 11  # 10 bins + nulls
+
+
 class TestFirstTriggersFiltering:
     """Tests for first triggers only filtering in data binning."""
 
