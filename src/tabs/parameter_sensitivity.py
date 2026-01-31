@@ -506,7 +506,7 @@ class ParameterSensitivityTab(QWidget):
         self._filter_combo.blockSignals(True)
         self._filter_combo.clear()
         filters = self._app_state.filters or []
-        logger.info(f"Populating filter dropdown with {len(filters)} filters")
+        
 
         if not filters:
             self._filter_combo.blockSignals(False)
@@ -529,7 +529,7 @@ class ParameterSensitivityTab(QWidget):
         # Reset to placeholder (index -1) so user can see prompt
         self._filter_combo.setCurrentIndex(-1)
         self._filter_combo.blockSignals(False)
-        logger.info(f"Filter dropdown populated: {self._filter_combo.count()} items")
+        
 
     def _on_filter_selected(self, index: int) -> None:
         """Handle filter selection change."""
@@ -959,11 +959,3 @@ class ParameterSensitivityTab(QWidget):
 
             self._worker = None
 
-    def showEvent(self, event) -> None:
-        """Handle tab becoming visible - debug logging."""
-        super().showEvent(event)
-        logger.info(
-            f"Tab shown - filter_combo has {self._filter_combo.count()} items, "
-            f"enabled={self._filter_combo.isEnabled()}, "
-            f"visible={self._filter_combo.isVisible()}"
-        )
