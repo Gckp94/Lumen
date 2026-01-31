@@ -76,12 +76,11 @@ class TestPortfolioOverviewTab:
         config = StrategyConfig(
             name="Test",
             file_path="test.csv",
-            column_mapping=PortfolioColumnMapping("date", "gain_pct", "wl"),
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
         )
         tab._strategy_data["Test"] = pd.DataFrame({
             "date": pd.to_datetime(["2024-01-01"]),
-            "gain_pct": [5.0],
-            "wl": ["W"],
+            "gain_pct": [0.05],  # 5% gain in decimal format
         })
         tab._strategy_table.add_strategy(config)
 
