@@ -131,44 +131,45 @@ class ParameterSensitivityTab(QWidget):
 
         self._filter_combo = QComboBox()
         self._filter_combo.setPlaceholderText("Select a filter...")
+        self._filter_combo.setMaxVisibleItems(15)
+        self._filter_combo.setMinimumWidth(200)  # Ensure dropdown has reasonable width
+        self._filter_combo.view().setMinimumWidth(200)  # Popup list width
         self._filter_combo.setStyleSheet(f"""
             QComboBox {{
                 background-color: {COLORS["bg_tertiary"]};
+                color: {COLORS["text_primary"]};
+                font-size: 13px;
                 border: 1px solid {COLORS["border_subtle"]};
                 border-radius: 6px;
-                padding: 10px 32px 10px 12px;
-                color: {COLORS["text_primary"]};
-                font-family: "Azeret Mono";
-                font-size: 13px;
-                min-width: 150px;
+                padding: 10px 12px;
                 min-height: 20px;
             }}
-            QComboBox:hover {{
-                border-color: {COLORS["row_current_accent"]};
-            }}
             QComboBox::drop-down {{
+                border: none;
+                width: 24px;
                 subcontrol-origin: padding;
                 subcontrol-position: center right;
-                width: 24px;
-                border: none;
             }}
             QComboBox::down-arrow {{
-                width: 0;
-                height: 0;
+                image: none;
                 border-left: 5px solid transparent;
                 border-right: 5px solid transparent;
                 border-top: 6px solid {COLORS["text_secondary"]};
             }}
-            QComboBox::down-arrow:hover {{
-                border-top-color: {COLORS["text_primary"]};
-            }}
             QComboBox QAbstractItemView {{
                 background-color: {COLORS["bg_tertiary"]};
                 color: {COLORS["text_primary"]};
+                selection-background-color: {COLORS["row_current_bg"]};
                 border: 1px solid {COLORS["border_subtle"]};
-                selection-background-color: {COLORS["bg_elevated"]};
-                selection-color: {COLORS["text_primary"]};
                 padding: 4px;
+                outline: none;
+            }}
+            QComboBox QAbstractItemView::item {{
+                padding: 8px 12px;
+                min-height: 24px;
+            }}
+            QComboBox QAbstractItemView::item:hover {{
+                background-color: {COLORS["bg_elevated"]};
             }}
         """)
         filter_section.addWidget(self._filter_combo)
@@ -471,6 +472,9 @@ class ParameterSensitivityTab(QWidget):
             else:
                 label = f"{f.column} < {f.max_val:.2f}"
             self._filter_combo.addItem(label)
+
+        # Reset to placeholder (index -1) so user can see prompt
+        self._filter_combo.setCurrentIndex(-1)
         self._filter_combo.blockSignals(False)
 
     def _on_filter_selected(self, index: int) -> None:
