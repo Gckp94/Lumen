@@ -1646,9 +1646,6 @@ class TestCalculateProfitChanceTable:
         assert "Chance of Next %" in result.columns
         assert "Chance of Max Loss %" in result.columns
         assert "Win %" in result.columns
-        assert "Profit Ratio" in result.columns
-        assert "Edge %" in result.columns
-        assert "EG %" in result.columns
 
     def test_profit_reached_buckets(self, sample_mapping, default_adjustment_params):
         """Test that correct profit buckets are present."""
@@ -1755,32 +1752,9 @@ class TestCalculateProfitChanceTable:
             "Chance of Next %",
             "Chance of Max Loss %",
             "Win %",
-            "Profit Ratio",
-            "Edge %",
-            "EG %",
         ]
         for col in expected_columns:
             assert col in result.columns, f"Missing column: {col}"
-
-    def test_eg_uses_geometric_formula(self, sample_mapping, default_adjustment_params):
-        """Verify EG% uses geometric growth formula."""
-        df = pd.DataFrame(
-            {
-                "gain_pct": [0.20, 0.15, 0.10, -0.05, -0.08],
-                "mae_pct": [5.0, 5.0, 5.0, 5.0, 5.0],
-                "mfe_pct": [25.0, 20.0, 15.0, 10.0, 8.0],
-            }
-        )
-        df["adjusted_gain_pct"] = df["gain_pct"]
-        result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
-
-        # Check first row with trades
-        row_5 = result[result["Profit Reached %"] == 5].iloc[0]
-        eg_value = row_5["EG %"]
-
-        # EG should be less than Kelly (typically < 40%)
-        if eg_value is not None and not pd.isna(eg_value):
-            assert eg_value < 40, f"EG% {eg_value} should be < 40"
 
     def test_empty_dataframe(self, sample_mapping, default_adjustment_params):
         """Test with empty dataframe."""
@@ -1825,9 +1799,6 @@ class TestCalculateLossChanceTable:
         assert "Chance of Next %" in result.columns
         assert "Chance of Profit %" in result.columns
         assert "Win %" in result.columns
-        assert "Profit Ratio" in result.columns
-        assert "Edge %" in result.columns
-        assert "EG %" in result.columns
 
     def test_chance_of_profit_calculation(self, sample_mapping, default_adjustment_params):
         """Test Chance of Profit % is trades that ended profitable."""
@@ -1933,32 +1904,9 @@ class TestCalculateLossChanceTable:
             "Chance of Next %",
             "Chance of Profit %",
             "Win %",
-            "Profit Ratio",
-            "Edge %",
-            "EG %",
         ]
         for col in expected_columns:
             assert col in result.columns, f"Missing column: {col}"
-
-    def test_eg_uses_geometric_formula(self, sample_mapping, default_adjustment_params):
-        """Verify EG% uses geometric growth formula."""
-        df = pd.DataFrame(
-            {
-                "gain_pct": [0.20, 0.15, 0.10, -0.05, -0.08],
-                "mae_pct": [10.0, 10.0, 10.0, 10.0, 10.0],  # All reach 5%
-                "mfe_pct": [5.0, 5.0, 5.0, 5.0, 5.0],
-            }
-        )
-        df["adjusted_gain_pct"] = df["gain_pct"]
-        result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
-
-        # Check first row with trades
-        row_5 = result[result["Loss Reached %"] == 5].iloc[0]
-        eg_value = row_5["EG %"]
-
-        # EG should be less than Kelly (typically < 40%)
-        if eg_value is not None and not pd.isna(eg_value):
-            assert eg_value < 40, f"EG% {eg_value} should be < 40"
 
     def test_empty_dataframe(self, sample_mapping, default_adjustment_params):
         """Test with empty dataframe."""
@@ -1976,39 +1924,6 @@ class TestCalculateLossChanceTable:
         assert len(result) == 8
         # All rows should have 0 trades
         assert all(result["# of Trades"] == 0)
-
-    def test_profit_ratio_calculation(self, sample_mapping, default_adjustment_params):
-        """Test Profit Ratio calculation for trades in bucket."""
-        df = pd.DataFrame(
-            {
-                "gain_pct": [0.20, 0.10, -0.10, -0.10],  # avg_win=0.15, avg_loss=-0.10
-                "mae_pct": [15.0, 15.0, 15.0, 15.0],  # All reach 10%
-                "mfe_pct": [5.0, 5.0, 5.0, 5.0],
-            }
-        )
-        df["adjusted_gain_pct"] = df["gain_pct"]
-        result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
-
-        row_10 = result[result["Loss Reached %"] == 10].iloc[0]
-        # Profit Ratio = 0.15 / 0.10 = 1.5
-        assert row_10["Profit Ratio"] == pytest.approx(1.5, rel=0.01)
-
-    def test_edge_percentage_calculation(self, sample_mapping, default_adjustment_params):
-        """Test Edge % calculation: (profit_ratio + 1) * win_rate - 1."""
-        df = pd.DataFrame(
-            {
-                "gain_pct": [0.20, 0.20, -0.10, -0.10],  # 50% win rate
-                "mae_pct": [15.0, 15.0, 15.0, 15.0],  # All reach 10%
-                "mfe_pct": [5.0, 5.0, 5.0, 5.0],
-            }
-        )
-        df["adjusted_gain_pct"] = df["gain_pct"]
-        result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
-
-        row_10 = result[result["Loss Reached %"] == 10].iloc[0]
-        # win_rate = 0.5, profit_ratio = 2.0
-        # edge = (2.0 + 1) * 0.5 - 1 = 0.5 = 50%
-        assert row_10["Edge %"] == pytest.approx(50.0, rel=0.01)
 
     def test_filters_by_mae_threshold(self, sample_mapping, default_adjustment_params):
         """Test that trades are filtered by MAE >= threshold."""

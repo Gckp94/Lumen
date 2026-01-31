@@ -1102,9 +1102,6 @@ def _calculate_profit_chance_row(
             "Chance of Next %": 0.0,
             "Chance of Max Loss %": 0.0,
             "Win %": 0.0,
-            "Profit Ratio": None,
-            "Edge %": None,
-            "EG %": None,
         }
 
     # Chance of Next %: count reaching next bucket / count in current bucket
@@ -1121,20 +1118,17 @@ def _calculate_profit_chance_row(
     max_loss_count = max_loss_mask.sum()
     chance_of_max_loss = (max_loss_count / num_trades) * 100
 
-    # Calculate Win %, Profit Ratio, Edge %, EG % using adjusted_gain_pct
-    # This uses stop-loss and efficiency adjusted returns, consistent with other tables
+    # Win %: count where adjusted_gain_pct > 0 / total in bucket
     returns = bucket_df["adjusted_gain_pct"].astype(float)
-    metrics = _calculate_return_metrics(returns)
+    win_count = (returns > 0).sum()
+    win_pct = (win_count / num_trades) * 100
 
     return {
         "Profit Reached %": threshold,
         "# of Trades": num_trades,
         "Chance of Next %": chance_of_next,
         "Chance of Max Loss %": chance_of_max_loss,
-        "Win %": metrics["win_pct"],
-        "Profit Ratio": metrics["profit_ratio"],
-        "Edge %": metrics["edge_pct"],
-        "EG %": metrics["eg_pct"],
+        "Win %": win_pct,
     }
 
 
@@ -1207,9 +1201,6 @@ def _calculate_loss_chance_row(
             "Chance of Next %": 0.0,
             "Chance of Profit %": 0.0,
             "Win %": 0.0,
-            "Profit Ratio": None,
-            "Edge %": None,
-            "EG %": None,
         }
 
     # Chance of Next %: count reaching next bucket / count in current bucket
@@ -1224,21 +1215,16 @@ def _calculate_loss_chance_row(
     # Chance of Profit %: count where adjusted_gain_pct > 0 / count in bucket
     # (trades that ended profitable despite hitting MAE threshold)
     returns = bucket_df["adjusted_gain_pct"].astype(float)
-    profitable_mask = returns > 0
-    profitable_count = profitable_mask.sum()
+    profitable_count = (returns > 0).sum()
     chance_of_profit = (profitable_count / num_trades) * 100
 
-    # Calculate Win %, Profit Ratio, Edge %, EG % using adjusted_gain_pct
-    # This uses stop-loss and efficiency adjusted returns, consistent with other tables
-    metrics = _calculate_return_metrics(returns)
+    # Win % (same as Chance of Profit % for this table)
+    win_pct = chance_of_profit
 
     return {
         "Loss Reached %": threshold,
         "# of Trades": num_trades,
         "Chance of Next %": chance_of_next,
         "Chance of Profit %": chance_of_profit,
-        "Win %": metrics["win_pct"],
-        "Profit Ratio": metrics["profit_ratio"],
-        "Edge %": metrics["edge_pct"],
-        "EG %": metrics["eg_pct"],
+        "Win %": win_pct,
     }
