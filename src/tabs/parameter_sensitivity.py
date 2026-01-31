@@ -132,46 +132,8 @@ class ParameterSensitivityTab(QWidget):
         self._filter_combo = QComboBox()
         self._filter_combo.setPlaceholderText("Select a filter...")
         self._filter_combo.setMaxVisibleItems(15)
-        self._filter_combo.setMinimumWidth(200)  # Ensure dropdown has reasonable width
-        self._filter_combo.view().setMinimumWidth(200)  # Popup list width
-        self._filter_combo.setStyleSheet(f"""
-            QComboBox {{
-                background-color: {COLORS["bg_tertiary"]};
-                color: {COLORS["text_primary"]};
-                font-size: 13px;
-                border: 1px solid {COLORS["border_subtle"]};
-                border-radius: 6px;
-                padding: 10px 12px;
-                min-height: 20px;
-            }}
-            QComboBox::drop-down {{
-                border: none;
-                width: 24px;
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-            }}
-            QComboBox::down-arrow {{
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 6px solid {COLORS["text_secondary"]};
-            }}
-            QComboBox QAbstractItemView {{
-                background-color: {COLORS["bg_tertiary"]};
-                color: {COLORS["text_primary"]};
-                selection-background-color: {COLORS["row_current_bg"]};
-                border: 1px solid {COLORS["border_subtle"]};
-                padding: 4px;
-                outline: none;
-            }}
-            QComboBox QAbstractItemView::item {{
-                padding: 8px 12px;
-                min-height: 24px;
-            }}
-            QComboBox QAbstractItemView::item:hover {{
-                background-color: {COLORS["bg_elevated"]};
-            }}
-        """)
+        self._filter_combo.setMinimumWidth(200)
+        # Temporarily using native styling to debug dropdown issue
         filter_section.addWidget(self._filter_combo)
         layout.addLayout(filter_section)
 
@@ -454,6 +416,7 @@ class ParameterSensitivityTab(QWidget):
         self._filter_combo.blockSignals(True)
         self._filter_combo.clear()
         filters = self._app_state.filters or []
+        logger.info(f"Populating filter dropdown with {len(filters)} filters")
 
         if not filters:
             self._filter_combo.blockSignals(False)
@@ -476,6 +439,7 @@ class ParameterSensitivityTab(QWidget):
         # Reset to placeholder (index -1) so user can see prompt
         self._filter_combo.setCurrentIndex(-1)
         self._filter_combo.blockSignals(False)
+        logger.info(f"Filter dropdown populated: {self._filter_combo.count()} items")
 
     def _on_filter_selected(self, index: int) -> None:
         """Handle filter selection change."""
@@ -828,3 +792,12 @@ class ParameterSensitivityTab(QWidget):
                 self._worker.wait()
 
             self._worker = None
+
+    def showEvent(self, event) -> None:
+        """Handle tab becoming visible - debug logging."""
+        super().showEvent(event)
+        logger.info(
+            f"Tab shown - filter_combo has {self._filter_combo.count()} items, "
+            f"enabled={self._filter_combo.isEnabled()}, "
+            f"visible={self._filter_combo.isVisible()}"
+        )
