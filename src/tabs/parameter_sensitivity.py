@@ -37,6 +37,7 @@ from src.ui.constants import Colors
 
 if TYPE_CHECKING:
     from src.core.app_state import AppState
+    from src.core.models import FilterCriteria
 
 logger = logging.getLogger(__name__)
 
@@ -326,6 +327,28 @@ class ParameterSensitivityTab(QWidget):
         is_sweep = self._sweep_radio.isChecked()
         self._resolution_group.setVisible(is_sweep)
         self._sweep_config_group.setVisible(is_sweep)
+
+    def _get_analyzable_filters(
+        self, filters: list[FilterCriteria]
+    ) -> tuple[list[FilterCriteria], list[FilterCriteria]]:
+        """Separate filters into analyzable and partial (skipped).
+
+        Neighborhood scan requires both min_val and max_val to perturb ranges.
+
+        Args:
+            filters: List of all active filters.
+
+        Returns:
+            Tuple of (analyzable_filters, partial_filters).
+        """
+        analyzable = []
+        partial = []
+        for f in filters:
+            if f.min_val is not None and f.max_val is not None:
+                analyzable.append(f)
+            else:
+                partial.append(f)
+        return analyzable, partial
 
     def _on_2d_toggle_changed(self, enabled: bool) -> None:
         """Handle 2D sweep toggle change."""
