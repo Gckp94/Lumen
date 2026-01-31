@@ -1060,6 +1060,25 @@ class TestAutoSplitButtonsUI:
         assert not tab._decile_btn.isEnabled()
 
 
+class TestAutoSplitButtonsEnabled:
+    """Tests for auto-split button enable/disable state."""
+
+    def test_buttons_enabled_after_data_loaded(self, qtbot: QtBot) -> None:
+        """Auto-split buttons enabled when data is loaded."""
+        app_state = AppState()
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Simulate data load
+        df = pd.DataFrame({"value": [1, 2, 3, 4, 5], "gain_pct": [0.1, 0.2, 0.3, 0.4, 0.5]})
+        app_state.baseline_df = df
+        tab._populate_column_dropdown(df)
+
+        assert tab._quartile_btn.isEnabled()
+        assert tab._quintile_btn.isEnabled()
+        assert tab._decile_btn.isEnabled()
+
+
 class TestFirstTriggersFiltering:
     """Tests for first triggers only filtering in data binning."""
 

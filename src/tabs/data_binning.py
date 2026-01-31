@@ -505,6 +505,11 @@ class DataBinningTab(QWidget):
         # Enable add bin button
         self._add_bin_button.setEnabled(True)
 
+        # Enable auto-split buttons
+        self._quartile_btn.setEnabled(True)
+        self._quintile_btn.setEnabled(True)
+        self._decile_btn.setEnabled(True)
+
         logger.debug("Populated column dropdown with %d numeric columns", len(numeric_cols))
 
     def _on_column_selected(self, column_name: str) -> None:
