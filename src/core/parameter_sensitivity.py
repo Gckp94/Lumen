@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import TYPE_CHECKING, Callable, Literal
+
+if TYPE_CHECKING:
+    from src.core.models import AdjustmentParams, ColumnMapping, FilterCriteria
 
 import numpy as np
 import pandas as pd
@@ -140,6 +143,158 @@ class ThresholdAnalysisResult:
     step_size: float
     rows: list[ThresholdRow]
     current_index: int
+
+
+class ThresholdAnalysisEngine:
+    """Engine for calculating metrics at varied filter thresholds."""
+
+    def __init__(
+        self,
+        baseline_df: pd.DataFrame,
+        column_mapping: "ColumnMapping",
+        active_filters: list["FilterCriteria"],
+        adjustment_params: "AdjustmentParams",
+    ) -> None:
+        """Initialize the threshold analysis engine.
+
+        Args:
+            baseline_df: Data BEFORE user filters (but after first-trigger).
+            column_mapping: ColumnMapping dataclass with column names.
+            active_filters: Current active filters.
+            adjustment_params: Stop loss and efficiency parameters.
+        """
+        self._baseline_df = baseline_df
+        self._column_mapping = column_mapping
+        self._active_filters = active_filters
+        self._adjustment_params = adjustment_params
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """Cancel the analysis."""
+        self._cancelled = True
+
+    def analyze(
+        self,
+        filter_index: int,
+        vary_bound: Literal["min", "max"],
+        step_size: float,
+        progress_callback: Callable[[int], None] | None = None,
+    ) -> ThresholdAnalysisResult:
+        """Run threshold analysis on a single filter.
+
+        Args:
+            filter_index: Index of filter in active_filters to vary.
+            vary_bound: Which bound to vary ('min' or 'max').
+            step_size: Step size for threshold variation.
+            progress_callback: Optional callback for progress updates (0-100).
+
+        Returns:
+            ThresholdAnalysisResult with 11 rows of metrics.
+        """
+        from src.core.filter_engine import FilterEngine
+        from src.core.metrics import MetricsCalculator
+
+        target_filter = self._active_filters[filter_index]
+        current_value = target_filter.min_val if vary_bound == "min" else target_filter.max_val
+
+        if current_value is None:
+            raise ValueError(f"Filter has no {vary_bound} bound to vary")
+
+        # Generate 11 threshold values: 5 below, current, 5 above
+        thresholds = [current_value + (i - 5) * step_size for i in range(11)]
+
+        filter_engine = FilterEngine()
+        calculator = MetricsCalculator()
+        rows: list[ThresholdRow] = []
+        current_index = 5  # Middle row is current
+
+        for i, threshold in enumerate(thresholds):
+            if self._cancelled:
+                break
+
+            # Clone filters and modify the target filter's bound
+            modified_filters = []
+            for j, f in enumerate(self._active_filters):
+                if j == filter_index:
+                    # Create modified filter
+                    from src.core.models import FilterCriteria
+                    if vary_bound == "min":
+                        modified_filters.append(FilterCriteria(
+                            column=f.column,
+                            operator=f.operator,
+                            min_val=threshold,
+                            max_val=f.max_val,
+                        ))
+                    else:
+                        modified_filters.append(FilterCriteria(
+                            column=f.column,
+                            operator=f.operator,
+                            min_val=f.min_val,
+                            max_val=threshold,
+                        ))
+                else:
+                    modified_filters.append(f)
+
+            # Apply filters
+            filtered_df = filter_engine.apply_filters(self._baseline_df, modified_filters)
+            num_trades = len(filtered_df)
+
+            # Calculate metrics
+            if num_trades == 0:
+                rows.append(ThresholdRow(
+                    threshold=threshold,
+                    is_current=(i == 5),
+                    num_trades=0,
+                    ev_pct=None,
+                    win_pct=None,
+                    median_winner_pct=None,
+                    profit_ratio=None,
+                    edge_pct=None,
+                    eg_pct=None,
+                    kelly_pct=None,
+                    max_loss_pct=None,
+                ))
+            else:
+                gain_col = self._column_mapping.gain_pct
+                mae_col = self._column_mapping.mae_pct
+
+                metrics, _, _ = calculator.calculate(
+                    df=filtered_df,
+                    gain_col=gain_col,
+                    derived=True,
+                    adjustment_params=self._adjustment_params,
+                    mae_col=mae_col,
+                )
+
+                # Calculate kelly from edge and profit_ratio
+                kelly_pct = None
+                if metrics.edge is not None and metrics.rr_ratio is not None and metrics.rr_ratio > 0:
+                    kelly_pct = metrics.edge / metrics.rr_ratio
+
+                rows.append(ThresholdRow(
+                    threshold=threshold,
+                    is_current=(i == 5),
+                    num_trades=num_trades,
+                    ev_pct=metrics.ev,
+                    win_pct=metrics.win_rate,
+                    median_winner_pct=metrics.median_winner,
+                    profit_ratio=metrics.rr_ratio,
+                    edge_pct=metrics.edge,
+                    eg_pct=metrics.eg_full_kelly,
+                    kelly_pct=kelly_pct,
+                    max_loss_pct=metrics.max_loss_pct,
+                ))
+
+            if progress_callback:
+                progress_callback(int((i + 1) / 11 * 100))
+
+        return ThresholdAnalysisResult(
+            filter_column=target_filter.column,
+            varied_bound=vary_bound,
+            step_size=step_size,
+            rows=rows,
+            current_index=current_index,
+        )
 
 
 # Import after dataclasses to avoid circular import issues
