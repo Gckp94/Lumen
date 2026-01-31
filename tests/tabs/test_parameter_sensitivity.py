@@ -33,8 +33,22 @@ class TestParameterSensitivityTab:
         tab = ParameterSensitivityTab(app_state)
         assert tab._run_btn is not None
 
-    def test_tab_has_mode_selector(self, app, app_state):
-        """Tab should have mode radio buttons."""
+    def test_tab_has_filter_dropdown(self, app, app_state):
+        """Tab should have a filter dropdown."""
         tab = ParameterSensitivityTab(app_state)
-        assert tab._neighborhood_radio is not None
-        assert tab._sweep_radio is not None
+        assert tab._filter_combo is not None
+
+    def test_tab_has_step_spinbox(self, app, app_state):
+        """Tab should have a step size spinbox."""
+        tab = ParameterSensitivityTab(app_state)
+        assert tab._step_spin is not None
+
+    def test_tab_has_bound_toggle(self, app, app_state):
+        """Tab should have a bound toggle container."""
+        tab = ParameterSensitivityTab(app_state)
+        assert tab._bound_container is not None
+
+    def test_tab_has_results_table(self, app, app_state):
+        """Tab should have a results table."""
+        tab = ParameterSensitivityTab(app_state)
+        assert tab._table is not None
