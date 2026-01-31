@@ -94,6 +94,54 @@ class SweepResult:
     current_position: tuple[int, int] | None
 
 
+@dataclass
+class ThresholdRow:
+    """Single row of threshold analysis results.
+
+    Attributes:
+        threshold: The filter threshold value for this row.
+        is_current: Whether this is the current (baseline) row.
+        num_trades: Number of trades passing all filters.
+        ev_pct: Expected value percentage.
+        win_pct: Win rate percentage.
+        median_winner_pct: Median winning trade return.
+        profit_ratio: Avg winner / abs(avg loser).
+        edge_pct: Edge percentage.
+        eg_pct: Expected geometric growth percentage.
+        kelly_pct: Full Kelly stake percentage.
+        max_loss_pct: Percentage of trades hitting stop loss.
+    """
+    threshold: float
+    is_current: bool
+    num_trades: int
+    ev_pct: float | None
+    win_pct: float | None
+    median_winner_pct: float | None
+    profit_ratio: float | None
+    edge_pct: float | None
+    eg_pct: float | None
+    kelly_pct: float | None
+    max_loss_pct: float | None
+
+
+@dataclass
+class ThresholdAnalysisResult:
+    """Result of threshold analysis for a single filter.
+
+    Attributes:
+        filter_column: Column name of the analyzed filter.
+        varied_bound: Which bound was varied ('min' or 'max').
+        step_size: Step size used for threshold variation.
+        rows: List of ThresholdRow results, ordered by threshold ascending.
+        current_index: Index of the current (baseline) row in the list.
+    """
+    filter_column: str
+    varied_bound: Literal["min", "max"]
+    step_size: float
+    rows: list[ThresholdRow]
+    current_index: int
+
+
 # Import after dataclasses to avoid circular import issues
 from src.core.models import ColumnMapping, FilterCriteria
 from src.core.filter_engine import FilterEngine
