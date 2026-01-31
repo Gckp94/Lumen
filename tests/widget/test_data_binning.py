@@ -1131,6 +1131,63 @@ class TestGenerateBinsFromPercentiles:
         assert len(tab._bin_rows) == 11  # 10 bins + nulls
 
 
+class TestAutoSplitButtonClicks:
+    """Tests for auto-split button click handlers."""
+
+    def test_quartile_button_click_generates_bins(self, qtbot: QtBot) -> None:
+        """Clicking quartile button generates 4 bins."""
+        from PyQt6.QtCore import Qt
+
+        app_state = AppState()
+        df = pd.DataFrame({"value": list(range(1, 101))})
+        app_state.baseline_df = df
+
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+        tab._populate_column_dropdown(df)
+        tab._column_dropdown.setCurrentText("value")
+
+        # Click the quartile button
+        qtbot.mouseClick(tab._quartile_btn, Qt.MouseButton.LeftButton)
+
+        # Verify bins were created
+        assert len(tab._bin_rows) == 5  # 4 bins + nulls
+
+    def test_quintile_button_click_generates_bins(self, qtbot: QtBot) -> None:
+        """Clicking quintile button generates 5 bins."""
+        from PyQt6.QtCore import Qt
+
+        app_state = AppState()
+        df = pd.DataFrame({"value": list(range(1, 101))})
+        app_state.baseline_df = df
+
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+        tab._populate_column_dropdown(df)
+        tab._column_dropdown.setCurrentText("value")
+
+        qtbot.mouseClick(tab._quintile_btn, Qt.MouseButton.LeftButton)
+
+        assert len(tab._bin_rows) == 6  # 5 bins + nulls
+
+    def test_decile_button_click_generates_bins(self, qtbot: QtBot) -> None:
+        """Clicking decile button generates 10 bins."""
+        from PyQt6.QtCore import Qt
+
+        app_state = AppState()
+        df = pd.DataFrame({"value": list(range(1, 101))})
+        app_state.baseline_df = df
+
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+        tab._populate_column_dropdown(df)
+        tab._column_dropdown.setCurrentText("value")
+
+        qtbot.mouseClick(tab._decile_btn, Qt.MouseButton.LeftButton)
+
+        assert len(tab._bin_rows) == 11  # 10 bins + nulls
+
+
 class TestFirstTriggersFiltering:
     """Tests for first triggers only filtering in data binning."""
 

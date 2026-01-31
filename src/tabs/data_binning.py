@@ -357,6 +357,11 @@ class DataBinningTab(QWidget):
         auto_split_layout.addWidget(self._decile_btn)
         auto_split_layout.addStretch()
 
+        # Connect button clicks
+        self._quartile_btn.clicked.connect(self._on_quartile_clicked)
+        self._quintile_btn.clicked.connect(self._on_quintile_clicked)
+        self._decile_btn.clicked.connect(self._on_decile_clicked)
+
         layout.addWidget(auto_split_container)
 
         # Separator before save/load buttons
@@ -658,6 +663,24 @@ class DataBinningTab(QWidget):
 
         self._emit_bin_config_changed()
         logger.debug("Added new bin row")
+
+    def _on_quartile_clicked(self) -> None:
+        """Handle quartile button click - split into 4 bins."""
+        column = self._column_dropdown.currentText()
+        if column:
+            self._generate_bins_from_percentiles(column, 4)
+
+    def _on_quintile_clicked(self) -> None:
+        """Handle quintile button click - split into 5 bins."""
+        column = self._column_dropdown.currentText()
+        if column:
+            self._generate_bins_from_percentiles(column, 5)
+
+    def _on_decile_clicked(self) -> None:
+        """Handle decile button click - split into 10 bins."""
+        column = self._column_dropdown.currentText()
+        if column:
+            self._generate_bins_from_percentiles(column, 10)
 
     def _on_bin_remove_requested(self, row: "BinConfigRow") -> None:
         """Handle bin row removal request.
