@@ -133,7 +133,44 @@ class ParameterSensitivityTab(QWidget):
         self._filter_combo.setPlaceholderText("Select a filter...")
         self._filter_combo.setMaxVisibleItems(15)
         self._filter_combo.setMinimumWidth(200)
-        # Temporarily using native styling to debug dropdown issue
+        self._filter_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {COLORS["bg_tertiary"]};
+                color: {COLORS["text_primary"]};
+                font-size: 13px;
+                border: 1px solid {COLORS["border_subtle"]};
+                border-radius: 6px;
+                padding: 10px 12px;
+                min-height: 20px;
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 24px;
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid {COLORS["text_secondary"]};
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {COLORS["bg_tertiary"]};
+                color: {COLORS["text_primary"]};
+                selection-background-color: {COLORS["row_current_bg"]};
+                border: 1px solid {COLORS["border_subtle"]};
+                padding: 4px;
+                outline: none;
+            }}
+            QComboBox QAbstractItemView::item {{
+                padding: 8px 12px;
+                min-height: 24px;
+            }}
+            QComboBox QAbstractItemView::item:hover {{
+                background-color: {COLORS["bg_elevated"]};
+            }}
+        """)
         filter_section.addWidget(self._filter_combo)
         layout.addLayout(filter_section)
 

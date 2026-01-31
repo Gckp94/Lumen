@@ -533,6 +533,7 @@ class FeatureExplorerTab(QWidget):
             return
 
         self._app_state.filters = filters
+        self._app_state.filters_changed.emit(self._app_state.filters)
         self._apply_current_filters()
         self._update_filter_summary()
 
@@ -544,6 +545,7 @@ class FeatureExplorerTab(QWidget):
     def _on_filters_cleared(self) -> None:
         """Handle filter clear."""
         self._app_state.filters = []
+        self._app_state.filters_changed.emit(self._app_state.filters)
         self._apply_current_filters()
         self._update_filter_summary()
         logger.info("Filters cleared")
@@ -559,6 +561,7 @@ class FeatureExplorerTab(QWidget):
         # Add the new filter
         current_filters.append(criteria)
         self._app_state.filters = current_filters
+        self._app_state.filters_changed.emit(self._app_state.filters)
         self._apply_current_filters()
         self._update_filter_summary()
         logger.info(f"Single filter applied: {criteria.column}")
