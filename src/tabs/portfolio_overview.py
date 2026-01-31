@@ -6,6 +6,7 @@ and visualizing multi-strategy portfolio performance.
 """
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
@@ -198,21 +199,39 @@ class PortfolioOverviewTab(QWidget):
         strategies, account_start = self._config_manager.load()
         self._account_start_spin.setValue(account_start)
 
+        valid_strategies = []
         for config in strategies:
-            # Try to reload the CSV data
+            file_path = Path(config.file_path)
+
+            # Skip strategies with missing files
+            if not file_path.exists():
+                logger.warning(
+                    f"Skipping strategy '{config.name}': file not found at {config.file_path}"
+                )
+                continue
+
+            # Try to reload the data
             try:
                 if config.file_path.endswith(".csv"):
                     df = pd.read_csv(config.file_path)
                 else:
-                    df = pd.read_excel(config.file_path)
+                    sheet = config.sheet_name if config.sheet_name else 0
+                    df = pd.read_excel(config.file_path, sheet_name=sheet)
+
                 self._strategy_data[config.name] = df
                 self._strategy_table.add_strategy(config)
+                valid_strategies.append(config)
+                logger.info(f"Loaded strategy '{config.name}' from {config.file_path}")
             except Exception as e:
                 logger.warning(f"Could not load file for {config.name}: {e}")
-                # Still add strategy but data will be missing
-                self._strategy_table.add_strategy(config)
+                # Don't add strategy if file can't be loaded
 
-        if strategies:
+        # Update config to remove invalid entries
+        if len(valid_strategies) < len(strategies):
+            self._config_manager.save(valid_strategies, account_start)
+            logger.info(f"Cleaned up config: {len(strategies) - len(valid_strategies)} invalid entries removed")
+
+        if valid_strategies:
             self._schedule_recalculation()
 
     def _on_add_strategy(self) -> None:
