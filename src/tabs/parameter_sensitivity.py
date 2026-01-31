@@ -54,6 +54,53 @@ COLORS = {
     "border_subtle": "#27272a",
 }
 
+# Gradient color constants (matching Statistics Tab)
+GRADIENT_LOW = QColor(255, 71, 87, 45)      # Coral-red (low values)
+GRADIENT_MID = QColor(148, 148, 168, 25)    # Neutral gray (middle values)
+GRADIENT_HIGH = QColor(0, 255, 180, 45)     # Teal-green (high values)
+
+TEXT_LOW = QColor("#ff9090")     # Soft red text
+TEXT_MID = QColor("#F4F4F8")     # Neutral text
+TEXT_HIGH = QColor("#7DFFCC")    # Soft teal text
+
+
+def lerp_color(color1: QColor, color2: QColor, t: float) -> QColor:
+    """Linear interpolation between two QColors."""
+    t = max(0.0, min(1.0, t))
+    r = int(color1.red() + (color2.red() - color1.red()) * t)
+    g = int(color1.green() + (color2.green() - color1.green()) * t)
+    b = int(color1.blue() + (color2.blue() - color1.blue()) * t)
+    a = int(color1.alpha() + (color2.alpha() - color1.alpha()) * t)
+    return QColor(r, g, b, a)
+
+
+def calculate_gradient_colors(
+    value: float,
+    min_val: float,
+    max_val: float,
+    invert: bool = False,
+) -> tuple[QColor, QColor]:
+    """Calculate background and text colors based on value position in range."""
+    if min_val == max_val:
+        return (GRADIENT_MID, TEXT_MID)
+
+    normalized = (value - min_val) / (max_val - min_val)
+    normalized = max(0.0, min(1.0, normalized))
+
+    if invert:
+        normalized = 1.0 - normalized
+
+    if normalized < 0.5:
+        t = normalized * 2
+        bg_color = lerp_color(GRADIENT_LOW, GRADIENT_MID, t)
+        text_color = lerp_color(TEXT_LOW, TEXT_MID, t)
+    else:
+        t = (normalized - 0.5) * 2
+        bg_color = lerp_color(GRADIENT_MID, GRADIENT_HIGH, t)
+        text_color = lerp_color(TEXT_MID, TEXT_HIGH, t)
+
+    return (bg_color, text_color)
+
 
 class ParameterSensitivityTab(QWidget):
     """Tab for filter threshold analysis.
@@ -421,14 +468,20 @@ class ParameterSensitivityTab(QWidget):
             }}
         """)
 
-        self._table.setAlternatingRowColors(True)
+        self._table.setAlternatingRowColors(False)  # Disabled - using gradient colors
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.verticalHeader().setVisible(False)
+        self._table.setWordWrap(True)  # Enable word wrap for multi-line cells
+
+        # Set row height for two-line content
+        self._table.verticalHeader().setDefaultSectionSize(52)
 
         # Set column widths
         header = self._table.horizontalHeader()
         header.setStretchLastSection(True)
+        # Disable text eliding
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         for i in range(10):
             header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
 
@@ -637,10 +690,43 @@ class ParameterSensitivityTab(QWidget):
         # Get baseline values for delta calculation
         baseline_row = result.rows[result.current_index]
 
+        # Compute column ranges for gradient coloring
+        column_ranges: dict[str, tuple[float, float]] = {}
+        
+        # Collect all values per column
+        num_trades_vals = [r.num_trades for r in result.rows]
+        ev_vals = [r.ev_pct for r in result.rows if r.ev_pct is not None]
+        win_vals = [r.win_pct for r in result.rows if r.win_pct is not None]
+        med_win_vals = [r.median_winner_pct for r in result.rows if r.median_winner_pct is not None]
+        profit_vals = [r.profit_ratio for r in result.rows if r.profit_ratio is not None]
+        edge_vals = [r.edge_pct for r in result.rows if r.edge_pct is not None]
+        eg_vals = [r.eg_pct for r in result.rows if r.eg_pct is not None]
+        kelly_vals = [r.kelly_pct for r in result.rows if r.kelly_pct is not None]
+        max_loss_vals = [r.max_loss_pct for r in result.rows if r.max_loss_pct is not None]
+
+        if num_trades_vals:
+            column_ranges["# Trades"] = (min(num_trades_vals), max(num_trades_vals))
+        if ev_vals:
+            column_ranges["EV %"] = (min(ev_vals), max(ev_vals))
+        if win_vals:
+            column_ranges["Win %"] = (min(win_vals), max(win_vals))
+        if med_win_vals:
+            column_ranges["Med Win %"] = (min(med_win_vals), max(med_win_vals))
+        if profit_vals:
+            column_ranges["Profit Ratio"] = (min(profit_vals), max(profit_vals))
+        if edge_vals:
+            column_ranges["Edge %"] = (min(edge_vals), max(edge_vals))
+        if eg_vals:
+            column_ranges["EG %"] = (min(eg_vals), max(eg_vals))
+        if kelly_vals:
+            column_ranges["Kelly %"] = (min(kelly_vals), max(kelly_vals))
+        if max_loss_vals:
+            column_ranges["Max Loss %"] = (min(max_loss_vals), max(max_loss_vals))
+
         for row_idx, row in enumerate(result.rows):
             is_current = row_idx == result.current_index
 
-            # Column 0: Threshold
+            # Column 0: Threshold (no gradient)
             threshold_item = self._create_cell(
                 f"{row.threshold:.2f}",
                 is_current=is_current,
@@ -648,7 +734,7 @@ class ParameterSensitivityTab(QWidget):
             )
             self._table.setItem(row_idx, 0, threshold_item)
 
-            # Column 1: # Trades
+            # Column 1: # Trades (gradient: higher is better)
             trades_delta = None if is_current else (row.num_trades - baseline_row.num_trades)
             self._table.setItem(
                 row_idx,
@@ -657,7 +743,9 @@ class ParameterSensitivityTab(QWidget):
                     str(row.num_trades),
                     delta=trades_delta,
                     is_current=is_current,
-                    invert_delta=True,  # More trades = positive is good
+                    invert_delta=True,
+                    gradient_range=column_ranges.get("# Trades"),
+                    gradient_value=float(row.num_trades),
                 ),
             )
 
@@ -665,14 +753,20 @@ class ParameterSensitivityTab(QWidget):
             self._table.setItem(
                 row_idx,
                 2,
-                self._create_metric_cell(row.ev_pct, baseline_row.ev_pct, is_current, "pct"),
+                self._create_metric_cell(
+                    row.ev_pct, baseline_row.ev_pct, is_current, "pct",
+                    gradient_range=column_ranges.get("EV %"),
+                ),
             )
 
             # Column 3: Win %
             self._table.setItem(
                 row_idx,
                 3,
-                self._create_metric_cell(row.win_pct, baseline_row.win_pct, is_current, "pct"),
+                self._create_metric_cell(
+                    row.win_pct, baseline_row.win_pct, is_current, "pct",
+                    gradient_range=column_ranges.get("Win %"),
+                ),
             )
 
             # Column 4: Median Winner %
@@ -680,7 +774,8 @@ class ParameterSensitivityTab(QWidget):
                 row_idx,
                 4,
                 self._create_metric_cell(
-                    row.median_winner_pct, baseline_row.median_winner_pct, is_current, "pct"
+                    row.median_winner_pct, baseline_row.median_winner_pct, is_current, "pct",
+                    gradient_range=column_ranges.get("Med Win %"),
                 ),
             )
 
@@ -689,7 +784,8 @@ class ParameterSensitivityTab(QWidget):
                 row_idx,
                 5,
                 self._create_metric_cell(
-                    row.profit_ratio, baseline_row.profit_ratio, is_current, "ratio"
+                    row.profit_ratio, baseline_row.profit_ratio, is_current, "ratio",
+                    gradient_range=column_ranges.get("Profit Ratio"),
                 ),
             )
 
@@ -697,29 +793,41 @@ class ParameterSensitivityTab(QWidget):
             self._table.setItem(
                 row_idx,
                 6,
-                self._create_metric_cell(row.edge_pct, baseline_row.edge_pct, is_current, "pct"),
+                self._create_metric_cell(
+                    row.edge_pct, baseline_row.edge_pct, is_current, "pct",
+                    gradient_range=column_ranges.get("Edge %"),
+                ),
             )
 
             # Column 7: EG %
             self._table.setItem(
                 row_idx,
                 7,
-                self._create_metric_cell(row.eg_pct, baseline_row.eg_pct, is_current, "pct"),
+                self._create_metric_cell(
+                    row.eg_pct, baseline_row.eg_pct, is_current, "pct",
+                    gradient_range=column_ranges.get("EG %"),
+                ),
             )
 
             # Column 8: Kelly %
             self._table.setItem(
                 row_idx,
                 8,
-                self._create_metric_cell(row.kelly_pct, baseline_row.kelly_pct, is_current, "pct"),
+                self._create_metric_cell(
+                    row.kelly_pct, baseline_row.kelly_pct, is_current, "pct",
+                    gradient_range=column_ranges.get("Kelly %"),
+                ),
             )
 
-            # Column 9: Max Loss % (lower is better)
+            # Column 9: Max Loss % (lower is better, so invert gradient)
             self._table.setItem(
                 row_idx,
                 9,
                 self._create_metric_cell(
-                    row.max_loss_pct, baseline_row.max_loss_pct, is_current, "pct", invert=True
+                    row.max_loss_pct, baseline_row.max_loss_pct, is_current, "pct",
+                    invert=True,
+                    gradient_range=column_ranges.get("Max Loss %"),
+                    gradient_invert=True,
                 ),
             )
 
@@ -730,8 +838,11 @@ class ParameterSensitivityTab(QWidget):
         is_current: bool = False,
         show_marker: bool = False,
         invert_delta: bool = False,
+        gradient_range: tuple[float, float] | None = None,
+        gradient_value: float | None = None,
+        gradient_invert: bool = False,
     ) -> QTableWidgetItem:
-        """Create a styled table cell."""
+        """Create a styled table cell with optional gradient background."""
         display_text = text
         if show_marker:
             display_text = f"● {text}"
@@ -749,8 +860,16 @@ class ParameterSensitivityTab(QWidget):
             item.setBackground(QColor(COLORS["row_current_bg"]))
             if show_marker:
                 item.setForeground(QColor(COLORS["row_current_accent"]))
+        elif gradient_range is not None and gradient_value is not None:
+            # Apply gradient coloring
+            min_val, max_val = gradient_range
+            bg_color, text_color = calculate_gradient_colors(
+                gradient_value, min_val, max_val, invert=gradient_invert
+            )
+            item.setBackground(bg_color)
+            item.setForeground(text_color)
         elif delta is not None:
-            # Color based on delta direction
+            # Color based on delta direction (text only)
             is_good = (delta > 0) if not invert_delta else (delta < 0)
             if is_good:
                 item.setForeground(QColor(COLORS["delta_positive"]))
@@ -766,8 +885,10 @@ class ParameterSensitivityTab(QWidget):
         is_current: bool,
         fmt: str = "pct",
         invert: bool = False,
+        gradient_range: tuple[float, float] | None = None,
+        gradient_invert: bool = False,
     ) -> QTableWidgetItem:
-        """Create a metric cell with delta display."""
+        """Create a metric cell with delta display and gradient coloring."""
         if value is None:
             item = QTableWidgetItem("—")
             item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -804,6 +925,14 @@ class ParameterSensitivityTab(QWidget):
 
         if is_current:
             item.setBackground(QColor(COLORS["row_current_bg"]))
+        elif gradient_range is not None:
+            # Apply gradient coloring
+            min_val, max_val = gradient_range
+            bg_color, text_color = calculate_gradient_colors(
+                value, min_val, max_val, invert=gradient_invert
+            )
+            item.setBackground(bg_color)
+            item.setForeground(text_color)
         elif delta is not None:
             is_good = (delta > 0) if not invert else (delta < 0)
             if is_good:
