@@ -779,6 +779,17 @@ class StatisticsTab(QWidget):
         # Scaling tab - MFE-dependent
         self._tab_widget.setTabEnabled(2, has_mfe)  # Scaling
 
+        # Find the index of Profit/Loss Chance tab
+        profit_loss_idx = None
+        for i in range(self._tab_widget.count()):
+            if self._tab_widget.tabText(i) == "Profit/Loss Chance":
+                profit_loss_idx = i
+                break
+
+        if profit_loss_idx is not None:
+            has_mfe_mae = has_mfe and has_mae
+            self._tab_widget.setTabEnabled(profit_loss_idx, has_mfe_mae)
+
         # Log warnings for missing columns
         if not has_mae:
             logger.warning(
@@ -875,6 +886,21 @@ class StatisticsTab(QWidget):
             logger.warning(f"Error calculating Cover table: {e}")
             self._cover_table.setRowCount(0)
 
+        # Profit/Loss Chance tables
+        try:
+            profit_chance_df = calculate_profit_chance_table(df, mapping, params)
+            self._populate_table(self._profit_chance_table, profit_chance_df)
+        except Exception as e:
+            logger.error(f"Failed to calculate profit chance table: {e}")
+            self._profit_chance_table.setRowCount(0)
+
+        try:
+            loss_chance_df = calculate_loss_chance_table(df, mapping, params)
+            self._populate_table(self._loss_chance_table, loss_chance_df)
+        except Exception as e:
+            logger.error(f"Failed to calculate loss chance table: {e}")
+            self._loss_chance_table.setRowCount(0)
+
     def _refresh_all_tables(self) -> None:
         """Refresh all tables with current data.
 
@@ -934,6 +960,10 @@ class StatisticsTab(QWidget):
         self._scaling_table.setColumnCount(0)
         self._cover_table.setRowCount(0)
         self._cover_table.setColumnCount(0)
+        self._profit_chance_table.setRowCount(0)
+        self._profit_chance_table.setColumnCount(0)
+        self._loss_chance_table.setRowCount(0)
+        self._loss_chance_table.setColumnCount(0)
 
     def _populate_table(self, table: QTableWidget, df: pd.DataFrame) -> None:
         """Populate a QTableWidget from a DataFrame.
@@ -1129,6 +1159,8 @@ class StatisticsTab(QWidget):
             ("Offset", self._offset_table),
             ("Scaling", self._scaling_table),
             ("Cover", self._cover_table),
+            ("Profit Chance", self._profit_chance_table),
+            ("Loss Chance", self._loss_chance_table),
         ]
 
         # Build combined markdown
