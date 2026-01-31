@@ -1165,3 +1165,136 @@ def _calculate_profit_chance_row(
         "Edge %": edge_pct,
         "EG %": eg_pct,
     }
+
+
+def calculate_loss_chance_table(
+    df: pd.DataFrame,
+    mapping: ColumnMapping,
+    adjustment_params: AdjustmentParams,
+) -> pd.DataFrame:
+    """Calculate loss chance metrics for trades reaching MAE thresholds.
+
+    For each loss threshold, analyzes trades where MAE >= threshold:
+    - Chance of reaching the next loss level
+    - Chance of still being profitable (gain_pct > 0)
+    - Win %, Profit Ratio, Edge %, EG % for trades in each bucket
+
+    Args:
+        df: Trade data with gain_pct, mae_pct, and mfe_pct columns.
+        mapping: Column mapping configuration.
+        adjustment_params: Adjustment parameters (stop_loss, efficiency).
+
+    Returns:
+        DataFrame with rows for each loss bucket and metrics.
+        Columns: Loss Reached %, # of Trades, Chance of Next %,
+                 Chance of Profit %, Win %, Profit Ratio, Edge %, EG %
+    """
+    rows = []
+    gain_col = mapping.gain_pct
+    mae_col = mapping.mae_pct
+
+    for i, threshold in enumerate(PROFIT_LOSS_BUCKETS):
+        # Determine next threshold (None if last bucket)
+        next_threshold = (
+            PROFIT_LOSS_BUCKETS[i + 1] if i + 1 < len(PROFIT_LOSS_BUCKETS) else None
+        )
+
+        row = _calculate_loss_chance_row(
+            df, mae_col, gain_col, threshold, next_threshold
+        )
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def _calculate_loss_chance_row(
+    df: pd.DataFrame,
+    mae_col: str,
+    gain_col: str,
+    threshold: int,
+    next_threshold: int | None,
+) -> dict:
+    """Calculate metrics for a single loss chance bucket.
+
+    Args:
+        df: Trade data DataFrame.
+        mae_col: Column name for MAE percentage (percentage points).
+        gain_col: Column name for gain percentage (decimal).
+        threshold: Current loss threshold (e.g., 10 for 10%).
+        next_threshold: Next loss threshold, or None if last bucket.
+
+    Returns:
+        Dictionary with metrics for this loss bucket.
+    """
+    # Filter trades where MAE >= threshold
+    bucket_mask = df[mae_col] >= threshold
+    bucket_df = df[bucket_mask]
+    num_trades = len(bucket_df)
+
+    # Handle empty bucket
+    if num_trades == 0:
+        return {
+            "Loss Reached %": threshold,
+            "# of Trades": 0,
+            "Chance of Next %": 0.0,
+            "Chance of Profit %": 0.0,
+            "Win %": 0.0,
+            "Profit Ratio": None,
+            "Edge %": None,
+            "EG %": None,
+        }
+
+    # Chance of Next %: count reaching next bucket / count in current bucket
+    if next_threshold is not None:
+        next_mask = bucket_df[mae_col] >= next_threshold
+        next_count = next_mask.sum()
+        chance_of_next = (next_count / num_trades) * 100
+    else:
+        # Last bucket - no next threshold
+        chance_of_next = 0.0
+
+    # Chance of Profit %: count where gain_pct > 0 / count in bucket
+    # (trades that ended profitable despite hitting MAE threshold)
+    gains = bucket_df[gain_col].astype(float)
+    profitable_mask = gains > 0
+    profitable_count = profitable_mask.sum()
+    chance_of_profit = (profitable_count / num_trades) * 100
+
+    # Calculate Win %, Profit Ratio, Edge %, EG % for trades in this bucket
+    winners_mask = gains > 0
+    losers_mask = gains < 0
+
+    win_count = winners_mask.sum()
+    loss_count = losers_mask.sum()
+
+    # Win %
+    win_pct = (win_count / num_trades) * 100
+    win_rate = win_count / num_trades  # decimal for calculations
+
+    # Avg win and avg loss (in decimal form)
+    avg_win = gains[winners_mask].mean() if win_count > 0 else 0.0
+    avg_loss = gains[losers_mask].mean() if loss_count > 0 else 0.0  # Negative
+
+    # Profit Ratio: avg_win / abs(avg_loss)
+    profit_ratio = avg_win / abs(avg_loss) if avg_loss != 0 else None
+
+    # Edge %: (profit_ratio + 1) * win_rate - 1
+    if profit_ratio is not None:
+        edge_decimal = (profit_ratio + 1) * win_rate - 1
+        edge_pct = edge_decimal * 100
+    else:
+        edge_pct = None
+
+    # EG %: Geometric growth formula at full Kelly stake
+    eg_pct = calculate_expected_growth(win_rate, profit_ratio)
+
+    return {
+        "Loss Reached %": threshold,
+        "# of Trades": num_trades,
+        "Chance of Next %": chance_of_next,
+        "Chance of Profit %": chance_of_profit,
+        "Win %": win_pct,
+        "Profit Ratio": profit_ratio,
+        "Edge %": edge_pct,
+        "EG %": eg_pct,
+    }
