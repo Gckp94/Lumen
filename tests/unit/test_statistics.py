@@ -1638,6 +1638,7 @@ class TestCalculateProfitChanceTable:
                 "mfe_pct": [15.0, 8.0, 3.0, 30.0],  # MFE values
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
 
         assert len(result) == 8  # 8 buckets: 5%, 10%, 15%, 20%, 25%, 30%, 35%, 40%
@@ -1658,6 +1659,7 @@ class TestCalculateProfitChanceTable:
                 "mfe_pct": [50.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
 
         expected_buckets = [5, 10, 15, 20, 25, 30, 35, 40]
@@ -1673,6 +1675,7 @@ class TestCalculateProfitChanceTable:
                 "mfe_pct": [8.0, 12.0, 18.0, 25.0],  # 4 reach 5%, 3 reach 10%, 2 reach 15%, 1 reach 20%
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
 
         # At 5%: 4 trades, 3 reach 10% -> Chance of Next = 75%
@@ -1694,6 +1697,7 @@ class TestCalculateProfitChanceTable:
             }
         )
         params = AdjustmentParams(stop_loss=10.0, efficiency=0.0)
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_profit_chance_table(df, sample_mapping, params)
 
         # At 10% profit level: 3 trades, 2 have mae > 10% stop
@@ -1709,6 +1713,7 @@ class TestCalculateProfitChanceTable:
                 "mfe_pct": [20.0, 20.0, 20.0],  # All reach 15%
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
 
         # At 15%: 3 trades, 2 winners -> Win % = 66.67%
@@ -1724,6 +1729,7 @@ class TestCalculateProfitChanceTable:
                 "mfe_pct": [8.0],  # Only reaches 5%, not 10%
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
 
         # 10% bucket should have no trades
@@ -1740,6 +1746,7 @@ class TestCalculateProfitChanceTable:
                 "mfe_pct": [15.0, 8.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
 
         expected_columns = [
@@ -1764,6 +1771,7 @@ class TestCalculateProfitChanceTable:
                 "mfe_pct": [25.0, 20.0, 15.0, 10.0, 8.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
 
         # Check first row with trades
@@ -1783,6 +1791,7 @@ class TestCalculateProfitChanceTable:
                 "mfe_pct": [],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
 
         # Should still have 8 rows (one for each bucket)
@@ -1808,6 +1817,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [10.0, 5.0, 3.0, 2.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         assert len(result) == 8  # 8 buckets
@@ -1828,6 +1838,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [10.0, 5.0, 3.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         row_15 = result[result["Loss Reached %"] == 15].iloc[0]
@@ -1843,6 +1854,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         expected_buckets = [5, 10, 15, 20, 25, 30, 35, 40]
@@ -1858,6 +1870,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0, 5.0, 5.0, 5.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         # At 5%: 4 trades, 3 reach 10% -> Chance of Next = 75%
@@ -1877,6 +1890,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0, 5.0, 5.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         # At 15%: 3 trades, 2 winners -> Win % = 66.67%
@@ -1892,6 +1906,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         # 10% bucket should have no trades
@@ -1909,6 +1924,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0, 10.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         expected_columns = [
@@ -1933,6 +1949,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0, 5.0, 5.0, 5.0, 5.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         # Check first row with trades
@@ -1952,6 +1969,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         # Should still have 8 rows (one for each bucket)
@@ -1968,6 +1986,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0, 5.0, 5.0, 5.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         row_10 = result[result["Loss Reached %"] == 10].iloc[0]
@@ -1983,6 +2002,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0, 5.0, 5.0, 5.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         row_10 = result[result["Loss Reached %"] == 10].iloc[0]
@@ -1999,6 +2019,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0, 5.0, 5.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         # Check trade counts at each bucket
@@ -2023,6 +2044,7 @@ class TestCalculateLossChanceTable:
                 "mfe_pct": [5.0],
             }
         )
+        df["adjusted_gain_pct"] = df["gain_pct"]
         result = calculate_loss_chance_table(df, sample_mapping, default_adjustment_params)
 
         # 40% bucket is the last one, should have 0% Chance of Next
