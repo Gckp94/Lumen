@@ -1,4 +1,5 @@
 # tests/unit/test_import_strategy_dialog.py
+"""Unit tests for ImportStrategyDialog."""
 import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
@@ -211,3 +212,58 @@ class TestImportStrategyDialogExcelSheetSelection:
         # Verify preview shows second sheet data
         assert "sheet2_col" in [dialog._preview_table.horizontalHeaderItem(i).text()
                                 for i in range(dialog._preview_table.columnCount())]
+
+
+class TestImportStrategyDialogErrors:
+    """Test error handling in import dialog."""
+
+    def test_shows_error_on_invalid_file(self, app, qtbot, tmp_path, monkeypatch):
+        """Should show error message when file cannot be loaded."""
+        from PyQt6.QtWidgets import QMessageBox
+
+        # Create invalid CSV
+        invalid_file = tmp_path / "invalid.csv"
+        invalid_file.write_text("not,valid\ncsv,file\n\"unclosed quote")
+
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+
+        # Mock QMessageBox to capture the error
+        error_shown = []
+
+        def mock_critical(parent, title, message):
+            error_shown.append(message)
+
+        monkeypatch.setattr(QMessageBox, "critical", mock_critical)
+
+        dialog._load_file(str(invalid_file))
+
+        # Should show error and NOT have data loaded
+        assert len(error_shown) == 1
+        assert "Failed to load file:" in error_shown[0]
+        assert dialog.get_dataframe() is None
+
+    def test_loads_valid_csv_successfully(self, app, qtbot, tmp_path):
+        """Should load valid CSV without errors."""
+        valid_file = tmp_path / "valid.csv"
+        valid_file.write_text("date,gain_pct\n2024-01-01,1.5\n2024-01-02,-0.5\n")
+
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        dialog._load_file(str(valid_file))
+
+        df = dialog.get_dataframe()
+        assert df is not None
+        assert len(df) == 2
+        assert list(df.columns) == ["date", "gain_pct"]
+
+    def test_get_file_path_returns_loaded_path(self, app, qtbot, tmp_path):
+        """Should return the loaded file path."""
+        valid_file = tmp_path / "valid.csv"
+        valid_file.write_text("date,gain_pct\n2024-01-01,1.5\n")
+
+        dialog = ImportStrategyDialog()
+        qtbot.addWidget(dialog)
+        dialog._load_file(str(valid_file))
+
+        assert dialog.get_file_path() == str(valid_file)

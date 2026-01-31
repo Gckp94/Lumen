@@ -1,29 +1,28 @@
 """Dialog for importing strategy CSV with column mapping."""
 import logging
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
-from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
     QComboBox,
-    QPushButton,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
     QLineEdit,
+    QMessageBox,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QFileDialog,
-    QGroupBox,
-    QFormLayout,
-    QHeaderView,
+    QVBoxLayout,
 )
 
 from src.core.file_loader import FileLoader
 from src.core.portfolio_models import PortfolioColumnMapping
-from src.ui.constants import Colors, Fonts, FontSizes, Spacing
+from src.ui.constants import Spacing
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +37,10 @@ class ImportStrategyDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Import Strategy")
         self.setMinimumSize(500, 500)
-        self._preview_df: Optional[pd.DataFrame] = None
-        self._file_path: Optional[str] = None
+        self._preview_df: pd.DataFrame | None = None
+        self._file_path: str | None = None
         self._file_loader = FileLoader()
-        self._selected_sheet: Optional[str] = None
+        self._selected_sheet: str | None = None
         self._setup_ui()
         self._connect_signals()
 
@@ -167,6 +166,13 @@ class ImportStrategyDialog(QDialog):
             self.set_preview_data(df)
         except Exception as e:
             logger.error(f"Failed to load file: {e}")
+            self._file_path = None
+            self._preview_df = None
+            QMessageBox.critical(
+                self,
+                "Load Error",
+                f"Failed to load file:\n{e}",
+            )
 
     def _on_sheet_changed(self, sheet_name: str):
         """Handle sheet selection change - reload data from selected sheet."""
@@ -234,15 +240,15 @@ class ImportStrategyDialog(QDialog):
         """Get the entered strategy name."""
         return self._name_edit.text() or "Unnamed Strategy"
 
-    def get_file_path(self) -> Optional[str]:
+    def get_file_path(self) -> str | None:
         """Get the selected file path."""
         return self._file_path
 
-    def get_dataframe(self) -> Optional[pd.DataFrame]:
+    def get_dataframe(self) -> pd.DataFrame | None:
         """Get the loaded DataFrame."""
         return self._preview_df
 
-    def get_selected_sheet(self) -> Optional[str]:
+    def get_selected_sheet(self) -> str | None:
         """Get the selected sheet name, or None if not applicable."""
         # Check if sheet selector has items (indicating an Excel file was loaded)
         # Note: Use count() > 0 instead of isVisible() since isVisible() returns False
