@@ -1129,6 +1129,64 @@ class BinConfigRow(QFrame):
         except ValueError:
             return None, ""
 
+    def set_values(
+        self, value1: float, value2: float | None = None
+    ) -> None:
+        """Set bin values programmatically.
+
+        Args:
+            value1: First value (threshold for <, >, or range start).
+            value2: Second value (range end, only for range operator).
+        """
+        if not hasattr(self, "_value1_input"):
+            return
+
+        # Format value for display
+        if self._is_time_column:
+            # Convert HHMMSS numeric to HH:MM:SS string
+            text1 = self._format_time_value(value1)
+            self._value1_input.setText(text1)
+            if value2 is not None and hasattr(self, "_value2_input"):
+                text2 = self._format_time_value(value2)
+                self._value2_input.setText(text2)
+        else:
+            # Format numeric value (remove unnecessary decimals)
+            text1 = self._format_numeric_value(value1)
+            self._value1_input.setText(text1)
+            if value2 is not None and hasattr(self, "_value2_input"):
+                text2 = self._format_numeric_value(value2)
+                self._value2_input.setText(text2)
+
+        self.config_changed.emit()
+
+    def _format_time_value(self, value: float) -> str:
+        """Format HHMMSS numeric to HH:MM:SS string.
+
+        Args:
+            value: Time as HHMMSS numeric (e.g., 93000 for 09:30:00).
+
+        Returns:
+            Formatted time string (HH:MM:SS).
+        """
+        int_val = int(value)
+        hours = int_val // 10000
+        minutes = (int_val // 100) % 100
+        seconds = int_val % 100
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    def _format_numeric_value(self, value: float) -> str:
+        """Format numeric value for display.
+
+        Args:
+            value: Numeric value.
+
+        Returns:
+            Formatted string (integer if whole number, else 2 decimals).
+        """
+        if value == int(value):
+            return str(int(value))
+        return f"{value:.2f}".rstrip("0").rstrip(".")
+
     def _format_number_label(self, value: float) -> str:
         """Format a number with K/M/B abbreviations for bin labels.
 

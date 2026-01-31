@@ -985,6 +985,57 @@ class TestResizableSidebar:
         assert sidebar.minimumWidth() >= 200, "Sidebar should have minimum width of 200px"
 
 
+class TestBinConfigRowSetValues:
+    """Tests for BinConfigRow.set_values method."""
+
+    def test_set_values_range_operator(self, qtbot: QtBot) -> None:
+        """set_values populates both inputs for range operator."""
+        row = BinConfigRow(operator="range", is_removable=True)
+        qtbot.addWidget(row)
+
+        row.set_values(10.5, 25.75)
+
+        assert row._value1_input.text() == "10.5"
+        assert row._value2_input.text() == "25.75"
+
+    def test_set_values_less_than_operator(self, qtbot: QtBot) -> None:
+        """set_values populates value1 for < operator."""
+        row = BinConfigRow(operator="<", is_removable=True)
+        qtbot.addWidget(row)
+
+        row.set_values(15.0)
+
+        assert row._value1_input.text() == "15"
+
+    def test_set_values_greater_than_operator(self, qtbot: QtBot) -> None:
+        """set_values populates value1 for > operator."""
+        row = BinConfigRow(operator=">", is_removable=True)
+        qtbot.addWidget(row)
+
+        row.set_values(20.0)
+
+        assert row._value1_input.text() == "20"
+
+    def test_set_values_time_column_formats_correctly(self, qtbot: QtBot) -> None:
+        """set_values formats time values as HH:MM:SS."""
+        row = BinConfigRow(operator="range", is_removable=True, is_time_column=True)
+        qtbot.addWidget(row)
+
+        # Time stored as HHMMSS numeric (93000 = 09:30:00)
+        row.set_values(93000, 160000)
+
+        assert row._value1_input.text() == "09:30:00"
+        assert row._value2_input.text() == "16:00:00"
+
+    def test_set_values_emits_config_changed(self, qtbot: QtBot) -> None:
+        """set_values emits config_changed signal."""
+        row = BinConfigRow(operator="range", is_removable=True)
+        qtbot.addWidget(row)
+
+        with qtbot.waitSignal(row.config_changed, timeout=1000):
+            row.set_values(10.0, 20.0)
+
+
 class TestFirstTriggersFiltering:
     """Tests for first triggers only filtering in data binning."""
 
