@@ -1036,6 +1036,30 @@ class TestBinConfigRowSetValues:
             row.set_values(10.0, 20.0)
 
 
+class TestAutoSplitButtonsUI:
+    """Tests for auto-split buttons in sidebar."""
+
+    def test_auto_split_buttons_exist(self, qtbot: QtBot) -> None:
+        """DataBinningTab has quartile, quintile, decile buttons."""
+        app_state = AppState()
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+
+        assert hasattr(tab, "_quartile_btn")
+        assert hasattr(tab, "_quintile_btn")
+        assert hasattr(tab, "_decile_btn")
+
+    def test_auto_split_buttons_disabled_initially(self, qtbot: QtBot) -> None:
+        """Auto-split buttons are disabled until column selected."""
+        app_state = AppState()
+        tab = DataBinningTab(app_state)
+        qtbot.addWidget(tab)
+
+        assert not tab._quartile_btn.isEnabled()
+        assert not tab._quintile_btn.isEnabled()
+        assert not tab._decile_btn.isEnabled()
+
+
 class TestFirstTriggersFiltering:
     """Tests for first triggers only filtering in data binning."""
 

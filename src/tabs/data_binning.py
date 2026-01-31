@@ -316,6 +316,49 @@ class DataBinningTab(QWidget):
         """)
         layout.addWidget(self._add_bin_button)
 
+        # Auto-split section
+        layout.addSpacing(Spacing.SM)
+
+        auto_split_label = QLabel("Auto-Split")
+        auto_split_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Colors.TEXT_SECONDARY};
+                font-family: {Fonts.UI};
+                font-size: 10px;
+                font-weight: 500;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+            }}
+        """)
+        layout.addWidget(auto_split_label)
+
+        layout.addSpacing(Spacing.XS)
+
+        # Horizontal button group
+        auto_split_container = QWidget()
+        auto_split_layout = QHBoxLayout(auto_split_container)
+        auto_split_layout.setContentsMargins(0, 0, 0, 0)
+        auto_split_layout.setSpacing(Spacing.XS)
+
+        self._quartile_btn = AutoSplitButton("Q4", 4)
+        self._quartile_btn.setToolTip("Split into 4 quartiles (25th, 50th, 75th percentiles)")
+        self._quartile_btn.setEnabled(False)
+
+        self._quintile_btn = AutoSplitButton("Q5", 5)
+        self._quintile_btn.setToolTip("Split into 5 quintiles (20th, 40th, 60th, 80th percentiles)")
+        self._quintile_btn.setEnabled(False)
+
+        self._decile_btn = AutoSplitButton("D10", 10)
+        self._decile_btn.setToolTip("Split into 10 deciles (10th through 90th percentiles)")
+        self._decile_btn.setEnabled(False)
+
+        auto_split_layout.addWidget(self._quartile_btn)
+        auto_split_layout.addWidget(self._quintile_btn)
+        auto_split_layout.addWidget(self._decile_btn)
+        auto_split_layout.addStretch()
+
+        layout.addWidget(auto_split_container)
+
         # Separator before save/load buttons
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
