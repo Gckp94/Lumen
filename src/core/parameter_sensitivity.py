@@ -190,9 +190,16 @@ class ThresholdAnalysisEngine:
 
         Returns:
             ThresholdAnalysisResult with 11 rows of metrics.
+
+        Raises:
+            IndexError: If filter_index is out of range.
         """
         from src.core.filter_engine import FilterEngine
         from src.core.metrics import MetricsCalculator
+        from src.core.models import FilterCriteria
+
+        if not (0 <= filter_index < len(self._active_filters)):
+            raise IndexError(f"filter_index {filter_index} out of range (0-{len(self._active_filters) - 1})")
 
         target_filter = self._active_filters[filter_index]
         current_value = target_filter.min_val if vary_bound == "min" else target_filter.max_val
@@ -217,7 +224,6 @@ class ThresholdAnalysisEngine:
             for j, f in enumerate(self._active_filters):
                 if j == filter_index:
                     # Create modified filter
-                    from src.core.models import FilterCriteria
                     if vary_bound == "min":
                         modified_filters.append(FilterCriteria(
                             column=f.column,
