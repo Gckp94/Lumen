@@ -9,6 +9,7 @@ from src.core.statistics import (
     calculate_mfe_before_loss,
     calculate_offset_table,
     calculate_partial_cover_table,
+    calculate_profit_chance_table,
     calculate_scaling_table,
     calculate_stop_loss_table,
 )
@@ -1617,3 +1618,173 @@ class TestPartialCoverAnalysis:
         assert row_10["% of Trades"] == 100.0  # Trade reached threshold
         # Blended return: 0.5 * (-10%) + 0.5 * (20%) = -5% + 10% = 5%
         assert abs(row_10["Avg Blended Return %"] - 5.0) < 0.01
+
+
+# =============================================================================
+# Tests for calculate_profit_chance_table
+# =============================================================================
+
+
+class TestCalculateProfitChanceTable:
+    """Tests for calculate_profit_chance_table function."""
+
+    def test_basic_data(self, sample_mapping, default_adjustment_params):
+        """Test profit chance table with basic data."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.05, -0.08, 0.25],  # 3 win, 1 loss
+                "mae_pct": [3.0, 5.0, 15.0, 4.0],  # MAE values
+                "mfe_pct": [15.0, 8.0, 3.0, 30.0],  # MFE values
+            }
+        )
+        result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
+
+        assert len(result) == 8  # 8 buckets: 5%, 10%, 15%, 20%, 25%, 30%, 35%, 40%
+        assert "Profit Reached %" in result.columns
+        assert "Chance of Next %" in result.columns
+        assert "Chance of Max Loss %" in result.columns
+        assert "Win %" in result.columns
+        assert "Profit Ratio" in result.columns
+        assert "Edge %" in result.columns
+        assert "EG %" in result.columns
+
+    def test_profit_reached_buckets(self, sample_mapping, default_adjustment_params):
+        """Test that correct profit buckets are present."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10],
+                "mae_pct": [5.0],
+                "mfe_pct": [50.0],
+            }
+        )
+        result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
+
+        expected_buckets = [5, 10, 15, 20, 25, 30, 35, 40]
+        assert list(result["Profit Reached %"]) == expected_buckets
+
+    def test_chance_of_next_calculation(self, sample_mapping, default_adjustment_params):
+        """Test Chance of Next % calculation."""
+        # 4 trades with different MFE values
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.10, 0.10, 0.10],
+                "mae_pct": [5.0, 5.0, 5.0, 5.0],
+                "mfe_pct": [8.0, 12.0, 18.0, 25.0],  # 4 reach 5%, 3 reach 10%, 2 reach 15%, 1 reach 20%
+            }
+        )
+        result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
+
+        # At 5%: 4 trades, 3 reach 10% -> Chance of Next = 75%
+        row_5 = result[result["Profit Reached %"] == 5].iloc[0]
+        assert row_5["Chance of Next %"] == pytest.approx(75.0, rel=0.01)
+
+        # At 10%: 3 trades, 2 reach 15% -> Chance of Next = 66.67%
+        row_10 = result[result["Profit Reached %"] == 10].iloc[0]
+        assert row_10["Chance of Next %"] == pytest.approx(66.67, rel=0.01)
+
+    def test_chance_of_max_loss_calculation(self, sample_mapping):
+        """Test Chance of Max Loss % calculation."""
+        # Trades where some have MAE > stop_loss
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, 0.10, 0.10],
+                "mae_pct": [5.0, 15.0, 25.0],  # 2 trades exceed 10% stop
+                "mfe_pct": [15.0, 15.0, 15.0],  # All reach 10% MFE
+            }
+        )
+        params = AdjustmentParams(stop_loss=10.0, efficiency=0.0)
+        result = calculate_profit_chance_table(df, sample_mapping, params)
+
+        # At 10% profit level: 3 trades, 2 have mae > 10% stop
+        row_10 = result[result["Profit Reached %"] == 10].iloc[0]
+        assert row_10["Chance of Max Loss %"] == pytest.approx(66.67, rel=0.01)
+
+    def test_win_percentage_for_bucket(self, sample_mapping, default_adjustment_params):
+        """Test Win % calculation for trades in each bucket."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.15, -0.05, 0.08],  # 2 winners, 1 loser
+                "mae_pct": [5.0, 5.0, 5.0],
+                "mfe_pct": [20.0, 20.0, 20.0],  # All reach 15%
+            }
+        )
+        result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
+
+        # At 15%: 3 trades, 2 winners -> Win % = 66.67%
+        row_15 = result[result["Profit Reached %"] == 15].iloc[0]
+        assert row_15["Win %"] == pytest.approx(66.67, rel=0.01)
+
+    def test_empty_bucket(self, sample_mapping, default_adjustment_params):
+        """Test handling of bucket with no qualifying trades."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10],
+                "mae_pct": [5.0],
+                "mfe_pct": [8.0],  # Only reaches 5%, not 10%
+            }
+        )
+        result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
+
+        # 10% bucket should have no trades
+        row_10 = result[result["Profit Reached %"] == 10].iloc[0]
+        assert row_10["Chance of Next %"] == 0.0
+        assert row_10["Win %"] == 0.0
+
+    def test_all_columns_present(self, sample_mapping, default_adjustment_params):
+        """Test that all required columns are present."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.10, -0.05],
+                "mae_pct": [5.0, 10.0],
+                "mfe_pct": [15.0, 8.0],
+            }
+        )
+        result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
+
+        expected_columns = [
+            "Profit Reached %",
+            "# of Trades",
+            "Chance of Next %",
+            "Chance of Max Loss %",
+            "Win %",
+            "Profit Ratio",
+            "Edge %",
+            "EG %",
+        ]
+        for col in expected_columns:
+            assert col in result.columns, f"Missing column: {col}"
+
+    def test_eg_uses_geometric_formula(self, sample_mapping, default_adjustment_params):
+        """Verify EG% uses geometric growth formula."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [0.20, 0.15, 0.10, -0.05, -0.08],
+                "mae_pct": [5.0, 5.0, 5.0, 5.0, 5.0],
+                "mfe_pct": [25.0, 20.0, 15.0, 10.0, 8.0],
+            }
+        )
+        result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
+
+        # Check first row with trades
+        row_5 = result[result["Profit Reached %"] == 5].iloc[0]
+        eg_value = row_5["EG %"]
+
+        # EG should be less than Kelly (typically < 40%)
+        if eg_value is not None and not pd.isna(eg_value):
+            assert eg_value < 40, f"EG% {eg_value} should be < 40"
+
+    def test_empty_dataframe(self, sample_mapping, default_adjustment_params):
+        """Test with empty dataframe."""
+        df = pd.DataFrame(
+            {
+                "gain_pct": [],
+                "mae_pct": [],
+                "mfe_pct": [],
+            }
+        )
+        result = calculate_profit_chance_table(df, sample_mapping, default_adjustment_params)
+
+        # Should still have 8 rows (one for each bucket)
+        assert len(result) == 8
+        # All rows should have 0 trades
+        assert all(result["# of Trades"] == 0)
