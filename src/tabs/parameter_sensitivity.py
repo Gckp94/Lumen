@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QButtonGroup,
@@ -22,18 +23,15 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PyQt6.QtGui import QColor
 
 from src.core.parameter_sensitivity import (
     ThresholdAnalysisResult,
     ThresholdAnalysisWorker,
-    ThresholdRow,
 )
 from src.ui.components.no_scroll_widgets import NoScrollComboBox, NoScrollDoubleSpinBox
 
 if TYPE_CHECKING:
     from src.core.app_state import AppState
-    from src.core.models import FilterCriteria
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +61,7 @@ class ParameterSensitivityTab(QWidget):
     a single filter threshold up or down.
     """
 
-    def __init__(self, app_state: "AppState") -> None:
+    def __init__(self, app_state: AppState) -> None:
         """Initialize the tab.
 
         Args:
@@ -108,8 +106,8 @@ class ParameterSensitivityTab(QWidget):
         sidebar.setObjectName("threshold-sidebar")
         sidebar.setStyleSheet(f"""
             QFrame#threshold-sidebar {{
-                background-color: {COLORS['bg_secondary']};
-                border-right: 1px solid {COLORS['border_subtle']};
+                background-color: {COLORS["bg_secondary"]};
+                border-right: 1px solid {COLORS["border_subtle"]};
             }}
         """)
 
@@ -126,7 +124,7 @@ class ParameterSensitivityTab(QWidget):
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 1px;
-            color: {COLORS['text_secondary']};
+            color: {COLORS["text_secondary"]};
         """)
         filter_section.addWidget(filter_label)
 
@@ -134,25 +132,25 @@ class ParameterSensitivityTab(QWidget):
         self._filter_combo.setPlaceholderText("Select a filter...")
         self._filter_combo.setStyleSheet(f"""
             QComboBox {{
-                background-color: {COLORS['bg_tertiary']};
-                border: 1px solid {COLORS['border_subtle']};
+                background-color: {COLORS["bg_tertiary"]};
+                border: 1px solid {COLORS["border_subtle"]};
                 border-radius: 6px;
                 padding: 10px 12px;
-                color: {COLORS['text_primary']};
+                color: {COLORS["text_primary"]};
                 font-family: "Azeret Mono";
                 font-size: 13px;
             }}
             QComboBox:hover {{
-                border-color: {COLORS['bg_elevated']};
+                border-color: {COLORS["bg_elevated"]};
             }}
             QComboBox::drop-down {{
                 border: none;
                 padding-right: 8px;
             }}
             QComboBox QAbstractItemView {{
-                background-color: {COLORS['bg_tertiary']};
-                color: {COLORS['text_primary']};
-                selection-background-color: {COLORS['bg_elevated']};
+                background-color: {COLORS["bg_tertiary"]};
+                color: {COLORS["text_primary"]};
+                selection-background-color: {COLORS["bg_elevated"]};
             }}
         """)
         filter_section.addWidget(self._filter_combo)
@@ -167,14 +165,14 @@ class ParameterSensitivityTab(QWidget):
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 1px;
-            color: {COLORS['text_secondary']};
+            color: {COLORS["text_secondary"]};
         """)
         bound_section.addWidget(bound_label)
 
         self._bound_container = QFrame()
         self._bound_container.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['bg_tertiary']};
+                background-color: {COLORS["bg_tertiary"]};
                 border-radius: 6px;
                 padding: 3px;
             }}
@@ -193,13 +191,13 @@ class ParameterSensitivityTab(QWidget):
                 QRadioButton {{
                     padding: 8px 16px;
                     border-radius: 4px;
-                    color: {COLORS['text_secondary']};
+                    color: {COLORS["text_secondary"]};
                     font-size: 12px;
                     font-weight: 500;
                 }}
                 QRadioButton:checked {{
-                    background-color: {COLORS['bg_elevated']};
-                    color: {COLORS['text_primary']};
+                    background-color: {COLORS["bg_elevated"]};
+                    color: {COLORS["text_primary"]};
                 }}
                 QRadioButton::indicator {{
                     width: 0;
@@ -222,7 +220,7 @@ class ParameterSensitivityTab(QWidget):
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 1px;
-            color: {COLORS['text_secondary']};
+            color: {COLORS["text_secondary"]};
         """)
         step_section.addWidget(step_label)
 
@@ -232,16 +230,16 @@ class ParameterSensitivityTab(QWidget):
         self._step_spin.setDecimals(2)
         self._step_spin.setStyleSheet(f"""
             QDoubleSpinBox {{
-                background-color: {COLORS['bg_tertiary']};
-                border: 1px solid {COLORS['border_subtle']};
+                background-color: {COLORS["bg_tertiary"]};
+                border: 1px solid {COLORS["border_subtle"]};
                 border-radius: 6px;
                 padding: 10px 12px;
-                color: {COLORS['text_primary']};
+                color: {COLORS["text_primary"]};
                 font-family: "Azeret Mono";
                 font-size: 13px;
             }}
             QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {{
-                background-color: {COLORS['bg_elevated']};
+                background-color: {COLORS["bg_elevated"]};
                 border: none;
                 width: 24px;
             }}
@@ -258,15 +256,15 @@ class ParameterSensitivityTab(QWidget):
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 1px;
-            color: {COLORS['text_secondary']};
+            color: {COLORS["text_secondary"]};
         """)
         current_section.addWidget(current_label)
 
         self._current_frame = QFrame()
         self._current_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['row_current_bg']};
-                border: 1px solid {COLORS['row_current_border']};
+                background-color: {COLORS["row_current_bg"]};
+                border: 1px solid {COLORS["row_current_border"]};
                 border-radius: 6px;
                 padding: 12px;
             }}
@@ -285,7 +283,7 @@ class ParameterSensitivityTab(QWidget):
             font-family: "Azeret Mono";
             font-size: 15px;
             font-weight: 600;
-            color: {COLORS['row_current_accent']};
+            color: {COLORS["row_current_accent"]};
         """)
         current_inner.addWidget(self._current_value)
 
@@ -297,8 +295,8 @@ class ParameterSensitivityTab(QWidget):
         self._run_btn.setEnabled(False)
         self._run_btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {COLORS['row_current_accent']};
-                color: {COLORS['bg_primary']};
+                background-color: {COLORS["row_current_accent"]};
+                color: {COLORS["bg_primary"]};
                 border: none;
                 border-radius: 6px;
                 padding: 12px;
@@ -309,8 +307,8 @@ class ParameterSensitivityTab(QWidget):
                 background-color: #d4ad2f;
             }}
             QPushButton:disabled {{
-                background-color: {COLORS['bg_tertiary']};
-                color: {COLORS['text_muted']};
+                background-color: {COLORS["bg_tertiary"]};
+                color: {COLORS["text_muted"]};
             }}
         """)
         layout.addWidget(self._run_btn)
@@ -320,13 +318,13 @@ class ParameterSensitivityTab(QWidget):
         self._progress.setVisible(False)
         self._progress.setStyleSheet(f"""
             QProgressBar {{
-                background-color: {COLORS['bg_tertiary']};
+                background-color: {COLORS["bg_tertiary"]};
                 border: none;
                 border-radius: 4px;
                 height: 6px;
             }}
             QProgressBar::chunk {{
-                background-color: {COLORS['row_current_accent']};
+                background-color: {COLORS["row_current_accent"]};
                 border-radius: 4px;
             }}
         """)
@@ -338,7 +336,7 @@ class ParameterSensitivityTab(QWidget):
         self._empty_label = QLabel("Add filters in Feature Explorer\nto analyze thresholds")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_label.setStyleSheet(f"""
-            color: {COLORS['text_muted']};
+            color: {COLORS["text_muted"]};
             font-size: 12px;
         """)
         self._empty_label.setVisible(False)
@@ -357,32 +355,42 @@ class ParameterSensitivityTab(QWidget):
         # Table
         self._table = QTableWidget()
         self._table.setColumnCount(10)
-        self._table.setHorizontalHeaderLabels([
-            "Threshold", "# Trades", "EV %", "Win %", "Med Win %",
-            "Profit Ratio", "Edge %", "EG %", "Kelly %", "Max Loss %"
-        ])
+        self._table.setHorizontalHeaderLabels(
+            [
+                "Threshold",
+                "# Trades",
+                "EV %",
+                "Win %",
+                "Med Win %",
+                "Profit Ratio",
+                "Edge %",
+                "EG %",
+                "Kelly %",
+                "Max Loss %",
+            ]
+        )
 
         # Style the table
         self._table.setStyleSheet(f"""
             QTableWidget {{
-                background-color: {COLORS['bg_secondary']};
-                border: 1px solid {COLORS['border_subtle']};
+                background-color: {COLORS["bg_secondary"]};
+                border: 1px solid {COLORS["border_subtle"]};
                 border-radius: 8px;
-                gridline-color: {COLORS['border_subtle']};
+                gridline-color: {COLORS["border_subtle"]};
                 font-family: "Azeret Mono";
                 font-size: 12px;
-                color: {COLORS['text_primary']};
+                color: {COLORS["text_primary"]};
             }}
             QTableWidget::item {{
                 padding: 10px 16px;
-                border-bottom: 1px solid {COLORS['border_subtle']};
+                border-bottom: 1px solid {COLORS["border_subtle"]};
             }}
             QTableWidget::item:selected {{
-                background-color: {COLORS['bg_elevated']};
+                background-color: {COLORS["bg_elevated"]};
             }}
             QHeaderView::section {{
-                background-color: {COLORS['bg_tertiary']};
-                color: {COLORS['text_secondary']};
+                background-color: {COLORS["bg_tertiary"]};
+                color: {COLORS["text_secondary"]};
                 font-family: "Geist";
                 font-size: 10px;
                 font-weight: 600;
@@ -390,7 +398,7 @@ class ParameterSensitivityTab(QWidget):
                 letter-spacing: 1px;
                 padding: 12px 16px;
                 border: none;
-                border-bottom: 1px solid {COLORS['border_subtle']};
+                border-bottom: 1px solid {COLORS["border_subtle"]};
             }}
         """)
 
@@ -460,7 +468,9 @@ class ParameterSensitivityTab(QWidget):
         selected_filter = filters[index]
 
         # Show bound toggle only for dual-bound filters
-        has_both_bounds = selected_filter.min_val is not None and selected_filter.max_val is not None
+        has_both_bounds = (
+            selected_filter.min_val is not None and selected_filter.max_val is not None
+        )
         self._bound_container.setVisible(has_both_bounds)
 
         # Update current value display
@@ -556,6 +566,7 @@ class ParameterSensitivityTab(QWidget):
 
         # Get adjustment params (use defaults if not set)
         from src.core.models import AdjustmentParams
+
         adjustment_params = self._app_state.adjustment_params or AdjustmentParams()
 
         # Show progress
@@ -615,52 +626,78 @@ class ParameterSensitivityTab(QWidget):
 
             # Column 1: # Trades
             trades_delta = None if is_current else (row.num_trades - baseline_row.num_trades)
-            self._table.setItem(row_idx, 1, self._create_cell(
-                str(row.num_trades),
-                delta=trades_delta,
-                is_current=is_current,
-                invert_delta=True,  # More trades = positive is good
-            ))
+            self._table.setItem(
+                row_idx,
+                1,
+                self._create_cell(
+                    str(row.num_trades),
+                    delta=trades_delta,
+                    is_current=is_current,
+                    invert_delta=True,  # More trades = positive is good
+                ),
+            )
 
             # Column 2: EV %
-            self._table.setItem(row_idx, 2, self._create_metric_cell(
-                row.ev_pct, baseline_row.ev_pct, is_current, "pct"
-            ))
+            self._table.setItem(
+                row_idx,
+                2,
+                self._create_metric_cell(row.ev_pct, baseline_row.ev_pct, is_current, "pct"),
+            )
 
             # Column 3: Win %
-            self._table.setItem(row_idx, 3, self._create_metric_cell(
-                row.win_pct, baseline_row.win_pct, is_current, "pct"
-            ))
+            self._table.setItem(
+                row_idx,
+                3,
+                self._create_metric_cell(row.win_pct, baseline_row.win_pct, is_current, "pct"),
+            )
 
             # Column 4: Median Winner %
-            self._table.setItem(row_idx, 4, self._create_metric_cell(
-                row.median_winner_pct, baseline_row.median_winner_pct, is_current, "pct"
-            ))
+            self._table.setItem(
+                row_idx,
+                4,
+                self._create_metric_cell(
+                    row.median_winner_pct, baseline_row.median_winner_pct, is_current, "pct"
+                ),
+            )
 
             # Column 5: Profit Ratio
-            self._table.setItem(row_idx, 5, self._create_metric_cell(
-                row.profit_ratio, baseline_row.profit_ratio, is_current, "ratio"
-            ))
+            self._table.setItem(
+                row_idx,
+                5,
+                self._create_metric_cell(
+                    row.profit_ratio, baseline_row.profit_ratio, is_current, "ratio"
+                ),
+            )
 
             # Column 6: Edge %
-            self._table.setItem(row_idx, 6, self._create_metric_cell(
-                row.edge_pct, baseline_row.edge_pct, is_current, "pct"
-            ))
+            self._table.setItem(
+                row_idx,
+                6,
+                self._create_metric_cell(row.edge_pct, baseline_row.edge_pct, is_current, "pct"),
+            )
 
             # Column 7: EG %
-            self._table.setItem(row_idx, 7, self._create_metric_cell(
-                row.eg_pct, baseline_row.eg_pct, is_current, "pct"
-            ))
+            self._table.setItem(
+                row_idx,
+                7,
+                self._create_metric_cell(row.eg_pct, baseline_row.eg_pct, is_current, "pct"),
+            )
 
             # Column 8: Kelly %
-            self._table.setItem(row_idx, 8, self._create_metric_cell(
-                row.kelly_pct, baseline_row.kelly_pct, is_current, "pct"
-            ))
+            self._table.setItem(
+                row_idx,
+                8,
+                self._create_metric_cell(row.kelly_pct, baseline_row.kelly_pct, is_current, "pct"),
+            )
 
             # Column 9: Max Loss % (lower is better)
-            self._table.setItem(row_idx, 9, self._create_metric_cell(
-                row.max_loss_pct, baseline_row.max_loss_pct, is_current, "pct", invert=True
-            ))
+            self._table.setItem(
+                row_idx,
+                9,
+                self._create_metric_cell(
+                    row.max_loss_pct, baseline_row.max_loss_pct, is_current, "pct", invert=True
+                ),
+            )
 
     def _create_cell(
         self,
@@ -685,16 +722,16 @@ class ParameterSensitivityTab(QWidget):
         item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         if is_current:
-            item.setBackground(QColor(COLORS['row_current_bg']))
+            item.setBackground(QColor(COLORS["row_current_bg"]))
             if show_marker:
-                item.setForeground(QColor(COLORS['row_current_accent']))
+                item.setForeground(QColor(COLORS["row_current_accent"]))
         elif delta is not None:
             # Color based on delta direction
             is_good = (delta > 0) if not invert_delta else (delta < 0)
             if is_good:
-                item.setForeground(QColor(COLORS['delta_positive']))
+                item.setForeground(QColor(COLORS["delta_positive"]))
             elif delta != 0:
-                item.setForeground(QColor(COLORS['delta_negative']))
+                item.setForeground(QColor(COLORS["delta_negative"]))
 
         return item
 
@@ -710,9 +747,9 @@ class ParameterSensitivityTab(QWidget):
         if value is None:
             item = QTableWidgetItem("—")
             item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            item.setForeground(QColor(COLORS['text_muted']))
+            item.setForeground(QColor(COLORS["text_muted"]))
             if is_current:
-                item.setBackground(QColor(COLORS['row_current_bg']))
+                item.setBackground(QColor(COLORS["row_current_bg"]))
             return item
 
         # Format value
@@ -742,13 +779,13 @@ class ParameterSensitivityTab(QWidget):
         item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         if is_current:
-            item.setBackground(QColor(COLORS['row_current_bg']))
+            item.setBackground(QColor(COLORS["row_current_bg"]))
         elif delta is not None:
             is_good = (delta > 0) if not invert else (delta < 0)
             if is_good:
-                item.setForeground(QColor(COLORS['delta_positive']))
+                item.setForeground(QColor(COLORS["delta_positive"]))
             elif delta != 0:
-                item.setForeground(QColor(COLORS['delta_negative']))
+                item.setForeground(QColor(COLORS["delta_negative"]))
 
         return item
 

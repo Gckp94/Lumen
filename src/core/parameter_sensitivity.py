@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Literal
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from src.core.models import AdjustmentParams, ColumnMapping, FilterCriteria
@@ -114,6 +115,7 @@ class ThresholdRow:
         kelly_pct: Full Kelly stake percentage.
         max_loss_pct: Percentage of trades hitting stop loss.
     """
+
     threshold: float
     is_current: bool
     num_trades: int
@@ -138,6 +140,7 @@ class ThresholdAnalysisResult:
         rows: List of ThresholdRow results, ordered by threshold ascending.
         current_index: Index of the current (baseline) row in the list.
     """
+
     filter_column: str
     varied_bound: Literal["min", "max"]
     step_size: float
@@ -151,9 +154,9 @@ class ThresholdAnalysisEngine:
     def __init__(
         self,
         baseline_df: pd.DataFrame,
-        column_mapping: "ColumnMapping",
-        active_filters: list["FilterCriteria"],
-        adjustment_params: "AdjustmentParams",
+        column_mapping: ColumnMapping,
+        active_filters: list[FilterCriteria],
+        adjustment_params: AdjustmentParams,
     ) -> None:
         """Initialize the threshold analysis engine.
 
@@ -199,7 +202,9 @@ class ThresholdAnalysisEngine:
         from src.core.models import FilterCriteria
 
         if not (0 <= filter_index < len(self._active_filters)):
-            raise IndexError(f"filter_index {filter_index} out of range (0-{len(self._active_filters) - 1})")
+            raise IndexError(
+                f"filter_index {filter_index} out of range (0-{len(self._active_filters) - 1})"
+            )
 
         target_filter = self._active_filters[filter_index]
         current_value = target_filter.min_val if vary_bound == "min" else target_filter.max_val
@@ -225,19 +230,23 @@ class ThresholdAnalysisEngine:
                 if j == filter_index:
                     # Create modified filter
                     if vary_bound == "min":
-                        modified_filters.append(FilterCriteria(
-                            column=f.column,
-                            operator=f.operator,
-                            min_val=threshold,
-                            max_val=f.max_val,
-                        ))
+                        modified_filters.append(
+                            FilterCriteria(
+                                column=f.column,
+                                operator=f.operator,
+                                min_val=threshold,
+                                max_val=f.max_val,
+                            )
+                        )
                     else:
-                        modified_filters.append(FilterCriteria(
-                            column=f.column,
-                            operator=f.operator,
-                            min_val=f.min_val,
-                            max_val=threshold,
-                        ))
+                        modified_filters.append(
+                            FilterCriteria(
+                                column=f.column,
+                                operator=f.operator,
+                                min_val=f.min_val,
+                                max_val=threshold,
+                            )
+                        )
                 else:
                     modified_filters.append(f)
 
@@ -247,19 +256,21 @@ class ThresholdAnalysisEngine:
 
             # Calculate metrics
             if num_trades == 0:
-                rows.append(ThresholdRow(
-                    threshold=threshold,
-                    is_current=(i == 5),
-                    num_trades=0,
-                    ev_pct=None,
-                    win_pct=None,
-                    median_winner_pct=None,
-                    profit_ratio=None,
-                    edge_pct=None,
-                    eg_pct=None,
-                    kelly_pct=None,
-                    max_loss_pct=None,
-                ))
+                rows.append(
+                    ThresholdRow(
+                        threshold=threshold,
+                        is_current=(i == 5),
+                        num_trades=0,
+                        ev_pct=None,
+                        win_pct=None,
+                        median_winner_pct=None,
+                        profit_ratio=None,
+                        edge_pct=None,
+                        eg_pct=None,
+                        kelly_pct=None,
+                        max_loss_pct=None,
+                    )
+                )
             else:
                 gain_col = self._column_mapping.gain_pct
                 mae_col = self._column_mapping.mae_pct
@@ -274,22 +285,28 @@ class ThresholdAnalysisEngine:
 
                 # Calculate kelly from edge and profit_ratio
                 kelly_pct = None
-                if metrics.edge is not None and metrics.rr_ratio is not None and metrics.rr_ratio > 0:
+                if (
+                    metrics.edge is not None
+                    and metrics.rr_ratio is not None
+                    and metrics.rr_ratio > 0
+                ):
                     kelly_pct = metrics.edge / metrics.rr_ratio
 
-                rows.append(ThresholdRow(
-                    threshold=threshold,
-                    is_current=(i == 5),
-                    num_trades=num_trades,
-                    ev_pct=metrics.ev,
-                    win_pct=metrics.win_rate,
-                    median_winner_pct=metrics.median_winner,
-                    profit_ratio=metrics.rr_ratio,
-                    edge_pct=metrics.edge,
-                    eg_pct=metrics.eg_full_kelly,
-                    kelly_pct=kelly_pct,
-                    max_loss_pct=metrics.max_loss_pct,
-                ))
+                rows.append(
+                    ThresholdRow(
+                        threshold=threshold,
+                        is_current=(i == 5),
+                        num_trades=num_trades,
+                        ev_pct=metrics.ev,
+                        win_pct=metrics.win_rate,
+                        median_winner_pct=metrics.median_winner,
+                        profit_ratio=metrics.rr_ratio,
+                        edge_pct=metrics.edge,
+                        eg_pct=metrics.eg_full_kelly,
+                        kelly_pct=kelly_pct,
+                        max_loss_pct=metrics.max_loss_pct,
+                    )
+                )
 
             if progress_callback:
                 progress_callback(int((i + 1) / 11 * 100))
@@ -313,9 +330,9 @@ class ThresholdAnalysisWorker(QThread):
     def __init__(
         self,
         baseline_df: pd.DataFrame,
-        column_mapping: "ColumnMapping",
-        active_filters: list["FilterCriteria"],
-        adjustment_params: "AdjustmentParams",
+        column_mapping: ColumnMapping,
+        active_filters: list[FilterCriteria],
+        adjustment_params: AdjustmentParams,
         filter_index: int,
         vary_bound: Literal["min", "max"],
         step_size: float,
@@ -368,9 +385,9 @@ class ThresholdAnalysisWorker(QThread):
 
 
 # Import after dataclasses to avoid circular import issues
-from src.core.models import ColumnMapping, FilterCriteria
 from src.core.filter_engine import FilterEngine
 from src.core.metrics import MetricsCalculator
+from src.core.models import ColumnMapping, FilterCriteria
 
 
 class ParameterSensitivityEngine:
@@ -539,8 +556,7 @@ class ParameterSensitivityEngine:
 
         # Calculate total steps for progress (only count filters with complete bounds)
         valid_filters = [
-            f for f in self._active_filters
-            if f.min_val is not None and f.max_val is not None
+            f for f in self._active_filters if f.min_val is not None and f.max_val is not None
         ]
         num_filters = len(valid_filters)
         num_levels = len(config.perturbation_levels)
@@ -609,16 +625,18 @@ class ParameterSensitivityEngine:
                             worst_level = level
 
             # Create result
-            results.append(NeighborhoodResult(
-                filter_name=f"{test_filter.column}: {test_filter.min_val:.2f} - {test_filter.max_val:.2f}",
-                filter_column=test_filter.column,
-                baseline_metrics=baseline_metrics,
-                perturbations=perturbation_results,
-                worst_degradation=worst_degradation,
-                worst_metric=worst_metric,
-                worst_level=worst_level,
-                status=self._classify_degradation(worst_degradation),
-            ))
+            results.append(
+                NeighborhoodResult(
+                    filter_name=f"{test_filter.column}: {test_filter.min_val:.2f} - {test_filter.max_val:.2f}",
+                    filter_column=test_filter.column,
+                    baseline_metrics=baseline_metrics,
+                    perturbations=perturbation_results,
+                    worst_degradation=worst_degradation,
+                    worst_metric=worst_metric,
+                    worst_level=worst_level,
+                    status=self._classify_degradation(worst_degradation),
+                )
+            )
 
         # Final progress
         if progress_callback and not self._cancelled:
