@@ -1,39 +1,35 @@
-"""Parameter Sensitivity tab for testing filter robustness."""
+"""Filter Threshold Analysis tab for what-if analysis of filter values."""
 
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QButtonGroup,
-    QCheckBox,
-    QComboBox,
     QFrame,
-    QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QProgressBar,
     QPushButton,
     QRadioButton,
-    QSpinBox,
     QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
+from PyQt6.QtGui import QColor
 
 from src.core.parameter_sensitivity import (
-    NeighborhoodResult,
-    ParameterSensitivityConfig,
-    ParameterSensitivityWorker,
-    SweepResult,
+    ThresholdAnalysisResult,
+    ThresholdAnalysisWorker,
+    ThresholdRow,
 )
-from src.ui.components.sweep_chart import SweepChart
 from src.ui.components.no_scroll_widgets import NoScrollComboBox, NoScrollDoubleSpinBox
-from src.ui.constants import Colors
 
 if TYPE_CHECKING:
     from src.core.app_state import AppState
@@ -42,15 +38,32 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ParameterSensitivityTab(QWidget):
-    """Tab for parameter sensitivity analysis.
+# Color constants for the dark theme
+COLORS = {
+    "bg_primary": "#0d0d0f",
+    "bg_secondary": "#131316",
+    "bg_tertiary": "#18181b",
+    "bg_elevated": "#222228",
+    "row_current_bg": "#1a1814",
+    "row_current_border": "#3d3425",
+    "row_current_accent": "#c9a227",
+    "delta_positive": "#22c55e",
+    "delta_negative": "#ef4444",
+    "text_primary": "#e4e4e7",
+    "text_secondary": "#71717a",
+    "text_muted": "#52525b",
+    "border_subtle": "#27272a",
+}
 
-    Provides two analysis modes:
-    - Neighborhood Scan: Quick robustness check of current filters
-    - Parameter Sweep: Deep exploration across parameter ranges
+
+class ParameterSensitivityTab(QWidget):
+    """Tab for filter threshold analysis.
+
+    Allows users to see how trading metrics change when varying
+    a single filter threshold up or down.
     """
 
-    def __init__(self, app_state: AppState) -> None:
+    def __init__(self, app_state: "AppState") -> None:
         """Initialize the tab.
 
         Args:
@@ -58,17 +71,13 @@ class ParameterSensitivityTab(QWidget):
         """
         super().__init__()
         self._app_state = app_state
-        self._worker = None
-        self._sweep_result: SweepResult | None = None
+        self._worker: ThresholdAnalysisWorker | None = None
+        self._result: ThresholdAnalysisResult | None = None
+        self._current_filter_index: int = -1
 
         self._setup_ui()
         self._connect_signals()
-
-        # Connect to app state data changes
-        self._app_state.data_loaded.connect(self._populate_sweep_columns)
-
-        # Populate if data already loaded
-        self._populate_sweep_columns()
+        self._populate_filter_dropdown()
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
@@ -84,7 +93,7 @@ class ParameterSensitivityTab(QWidget):
         sidebar = self._create_sidebar()
         splitter.addWidget(sidebar)
 
-        # Main visualization area
+        # Main table area
         main_area = self._create_main_area()
         splitter.addWidget(main_area)
 
@@ -94,606 +103,655 @@ class ParameterSensitivityTab(QWidget):
         splitter.setStretchFactor(1, 1)
 
     def _create_sidebar(self) -> QWidget:
-        """Create the sidebar with configuration controls."""
+        """Create the sidebar with controls."""
         sidebar = QFrame()
-        sidebar.setObjectName("sensitivity_sidebar")
-        sidebar.setMaximumWidth(320)
-        sidebar.setMinimumWidth(250)
+        sidebar.setObjectName("threshold-sidebar")
+        sidebar.setStyleSheet(f"""
+            QFrame#threshold-sidebar {{
+                background-color: {COLORS['bg_secondary']};
+                border-right: 1px solid {COLORS['border_subtle']};
+            }}
+        """)
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(20)
 
-        # Mode selection
-        mode_group = QGroupBox("Analysis Mode")
-        mode_layout = QVBoxLayout(mode_group)
+        # Filter selector section
+        filter_section = QVBoxLayout()
+        filter_section.setSpacing(8)
 
-        self._neighborhood_radio = QRadioButton("Neighborhood Scan")
-        self._neighborhood_radio.setToolTip("Quick robustness check of current filter boundaries")
-        self._neighborhood_radio.setChecked(True)
+        filter_label = QLabel("FILTER")
+        filter_label.setStyleSheet(f"""
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: {COLORS['text_secondary']};
+        """)
+        filter_section.addWidget(filter_label)
 
-        self._sweep_radio = QRadioButton("Parameter Sweep")
-        self._sweep_radio.setToolTip("Deep exploration across parameter ranges")
+        self._filter_combo = NoScrollComboBox()
+        self._filter_combo.setPlaceholderText("Select a filter...")
+        self._filter_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {COLORS['bg_tertiary']};
+                border: 1px solid {COLORS['border_subtle']};
+                border-radius: 6px;
+                padding: 10px 12px;
+                color: {COLORS['text_primary']};
+                font-family: "Azeret Mono";
+                font-size: 13px;
+            }}
+            QComboBox:hover {{
+                border-color: {COLORS['bg_elevated']};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                padding-right: 8px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {COLORS['bg_tertiary']};
+                color: {COLORS['text_primary']};
+                selection-background-color: {COLORS['bg_elevated']};
+            }}
+        """)
+        filter_section.addWidget(self._filter_combo)
+        layout.addLayout(filter_section)
 
-        self._mode_group = QButtonGroup(self)
-        self._mode_group.addButton(self._neighborhood_radio, 0)
-        self._mode_group.addButton(self._sweep_radio, 1)
+        # Bound toggle section
+        bound_section = QVBoxLayout()
+        bound_section.setSpacing(8)
 
-        mode_layout.addWidget(self._neighborhood_radio)
-        mode_layout.addWidget(self._sweep_radio)
-        layout.addWidget(mode_group)
+        bound_label = QLabel("VARY BOUND")
+        bound_label.setStyleSheet(f"""
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: {COLORS['text_secondary']};
+        """)
+        bound_section.addWidget(bound_label)
 
-        # Configuration area (changes based on mode)
-        self._config_stack = QWidget()
-        self._config_layout = QVBoxLayout(self._config_stack)
-        self._config_layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._config_stack)
+        self._bound_container = QFrame()
+        self._bound_container.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['bg_tertiary']};
+                border-radius: 6px;
+                padding: 3px;
+            }}
+        """)
+        bound_layout = QHBoxLayout(self._bound_container)
+        bound_layout.setContentsMargins(3, 3, 3, 3)
+        bound_layout.setSpacing(2)
 
-        # Metric selection
-        metric_group = QGroupBox("Primary Metric")
-        metric_layout = QVBoxLayout(metric_group)
-        self._metric_combo = QComboBox()
-        self._metric_combo.addItems(["Expected Value", "Win Rate", "Profit Factor"])
-        metric_layout.addWidget(self._metric_combo)
-        layout.addWidget(metric_group)
+        self._bound_group = QButtonGroup(self)
+        self._min_radio = QRadioButton("Min")
+        self._max_radio = QRadioButton("Max")
+        self._min_radio.setChecked(True)
 
-        # Grid resolution (for sweep mode)
-        self._resolution_group = QGroupBox("Grid Resolution")
-        resolution_layout = QVBoxLayout(self._resolution_group)
-        self._resolution_spin = QSpinBox()
-        self._resolution_spin.setRange(5, 25)
-        self._resolution_spin.setValue(10)
-        resolution_layout.addWidget(self._resolution_spin)
-        self._resolution_group.setVisible(False)
-        layout.addWidget(self._resolution_group)
+        for radio in [self._min_radio, self._max_radio]:
+            radio.setStyleSheet(f"""
+                QRadioButton {{
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    color: {COLORS['text_secondary']};
+                    font-size: 12px;
+                    font-weight: 500;
+                }}
+                QRadioButton:checked {{
+                    background-color: {COLORS['bg_elevated']};
+                    color: {COLORS['text_primary']};
+                }}
+                QRadioButton::indicator {{
+                    width: 0;
+                    height: 0;
+                }}
+            """)
+            self._bound_group.addButton(radio)
+            bound_layout.addWidget(radio)
 
-        # Sweep filter configuration (for sweep mode)
-        self._sweep_config_group = QGroupBox("Sweep Filters")
-        sweep_config_layout = QVBoxLayout(self._sweep_config_group)
-        sweep_config_layout.setSpacing(8)
+        bound_section.addWidget(self._bound_container)
+        self._bound_container.setVisible(False)  # Hidden until dual-bound filter selected
+        layout.addLayout(bound_section)
 
-        # Filter 1 (X-axis) - required
-        filter1_label = QLabel("Filter 1 (X-axis):")
-        sweep_config_layout.addWidget(filter1_label)
+        # Step size section
+        step_section = QVBoxLayout()
+        step_section.setSpacing(8)
 
-        self._sweep_filter1_combo = NoScrollComboBox()
-        self._sweep_filter1_combo.setPlaceholderText("Select column...")
-        sweep_config_layout.addWidget(self._sweep_filter1_combo)
+        step_label = QLabel("STEP SIZE")
+        step_label.setStyleSheet(f"""
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: {COLORS['text_secondary']};
+        """)
+        step_section.addWidget(step_label)
 
-        # Range 1
-        range1_layout = QHBoxLayout()
-        range1_layout.addWidget(QLabel("Min:"))
-        self._sweep_min1_spin = NoScrollDoubleSpinBox()
-        self._sweep_min1_spin.setDecimals(4)
-        self._sweep_min1_spin.setRange(-1e9, 1e9)
-        range1_layout.addWidget(self._sweep_min1_spin)
-        range1_layout.addWidget(QLabel("Max:"))
-        self._sweep_max1_spin = NoScrollDoubleSpinBox()
-        self._sweep_max1_spin.setDecimals(4)
-        self._sweep_max1_spin.setRange(-1e9, 1e9)
-        range1_layout.addWidget(self._sweep_max1_spin)
-        sweep_config_layout.addLayout(range1_layout)
+        self._step_spin = NoScrollDoubleSpinBox()
+        self._step_spin.setRange(0.01, 10000)
+        self._step_spin.setValue(1.0)
+        self._step_spin.setDecimals(2)
+        self._step_spin.setStyleSheet(f"""
+            QDoubleSpinBox {{
+                background-color: {COLORS['bg_tertiary']};
+                border: 1px solid {COLORS['border_subtle']};
+                border-radius: 6px;
+                padding: 10px 12px;
+                color: {COLORS['text_primary']};
+                font-family: "Azeret Mono";
+                font-size: 13px;
+            }}
+            QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {{
+                background-color: {COLORS['bg_elevated']};
+                border: none;
+                width: 24px;
+            }}
+        """)
+        step_section.addWidget(self._step_spin)
+        layout.addLayout(step_section)
 
-        # Enable 2D sweep checkbox
-        self._enable_2d_checkbox = QCheckBox("Enable 2D Sweep")
-        sweep_config_layout.addWidget(self._enable_2d_checkbox)
+        # Current value display
+        current_section = QVBoxLayout()
+        current_section.setSpacing(8)
 
-        # Filter 2 (Y-axis) - optional
-        self._filter2_container = QWidget()
-        filter2_layout = QVBoxLayout(self._filter2_container)
-        filter2_layout.setContentsMargins(0, 0, 0, 0)
-        filter2_layout.setSpacing(8)
+        current_label = QLabel("CURRENT THRESHOLD")
+        current_label.setStyleSheet(f"""
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: {COLORS['text_secondary']};
+        """)
+        current_section.addWidget(current_label)
 
-        filter2_label = QLabel("Filter 2 (Y-axis):")
-        filter2_layout.addWidget(filter2_label)
+        self._current_frame = QFrame()
+        self._current_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['row_current_bg']};
+                border: 1px solid {COLORS['row_current_border']};
+                border-radius: 6px;
+                padding: 12px;
+            }}
+        """)
+        current_inner = QHBoxLayout(self._current_frame)
+        current_inner.setContentsMargins(12, 8, 12, 8)
 
-        self._sweep_filter2_combo = NoScrollComboBox()
-        self._sweep_filter2_combo.setPlaceholderText("Select column...")
-        filter2_layout.addWidget(self._sweep_filter2_combo)
+        self._current_label = QLabel("—")
+        self._current_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px;")
+        current_inner.addWidget(self._current_label)
 
-        # Range 2
-        range2_layout = QHBoxLayout()
-        range2_layout.addWidget(QLabel("Min:"))
-        self._sweep_min2_spin = NoScrollDoubleSpinBox()
-        self._sweep_min2_spin.setDecimals(4)
-        self._sweep_min2_spin.setRange(-1e9, 1e9)
-        range2_layout.addWidget(self._sweep_min2_spin)
-        range2_layout.addWidget(QLabel("Max:"))
-        self._sweep_max2_spin = NoScrollDoubleSpinBox()
-        self._sweep_max2_spin.setDecimals(4)
-        self._sweep_max2_spin.setRange(-1e9, 1e9)
-        range2_layout.addWidget(self._sweep_max2_spin)
-        filter2_layout.addLayout(range2_layout)
+        current_inner.addStretch()
 
-        self._filter2_container.setVisible(False)
-        sweep_config_layout.addWidget(self._filter2_container)
+        self._current_value = QLabel("—")
+        self._current_value.setStyleSheet(f"""
+            font-family: "Azeret Mono";
+            font-size: 15px;
+            font-weight: 600;
+            color: {COLORS['row_current_accent']};
+        """)
+        current_inner.addWidget(self._current_value)
 
-        self._sweep_config_group.setVisible(False)
-        layout.addWidget(self._sweep_config_group)
+        current_section.addWidget(self._current_frame)
+        layout.addLayout(current_section)
+
+        # Run button
+        self._run_btn = QPushButton("Analyze")
+        self._run_btn.setEnabled(False)
+        self._run_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['row_current_accent']};
+                color: {COLORS['bg_primary']};
+                border: none;
+                border-radius: 6px;
+                padding: 12px;
+                font-weight: 600;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: #d4ad2f;
+            }}
+            QPushButton:disabled {{
+                background-color: {COLORS['bg_tertiary']};
+                color: {COLORS['text_muted']};
+            }}
+        """)
+        layout.addWidget(self._run_btn)
+
+        # Progress bar (hidden by default)
+        self._progress = QProgressBar()
+        self._progress.setVisible(False)
+        self._progress.setStyleSheet(f"""
+            QProgressBar {{
+                background-color: {COLORS['bg_tertiary']};
+                border: none;
+                border-radius: 4px;
+                height: 6px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {COLORS['row_current_accent']};
+                border-radius: 4px;
+            }}
+        """)
+        layout.addWidget(self._progress)
 
         layout.addStretch()
 
-        # Run button and progress
-        self._run_btn = QPushButton("Run Analysis")
-        self._run_btn.setObjectName("primary_button")
-        layout.addWidget(self._run_btn)
-
-        self._cancel_btn = QPushButton("Cancel")
-        self._cancel_btn.setVisible(False)
-        layout.addWidget(self._cancel_btn)
-
-        self._progress_bar = QProgressBar()
-        self._progress_bar.setVisible(False)
-        layout.addWidget(self._progress_bar)
+        # Empty state message
+        self._empty_label = QLabel("Add filters in Feature Explorer\nto analyze thresholds")
+        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setStyleSheet(f"""
+            color: {COLORS['text_muted']};
+            font-size: 12px;
+        """)
+        self._empty_label.setVisible(False)
+        layout.addWidget(self._empty_label)
 
         return sidebar
 
     def _create_main_area(self) -> QWidget:
-        """Create the main visualization area."""
+        """Create the main table area."""
         main = QFrame()
-        main.setObjectName("sensitivity_main")
+        main.setStyleSheet(f"background-color: {COLORS['bg_primary']};")
 
         layout = QVBoxLayout(main)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setContentsMargins(16, 16, 16, 16)
 
-        # Placeholder label (shown when no results)
-        self._results_label = QLabel("Run an analysis to see results")
-        self._results_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self._results_label)
+        # Table
+        self._table = QTableWidget()
+        self._table.setColumnCount(10)
+        self._table.setHorizontalHeaderLabels([
+            "Threshold", "# Trades", "EV %", "Win %", "Med Win %",
+            "Profit Ratio", "Edge %", "EG %", "Kelly %", "Max Loss %"
+        ])
 
-        # Results container (hidden initially)
-        self._results_container = QWidget()
-        results_layout = QVBoxLayout(self._results_container)
-        results_layout.setContentsMargins(0, 0, 0, 0)
-        results_layout.setSpacing(8)
+        # Style the table
+        self._table.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {COLORS['bg_secondary']};
+                border: 1px solid {COLORS['border_subtle']};
+                border-radius: 8px;
+                gridline-color: {COLORS['border_subtle']};
+                font-family: "Azeret Mono";
+                font-size: 12px;
+                color: {COLORS['text_primary']};
+            }}
+            QTableWidget::item {{
+                padding: 10px 16px;
+                border-bottom: 1px solid {COLORS['border_subtle']};
+            }}
+            QTableWidget::item:selected {{
+                background-color: {COLORS['bg_elevated']};
+            }}
+            QHeaderView::section {{
+                background-color: {COLORS['bg_tertiary']};
+                color: {COLORS['text_secondary']};
+                font-family: "Geist";
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                padding: 12px 16px;
+                border: none;
+                border-bottom: 1px solid {COLORS['border_subtle']};
+            }}
+        """)
 
-        # Metric selector row
-        metric_row = QHBoxLayout()
-        metric_row.addWidget(QLabel("Metric:"))
-        self._results_metric_combo = QComboBox()
-        self._results_metric_combo.addItems(["win_rate", "profit_factor", "expected_value"])
-        self._results_metric_combo.setCurrentText("expected_value")
-        self._results_metric_combo.currentTextChanged.connect(self._on_metric_changed)
-        metric_row.addWidget(self._results_metric_combo)
-        metric_row.addStretch()
-        results_layout.addLayout(metric_row)
+        self._table.setAlternatingRowColors(True)
+        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._table.verticalHeader().setVisible(False)
 
-        # Sweep chart
-        self._sweep_chart = SweepChart()
-        self._sweep_chart.setMinimumHeight(400)
-        results_layout.addWidget(self._sweep_chart, stretch=1)
+        # Set column widths
+        header = self._table.horizontalHeader()
+        header.setStretchLastSection(True)
+        for i in range(10):
+            header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
 
-        # Summary statistics panel
-        self._stats_frame = QFrame()
-        self._stats_frame.setObjectName("sensitivity_stats")
-        stats_layout = QHBoxLayout(self._stats_frame)
-        stats_layout.setContentsMargins(8, 8, 8, 8)
-
-        # Min value
-        min_layout = QVBoxLayout()
-        min_layout.addWidget(QLabel("Min"))
-        self._min_label = QLabel("--")
-        self._min_label.setStyleSheet(f"color: {Colors.SIGNAL_CORAL}; font-weight: bold;")
-        min_layout.addWidget(self._min_label)
-        stats_layout.addLayout(min_layout)
-
-        stats_layout.addStretch()
-
-        # Max value
-        max_layout = QVBoxLayout()
-        max_layout.addWidget(QLabel("Max"))
-        self._max_label = QLabel("--")
-        self._max_label.setStyleSheet(f"color: {Colors.SIGNAL_CYAN}; font-weight: bold;")
-        max_layout.addWidget(self._max_label)
-        stats_layout.addLayout(max_layout)
-
-        stats_layout.addStretch()
-
-        # Current position value
-        current_layout = QVBoxLayout()
-        current_layout.addWidget(QLabel("Current"))
-        self._current_label = QLabel("--")
-        self._current_label.setStyleSheet(f"color: {Colors.SIGNAL_AMBER}; font-weight: bold;")
-        current_layout.addWidget(self._current_label)
-        stats_layout.addLayout(current_layout)
-
-        stats_layout.addStretch()
-
-        # Range (max - min)
-        range_layout = QVBoxLayout()
-        range_layout.addWidget(QLabel("Range"))
-        self._range_label = QLabel("--")
-        range_layout.addWidget(self._range_label)
-        stats_layout.addLayout(range_layout)
-
-        results_layout.addWidget(self._stats_frame)
-
-        self._results_container.setVisible(False)
-        layout.addWidget(self._results_container)
+        layout.addWidget(self._table)
 
         return main
 
     def _connect_signals(self) -> None:
-        """Connect widget signals."""
-        self._mode_group.buttonClicked.connect(self._on_mode_changed)
-        self._enable_2d_checkbox.toggled.connect(self._on_2d_toggle_changed)
+        """Connect signals to slots."""
+        self._filter_combo.currentIndexChanged.connect(self._on_filter_selected)
+        self._min_radio.toggled.connect(self._on_bound_changed)
+        self._step_spin.valueChanged.connect(self._on_step_changed)
         self._run_btn.clicked.connect(self._on_run_clicked)
-        self._cancel_btn.clicked.connect(self._on_cancel_clicked)
-        self._sweep_filter1_combo.currentTextChanged.connect(self._on_filter1_selected)
-        self._sweep_filter2_combo.currentTextChanged.connect(self._on_filter2_selected)
 
-    def _on_mode_changed(self) -> None:
-        """Handle mode selection change."""
-        is_sweep = self._sweep_radio.isChecked()
-        self._resolution_group.setVisible(is_sweep)
-        self._sweep_config_group.setVisible(is_sweep)
+        # App state signals
+        self._app_state.filters_changed.connect(self._populate_filter_dropdown)
+        self._app_state.data_loaded.connect(self._populate_filter_dropdown)
+        self._app_state.adjustment_params_changed.connect(self._on_params_changed)
 
-    def _get_analyzable_filters(
-        self, filters: list[FilterCriteria]
-    ) -> tuple[list[FilterCriteria], list[FilterCriteria]]:
-        """Separate filters into analyzable and partial (skipped).
+    def _populate_filter_dropdown(self) -> None:
+        """Populate the filter dropdown with current filters."""
+        self._filter_combo.clear()
+        filters = self._app_state.filters or []
 
-        Neighborhood scan requires both min_val and max_val to perturb ranges.
+        if not filters:
+            self._empty_label.setVisible(True)
+            self._run_btn.setEnabled(False)
+            return
 
-        Args:
-            filters: List of all active filters.
+        self._empty_label.setVisible(False)
 
-        Returns:
-            Tuple of (analyzable_filters, partial_filters).
-        """
-        analyzable = []
-        partial = []
         for f in filters:
+            # Format: "Column > value" or "Column < value" or "Column: min - max"
             if f.min_val is not None and f.max_val is not None:
-                analyzable.append(f)
+                label = f"{f.column}: {f.min_val:.2f} - {f.max_val:.2f}"
+            elif f.min_val is not None:
+                label = f"{f.column} > {f.min_val:.2f}"
             else:
-                partial.append(f)
-        return analyzable, partial
+                label = f"{f.column} < {f.max_val:.2f}"
+            self._filter_combo.addItem(label)
 
-    def _on_2d_toggle_changed(self, enabled: bool) -> None:
-        """Handle 2D sweep toggle change."""
-        self._filter2_container.setVisible(enabled)
-
-    def _on_filter1_selected(self, column_name: str) -> None:
-        """Handle filter 1 column selection - auto-fill range from data."""
-        if not column_name or not self._app_state.has_data:
+    def _on_filter_selected(self, index: int) -> None:
+        """Handle filter selection change."""
+        if index < 0:
+            self._run_btn.setEnabled(False)
+            self._bound_container.setVisible(False)
             return
 
-        baseline_df = self._app_state.baseline_df
-        if baseline_df is None or column_name not in baseline_df.columns:
+        self._current_filter_index = index
+        filters = self._app_state.filters or []
+        if index >= len(filters):
             return
 
-        col_data = baseline_df[column_name].dropna()
-        if len(col_data) == 0:
+        selected_filter = filters[index]
+
+        # Show bound toggle only for dual-bound filters
+        has_both_bounds = selected_filter.min_val is not None and selected_filter.max_val is not None
+        self._bound_container.setVisible(has_both_bounds)
+
+        # Update current value display
+        if self._min_radio.isChecked() or not has_both_bounds:
+            bound = "min"
+            value = selected_filter.min_val
+        else:
+            bound = "max"
+            value = selected_filter.max_val
+
+        self._update_current_display(selected_filter.column, bound, value)
+        self._auto_calculate_step_size(value)
+        self._run_btn.setEnabled(True)
+
+    def _on_bound_changed(self, checked: bool) -> None:
+        """Handle bound toggle change."""
+        if self._current_filter_index < 0:
             return
 
-        min_val = float(col_data.min())
-        max_val = float(col_data.max())
-
-        self._sweep_min1_spin.setValue(min_val)
-        self._sweep_max1_spin.setValue(max_val)
-
-        logger.debug("Filter 1 '%s' range: %.4f to %.4f", column_name, min_val, max_val)
-
-    def _on_filter2_selected(self, column_name: str) -> None:
-        """Handle filter 2 column selection - auto-fill range from data."""
-        if not column_name or not self._app_state.has_data:
+        filters = self._app_state.filters or []
+        if self._current_filter_index >= len(filters):
             return
 
-        baseline_df = self._app_state.baseline_df
-        if baseline_df is None or column_name not in baseline_df.columns:
+        selected_filter = filters[self._current_filter_index]
+        bound = "min" if self._min_radio.isChecked() else "max"
+        value = selected_filter.min_val if bound == "min" else selected_filter.max_val
+
+        self._update_current_display(selected_filter.column, bound, value)
+        self._auto_calculate_step_size(value)
+
+    def _on_step_changed(self, value: float) -> None:
+        """Handle step size change."""
+        pass  # Just triggers re-analysis on next run
+
+    def _on_params_changed(self) -> None:
+        """Handle adjustment params change - clear results."""
+        self._result = None
+        self._table.setRowCount(0)
+
+    def _update_current_display(self, column: str, bound: str, value: float | None) -> None:
+        """Update the current threshold display."""
+        if value is None:
+            self._current_label.setText(column)
+            self._current_value.setText("—")
+        else:
+            op = ">" if bound == "min" else "<"
+            self._current_label.setText(f"{column} {op}")
+            self._current_value.setText(f"{value:.2f}")
+
+    def _auto_calculate_step_size(self, value: float | None) -> None:
+        """Auto-calculate a sensible step size based on value magnitude."""
+        if value is None:
+            self._step_spin.setValue(1.0)
             return
 
-        col_data = baseline_df[column_name].dropna()
-        if len(col_data) == 0:
-            return
+        abs_val = abs(value)
+        if abs_val < 1:
+            step = 0.1
+        elif abs_val < 10:
+            step = 1
+        elif abs_val < 100:
+            step = 5
+        elif abs_val < 1000:
+            step = 50
+        else:
+            step = 100
 
-        min_val = float(col_data.min())
-        max_val = float(col_data.max())
-
-        self._sweep_min2_spin.setValue(min_val)
-        self._sweep_max2_spin.setValue(max_val)
-
-        logger.debug("Filter 2 '%s' range: %.4f to %.4f", column_name, min_val, max_val)
-
-    def _populate_sweep_columns(self) -> None:
-        """Populate sweep filter combo boxes with numeric columns from data."""
-        import pandas as pd
-
-        # Clear existing items
-        self._sweep_filter1_combo.clear()
-        self._sweep_filter2_combo.clear()
-
-        if not self._app_state.has_data:
-            return
-
-        baseline_df = self._app_state.baseline_df
-        if baseline_df is None or not isinstance(baseline_df, pd.DataFrame):
-            return
-
-        # Get numeric columns
-        numeric_cols = baseline_df.select_dtypes(
-            include=["int64", "float64", "int32", "float32"]
-        ).columns.tolist()
-
-        if not numeric_cols:
-            return
-
-        # Add to combo boxes
-        self._sweep_filter1_combo.addItems(numeric_cols)
-        self._sweep_filter2_combo.addItems(numeric_cols)
-
-        logger.debug("Populated sweep combos with %d numeric columns", len(numeric_cols))
+        self._step_spin.setValue(step)
 
     def _on_run_clicked(self) -> None:
-        """Handle run button click - start analysis."""
-        if not self._app_state.has_data:
-            logger.warning("No data loaded")
+        """Run the threshold analysis."""
+        if self._current_filter_index < 0:
             return
 
-        # Build config from UI state
-        is_sweep = self._sweep_radio.isChecked()
-        metric_map = {
-            "Expected Value": "expected_value",
-            "Win Rate": "win_rate",
-            "Profit Factor": "profit_factor",
-        }
-        primary_metric = metric_map.get(self._metric_combo.currentText(), "expected_value")
+        if self._worker is not None and self._worker.isRunning():
+            self._worker.cancel()
+            self._worker.wait()
 
-        # Build sweep filter parameters if in sweep mode
-        sweep_filter_1 = None
-        sweep_range_1 = None
-        sweep_filter_2 = None
-        sweep_range_2 = None
+        # Get parameters
+        vary_bound = "min" if self._min_radio.isChecked() else "max"
+        step_size = self._step_spin.value()
 
-        if is_sweep:
-            sweep_filter_1 = self._sweep_filter1_combo.currentText()
-            if not sweep_filter_1:
-                logger.warning("No filter 1 column selected for sweep")
-                self._results_label.setText("Select a column for Filter 1")
-                return
-
-            sweep_range_1 = (
-                self._sweep_min1_spin.value(),
-                self._sweep_max1_spin.value(),
-            )
-
-            if self._enable_2d_checkbox.isChecked():
-                sweep_filter_2 = self._sweep_filter2_combo.currentText()
-                if not sweep_filter_2:
-                    logger.warning("No filter 2 column selected for 2D sweep")
-                    self._results_label.setText("Select a column for Filter 2")
-                    return
-                sweep_range_2 = (
-                    self._sweep_min2_spin.value(),
-                    self._sweep_max2_spin.value(),
-                )
-
-        config = ParameterSensitivityConfig(
-            mode="sweep" if is_sweep else "neighborhood",
-            primary_metric=primary_metric,
-            grid_resolution=self._resolution_spin.value() if is_sweep else 10,
-            sweep_filter_1=sweep_filter_1,
-            sweep_range_1=sweep_range_1,
-            sweep_filter_2=sweep_filter_2,
-            sweep_range_2=sweep_range_2,
-        )
-
-        # Get baseline data and filters
-        baseline_df = self._app_state.baseline_df
-        column_mapping = self._app_state.column_mapping
-        active_filters = self._app_state.filters or []
-
-        if column_mapping is None:
+        # Validate we have required data
+        if self._app_state.baseline_df is None:
+            logger.warning("No baseline data available")
+            return
+        if self._app_state.column_mapping is None:
             logger.warning("No column mapping available")
-            self._results_label.setText("Load data first")
+            return
+        if not self._app_state.filters:
+            logger.warning("No filters available")
             return
 
-        if not is_sweep:
-            if not active_filters:
-                logger.warning("No active filters for neighborhood scan")
-                self._results_label.setText("Apply filters in Feature Explorer first")
-                return
+        # Get adjustment params (use defaults if not set)
+        from src.core.models import AdjustmentParams
+        adjustment_params = self._app_state.adjustment_params or AdjustmentParams()
 
-            analyzable, partial = self._get_analyzable_filters(active_filters)
-            if not analyzable:
-                logger.warning(
-                    f"No analyzable filters: {len(partial)} filters have partial bounds"
-                )
-                self._results_label.setText(
-                    f"All {len(partial)} filter(s) have partial bounds (missing min or max).\n"
-                    "Neighborhood scan requires filters with both min and max values."
-                )
-                return
-
-        # Clear previous results
-        self._sweep_result = None
-        self._results_label.setText("Running analysis...")
-        self._results_label.setVisible(True)
-        self._results_container.setVisible(False)
+        # Show progress
+        self._progress.setVisible(True)
+        self._progress.setValue(0)
+        self._run_btn.setEnabled(False)
 
         # Start worker
-        self._worker = ParameterSensitivityWorker(
-            config=config,
-            baseline_df=baseline_df,
-            column_mapping=column_mapping,
-            active_filters=active_filters,
+        self._worker = ThresholdAnalysisWorker(
+            baseline_df=self._app_state.baseline_df,
+            column_mapping=self._app_state.column_mapping,
+            active_filters=self._app_state.filters,
+            adjustment_params=adjustment_params,
+            filter_index=self._current_filter_index,
+            vary_bound=vary_bound,
+            step_size=step_size,
         )
         self._worker.progress.connect(self._on_progress)
         self._worker.completed.connect(self._on_completed)
         self._worker.error.connect(self._on_error)
         self._worker.start()
 
-        # Update UI state
-        self._run_btn.setVisible(False)
-        self._cancel_btn.setVisible(True)
-        self._progress_bar.setVisible(True)
-        self._progress_bar.setValue(0)
-
-    def _on_cancel_clicked(self) -> None:
-        """Handle cancel button click."""
-        if self._worker:
-            self._worker.cancel()
-
-    def _on_progress(self, current: int, total: int) -> None:
+    def _on_progress(self, value: int) -> None:
         """Handle progress update."""
-        if total > 0:
-            self._progress_bar.setValue(int(current / total * 100))
+        self._progress.setValue(value)
 
-    def _on_completed(self, results: list[NeighborhoodResult] | SweepResult) -> None:
+    def _on_completed(self, result: ThresholdAnalysisResult) -> None:
         """Handle analysis completion."""
-        self._run_btn.setVisible(True)
-        self._cancel_btn.setVisible(False)
-        self._progress_bar.setVisible(False)
+        self._result = result
+        self._progress.setVisible(False)
+        self._run_btn.setEnabled(True)
+        self._display_results(result)
 
-        if isinstance(results, list):
-            # Neighborhood scan results
-            self._display_neighborhood_results(results)
-        else:
-            # Sweep result
-            self._display_sweep_results(results)
+    def _on_error(self, message: str) -> None:
+        """Handle analysis error."""
+        self._progress.setVisible(False)
+        self._run_btn.setEnabled(True)
+        logger.error("Threshold analysis error: %s", message)
 
-    def _on_error(self, error_msg: str) -> None:
-        """Handle worker error."""
-        self._run_btn.setVisible(True)
-        self._cancel_btn.setVisible(False)
-        self._progress_bar.setVisible(False)
-        self._results_label.setText(f"Error: {error_msg}")
-        self._results_label.setVisible(True)
-        self._results_container.setVisible(False)
-        logging.error("Parameter sensitivity error: %s", error_msg)
+    def _display_results(self, result: ThresholdAnalysisResult) -> None:
+        """Display analysis results in the table."""
+        self._table.setRowCount(len(result.rows))
 
-    def _display_neighborhood_results(self, results: list) -> None:
-        """Display neighborhood scan results."""
-        if not results:
-            self._results_label.setText("No filters to analyze")
-            return
+        # Get baseline values for delta calculation
+        baseline_row = result.rows[result.current_index]
 
-        # Build summary text
-        lines = ["<h3>Neighborhood Scan Results</h3>"]
-        for r in results:
-            status_color = {"robust": "#22C55E", "caution": "#F59E0B", "fragile": "#EF4444"}
-            color = status_color.get(r.status, "#64748B")
-            lines.append(
-                f"<p><b>{r.filter_name}</b>: "
-                f"<span style='color:{color}'>{r.status.upper()}</span> "
-                f"(worst: -{r.worst_degradation:.1f}% at ±{r.worst_level*100:.0f}%)</p>"
+        for row_idx, row in enumerate(result.rows):
+            is_current = row_idx == result.current_index
+
+            # Column 0: Threshold
+            threshold_item = self._create_cell(
+                f"{row.threshold:.2f}",
+                is_current=is_current,
+                show_marker=is_current,
             )
+            self._table.setItem(row_idx, 0, threshold_item)
 
-        self._results_label.setText("".join(lines))
+            # Column 1: # Trades
+            trades_delta = None if is_current else (row.num_trades - baseline_row.num_trades)
+            self._table.setItem(row_idx, 1, self._create_cell(
+                str(row.num_trades),
+                delta=trades_delta,
+                is_current=is_current,
+                invert_delta=True,  # More trades = positive is good
+            ))
 
-    def _display_sweep_results(self, result: SweepResult) -> None:
-        """Display sweep results in the chart.
+            # Column 2: EV %
+            self._table.setItem(row_idx, 2, self._create_metric_cell(
+                row.ev_pct, baseline_row.ev_pct, is_current, "pct"
+            ))
 
-        Args:
-            result: SweepResult from the sensitivity engine.
-        """
-        if result is None or not result.metric_grids:
-            self._results_label.setText("No results to display")
-            self._results_label.setVisible(True)
-            self._results_container.setVisible(False)
-            return
+            # Column 3: Win %
+            self._table.setItem(row_idx, 3, self._create_metric_cell(
+                row.win_pct, baseline_row.win_pct, is_current, "pct"
+            ))
 
-        self._sweep_result = result
+            # Column 4: Median Winner %
+            self._table.setItem(row_idx, 4, self._create_metric_cell(
+                row.median_winner_pct, baseline_row.median_winner_pct, is_current, "pct"
+            ))
 
-        # Hide placeholder, show results container
-        self._results_label.setVisible(False)
-        self._results_container.setVisible(True)
+            # Column 5: Profit Ratio
+            self._table.setItem(row_idx, 5, self._create_metric_cell(
+                row.profit_ratio, baseline_row.profit_ratio, is_current, "ratio"
+            ))
 
-        # Get current metric
-        metric_name = self._results_metric_combo.currentText()
+            # Column 6: Edge %
+            self._table.setItem(row_idx, 6, self._create_metric_cell(
+                row.edge_pct, baseline_row.edge_pct, is_current, "pct"
+            ))
 
-        # Validate metric exists
-        if metric_name not in result.metric_grids:
-            # Fall back to first available metric
-            metric_name = next(iter(result.metric_grids.keys()))
-            self._results_metric_combo.setCurrentText(metric_name)
+            # Column 7: EG %
+            self._table.setItem(row_idx, 7, self._create_metric_cell(
+                row.eg_pct, baseline_row.eg_pct, is_current, "pct"
+            ))
 
-        # Display based on dimensionality
-        if result.filter_2_name is None:
-            # 1D sweep - line chart
-            self._sweep_chart.set_1d_data(
-                x_values=result.filter_1_values,
-                y_values=result.metric_grids[metric_name],
-                x_label=result.filter_1_name,
-                y_label=metric_name,
-            )
+            # Column 8: Kelly %
+            self._table.setItem(row_idx, 8, self._create_metric_cell(
+                row.kelly_pct, baseline_row.kelly_pct, is_current, "pct"
+            ))
 
-            # Mark current position if available
-            if result.current_position is not None:
-                self._sweep_chart.set_current_position(x_index=result.current_position[0])
-        else:
-            # 2D sweep - heatmap
-            self._sweep_chart.set_2d_data(
-                x_values=result.filter_1_values,
-                y_values=result.filter_2_values,
-                z_values=result.metric_grids[metric_name],
-                x_label=result.filter_1_name,
-                y_label=result.filter_2_name,
-                z_label=metric_name,
-            )
+            # Column 9: Max Loss % (lower is better)
+            self._table.setItem(row_idx, 9, self._create_metric_cell(
+                row.max_loss_pct, baseline_row.max_loss_pct, is_current, "pct", invert=True
+            ))
 
-            # Mark current position if available
-            if result.current_position is not None:
-                self._sweep_chart.set_current_position(
-                    x_index=result.current_position[0],
-                    y_index=result.current_position[1],
-                )
+    def _create_cell(
+        self,
+        text: str,
+        delta: float | None = None,
+        is_current: bool = False,
+        show_marker: bool = False,
+        invert_delta: bool = False,
+    ) -> QTableWidgetItem:
+        """Create a styled table cell."""
+        display_text = text
+        if show_marker:
+            display_text = f"● {text}"
 
-        # Update summary statistics
-        self._update_summary_stats(metric_name)
+        if delta is not None and not is_current:
+            sign = "+" if delta > 0 else ""
+            display_text = f"{text}\n({sign}{delta:.0f})"
+        elif is_current:
+            display_text = f"{text}\n—"
 
-    def _on_metric_changed(self, metric_name: str) -> None:
-        """Handle metric selection change.
+        item = QTableWidgetItem(display_text)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
-        Args:
-            metric_name: Selected metric name.
-        """
-        if self._sweep_result is None:
-            return
+        if is_current:
+            item.setBackground(QColor(COLORS['row_current_bg']))
+            if show_marker:
+                item.setForeground(QColor(COLORS['row_current_accent']))
+        elif delta is not None:
+            # Color based on delta direction
+            is_good = (delta > 0) if not invert_delta else (delta < 0)
+            if is_good:
+                item.setForeground(QColor(COLORS['delta_positive']))
+            elif delta != 0:
+                item.setForeground(QColor(COLORS['delta_negative']))
 
-        # Re-display with new metric
-        self._display_sweep_results(self._sweep_result)
+        return item
 
-    def _update_summary_stats(self, metric_name: str) -> None:
-        """Update summary statistics display.
+    def _create_metric_cell(
+        self,
+        value: float | None,
+        baseline: float | None,
+        is_current: bool,
+        fmt: str = "pct",
+        invert: bool = False,
+    ) -> QTableWidgetItem:
+        """Create a metric cell with delta display."""
+        if value is None:
+            item = QTableWidgetItem("—")
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setForeground(QColor(COLORS['text_muted']))
+            if is_current:
+                item.setBackground(QColor(COLORS['row_current_bg']))
+            return item
 
-        Args:
-            metric_name: Current metric name.
-        """
-        if self._sweep_result is None:
-            return
+        # Format value
+        if fmt == "pct":
+            text = f"{value:.2f}%"
+        else:  # ratio
+            text = f"{value:.2f}"
 
-        values = self._sweep_result.metric_grids[metric_name]
-        min_val = float(np.min(values))
-        max_val = float(np.max(values))
-        range_val = max_val - min_val
+        # Calculate delta
+        delta = None
+        if baseline is not None and not is_current:
+            delta = value - baseline
 
-        # Format based on metric type
-        if metric_name == "win_rate":
-            fmt = lambda v: f"{v:.1%}"
-        elif metric_name == "profit_factor":
-            fmt = lambda v: f"{v:.2f}"
-        else:
-            fmt = lambda v: f"${v:.2f}"
-
-        self._min_label.setText(fmt(min_val))
-        self._max_label.setText(fmt(max_val))
-        self._range_label.setText(fmt(range_val))
-
-        # Current position value
-        if self._sweep_result.current_position is not None:
-            pos = self._sweep_result.current_position
-            if self._sweep_result.filter_2_name is None:
-                current_val = float(values[pos[0]])
+        # Build display text
+        if is_current:
+            display_text = f"{text}\n—"
+        elif delta is not None:
+            sign = "+" if delta > 0 else ""
+            if fmt == "pct":
+                display_text = f"{text}\n({sign}{delta:.2f})"
             else:
-                current_val = float(values[pos[1], pos[0]])
-            self._current_label.setText(fmt(current_val))
+                display_text = f"{text}\n({sign}{delta:.2f})"
         else:
-            self._current_label.setText("--")
+            display_text = text
+
+        item = QTableWidgetItem(display_text)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        if is_current:
+            item.setBackground(QColor(COLORS['row_current_bg']))
+        elif delta is not None:
+            is_good = (delta > 0) if not invert else (delta < 0)
+            if is_good:
+                item.setForeground(QColor(COLORS['delta_positive']))
+            elif delta != 0:
+                item.setForeground(QColor(COLORS['delta_negative']))
+
+        return item
 
     def cleanup(self) -> None:
         """Clean up resources."""
-        if self._worker and self._worker.isRunning():
+        if self._worker is not None and self._worker.isRunning():
             self._worker.cancel()
-            self._worker.wait(5000)
+            self._worker.wait()
