@@ -489,10 +489,22 @@ class ParameterSensitivityTab(QWidget):
             self._results_label.setText("Load data first")
             return
 
-        if not active_filters and not is_sweep:
-            logger.warning("No active filters for neighborhood scan")
-            self._results_label.setText("Apply filters in Feature Explorer first")
-            return
+        if not is_sweep:
+            if not active_filters:
+                logger.warning("No active filters for neighborhood scan")
+                self._results_label.setText("Apply filters in Feature Explorer first")
+                return
+
+            analyzable, partial = self._get_analyzable_filters(active_filters)
+            if not analyzable:
+                logger.warning(
+                    f"No analyzable filters: {len(partial)} filters have partial bounds"
+                )
+                self._results_label.setText(
+                    f"All {len(partial)} filter(s) have partial bounds (missing min or max).\n"
+                    "Neighborhood scan requires filters with both min and max values."
+                )
+                return
 
         # Clear previous results
         self._sweep_result = None
