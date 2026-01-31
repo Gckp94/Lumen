@@ -29,18 +29,18 @@ class TestStatisticsTab:
         tab = StatisticsTab(app_state)
         assert tab is not None
 
-    def test_has_3_subtabs(self, app):
-        """Test that StatisticsTab has 3 sub-tabs."""
+    def test_has_4_subtabs(self, app):
+        """Test that StatisticsTab has 4 sub-tabs."""
         app_state = AppState()
         tab = StatisticsTab(app_state)
-        assert tab._tab_widget.count() == 3
+        assert tab._tab_widget.count() == 4
 
     def test_subtab_names(self, app):
         """Test correct sub-tab names."""
         app_state = AppState()
         tab = StatisticsTab(app_state)
-        names = [tab._tab_widget.tabText(i) for i in range(3)]
-        assert names == ["MAE/MFE", "Stop Loss/Offset", "Scaling"]
+        names = [tab._tab_widget.tabText(i) for i in range(4)]
+        assert names == ["MAE/MFE", "Stop Loss/Offset", "Scaling", "Profit/Loss Chance"]
 
     def test_tables_are_tablewidgets(self, app):
         """Test that all sub-tabs contain QTableWidgets (directly or nested)."""

@@ -25,10 +25,12 @@ from PyQt6.QtWidgets import (
 from src.core.app_state import AppState
 from src.core.models import AdjustmentParams, TradingMetrics
 from src.core.statistics import (
+    calculate_loss_chance_table,
     calculate_mae_before_win,
     calculate_mfe_before_loss,
     calculate_offset_table,
     calculate_partial_cover_table,
+    calculate_profit_chance_table,
     calculate_scaling_table,
     calculate_stop_loss_table,
 )
@@ -298,6 +300,10 @@ class StatisticsTab(QWidget):
         self._tab_widget.addTab(self._mae_mfe_widget, "MAE/MFE")
         self._tab_widget.addTab(self._stop_loss_offset_widget, "Stop Loss/Offset")
         self._tab_widget.addTab(self._scaling_widget, "Scaling")
+
+        # Profit/Loss Chance tab
+        self._profit_loss_chance_widget = self._create_profit_loss_chance_widget()
+        self._tab_widget.addTab(self._profit_loss_chance_widget, "Profit/Loss Chance")
 
         # Add both widgets to layout
         layout.addWidget(self._empty_label)
@@ -581,6 +587,54 @@ class StatisticsTab(QWidget):
         # Offset table
         self._offset_table = self._create_table()
         layout.addWidget(self._offset_table, 1)  # stretch factor 1
+
+        return widget
+
+    def _create_profit_loss_chance_widget(self) -> QWidget:
+        """Create Profit/Loss Chance sub-tab with stacked tables."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        layout.setSpacing(Spacing.MD)
+
+        # Chance of Profit section label
+        profit_label = QLabel("Chance of Profit")
+        profit_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """
+        )
+        layout.addWidget(profit_label)
+
+        # Profit Chance table
+        self._profit_chance_table = self._create_table()
+        layout.addWidget(self._profit_chance_table, 1)
+
+        # Spacer
+        layout.addSpacing(Spacing.LG)
+
+        # Chance of Loss section label
+        loss_label = QLabel("Chance of Loss")
+        loss_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """
+        )
+        layout.addWidget(loss_label)
+
+        # Loss Chance table
+        self._loss_chance_table = self._create_table()
+        layout.addWidget(self._loss_chance_table, 1)
 
         return widget
 
