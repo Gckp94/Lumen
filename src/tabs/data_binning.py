@@ -739,6 +739,75 @@ class DataBinningTab(QWidget):
             Toast.display(self, f"Failed to load: {e}", "error", duration=5000)
 
 
+class AutoSplitButton(QPushButton):
+    """Custom button with visual segment indicator for auto-split binning."""
+
+    def __init__(
+        self, label: str, segments: int, parent: QWidget | None = None
+    ) -> None:
+        """Initialize auto-split button.
+
+        Args:
+            label: Button label (e.g., "Q4", "Q5", "D10").
+            segments: Number of segments to display (4, 5, or 10).
+            parent: Optional parent widget.
+        """
+        super().__init__(parent)
+        self.label = label
+        self.segments = segments
+        self.setFixedSize(68, 44)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def paintEvent(self, event: "QPaintEvent") -> None:
+        """Custom paint with segment bars and label."""
+        from PyQt6.QtGui import QColor, QFont, QPainter
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Background
+        is_hovered = self.underMouse()
+        bg_color = QColor(Colors.BG_BORDER if is_hovered else Colors.BG_ELEVATED)
+        border_color = QColor(
+            Colors.SIGNAL_CYAN if is_hovered else Colors.BG_BORDER
+        )
+
+        painter.setBrush(bg_color)
+        painter.setPen(border_color)
+        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 6, 6)
+
+        # Draw segment bars at top
+        max_bars = min(self.segments, 10)
+        total_bar_width = self.width() - 16
+        bar_width = max(2, (total_bar_width - (max_bars - 1) * 2) // max_bars)
+        bar_height = 4
+        bar_y = 8
+        bar_color = QColor(
+            Colors.SIGNAL_CYAN if is_hovered else Colors.TEXT_SECONDARY
+        )
+        painter.setBrush(bar_color)
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        start_x = (self.width() - (max_bars * bar_width + (max_bars - 1) * 2)) // 2
+        for i in range(max_bars):
+            x = start_x + i * (bar_width + 2)
+            painter.drawRoundedRect(x, bar_y, bar_width, bar_height, 1, 1)
+
+        # Draw label
+        painter.setPen(QColor(Colors.TEXT_PRIMARY))
+        font = QFont(Fonts.UI, 11)
+        font.setWeight(QFont.Weight.Medium)
+        painter.setFont(font)
+        label_rect = self.rect().adjusted(0, 14, 0, 0)
+        painter.drawText(label_rect, Qt.AlignmentFlag.AlignHCenter, self.label)
+
+        # Draw disabled overlay if needed
+        if not self.isEnabled():
+            painter.setBrush(QColor(0, 0, 0, 100))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 6, 6)
+
+
 class BinConfigRow(QFrame):
     """Widget for configuring a single bin definition.
 
