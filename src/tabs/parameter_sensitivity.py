@@ -423,10 +423,12 @@ class ParameterSensitivityTab(QWidget):
 
     def _populate_filter_dropdown(self) -> None:
         """Populate the filter dropdown with current filters."""
+        self._filter_combo.blockSignals(True)
         self._filter_combo.clear()
         filters = self._app_state.filters or []
 
         if not filters:
+            self._filter_combo.blockSignals(False)
             self._empty_label.setVisible(True)
             self._run_btn.setEnabled(False)
             return
@@ -442,19 +444,19 @@ class ParameterSensitivityTab(QWidget):
             else:
                 label = f"{f.column} < {f.max_val:.2f}"
             self._filter_combo.addItem(label)
+        self._filter_combo.blockSignals(False)
 
     def _on_filter_selected(self, index: int) -> None:
         """Handle filter selection change."""
-        if index < 0:
+        filters = self._app_state.filters or []
+
+        if index < 0 or index >= len(filters):
+            self._current_filter_index = -1
             self._run_btn.setEnabled(False)
             self._bound_container.setVisible(False)
             return
 
         self._current_filter_index = index
-        filters = self._app_state.filters or []
-        if index >= len(filters):
-            return
-
         selected_filter = filters[index]
 
         # Show bound toggle only for dual-bound filters
@@ -752,6 +754,17 @@ class ParameterSensitivityTab(QWidget):
 
     def cleanup(self) -> None:
         """Clean up resources."""
-        if self._worker is not None and self._worker.isRunning():
-            self._worker.cancel()
-            self._worker.wait()
+        if self._worker is not None:
+            # Disconnect signals first
+            try:
+                self._worker.progress.disconnect()
+                self._worker.completed.disconnect()
+                self._worker.error.disconnect()
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or worker deleted
+
+            if self._worker.isRunning():
+                self._worker.cancel()
+                self._worker.wait()
+
+            self._worker = None
