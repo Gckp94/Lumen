@@ -10,6 +10,7 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QButtonGroup,
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -28,7 +29,7 @@ from src.core.parameter_sensitivity import (
     ThresholdAnalysisResult,
     ThresholdAnalysisWorker,
 )
-from src.ui.components.no_scroll_widgets import NoScrollComboBox, NoScrollDoubleSpinBox
+from src.ui.components.no_scroll_widgets import NoScrollDoubleSpinBox
 
 if TYPE_CHECKING:
     from src.core.app_state import AppState
@@ -128,40 +129,46 @@ class ParameterSensitivityTab(QWidget):
         """)
         filter_section.addWidget(filter_label)
 
-        self._filter_combo = NoScrollComboBox()
+        self._filter_combo = QComboBox()
         self._filter_combo.setPlaceholderText("Select a filter...")
         self._filter_combo.setStyleSheet(f"""
             QComboBox {{
                 background-color: {COLORS["bg_tertiary"]};
                 border: 1px solid {COLORS["border_subtle"]};
                 border-radius: 6px;
-                padding: 10px 12px;
+                padding: 10px 32px 10px 12px;
                 color: {COLORS["text_primary"]};
                 font-family: "Azeret Mono";
                 font-size: 13px;
+                min-width: 150px;
+                min-height: 20px;
             }}
             QComboBox:hover {{
-                border-color: {COLORS["bg_elevated"]};
+                border-color: {COLORS["row_current_accent"]};
             }}
             QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 24px;
                 border: none;
-                padding-right: 8px;
+            }}
+            QComboBox::down-arrow {{
+                width: 0;
+                height: 0;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid {COLORS["text_secondary"]};
+            }}
+            QComboBox::down-arrow:hover {{
+                border-top-color: {COLORS["text_primary"]};
             }}
             QComboBox QAbstractItemView {{
                 background-color: {COLORS["bg_tertiary"]};
                 color: {COLORS["text_primary"]};
+                border: 1px solid {COLORS["border_subtle"]};
                 selection-background-color: {COLORS["bg_elevated"]};
                 selection-color: {COLORS["text_primary"]};
-                border: 1px solid {COLORS["border_subtle"]};
                 padding: 4px;
-                outline: none;
-            }}
-            QComboBox QAbstractItemView::item {{
-                padding: 8px 12px;
-                min-height: 24px;
-            }}
-            QComboBox QAbstractItemView::item:hover {{
-                background-color: {COLORS["bg_elevated"]};
             }}
         """)
         filter_section.addWidget(self._filter_combo)
