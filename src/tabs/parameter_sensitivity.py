@@ -151,6 +151,17 @@ class ParameterSensitivityTab(QWidget):
                 background-color: {COLORS["bg_tertiary"]};
                 color: {COLORS["text_primary"]};
                 selection-background-color: {COLORS["bg_elevated"]};
+                selection-color: {COLORS["text_primary"]};
+                border: 1px solid {COLORS["border_subtle"]};
+                padding: 4px;
+                outline: none;
+            }}
+            QComboBox QAbstractItemView::item {{
+                padding: 8px 12px;
+                min-height: 24px;
+            }}
+            QComboBox QAbstractItemView::item:hover {{
+                background-color: {COLORS["bg_elevated"]};
             }}
         """)
         filter_section.addWidget(self._filter_combo)
@@ -189,11 +200,12 @@ class ParameterSensitivityTab(QWidget):
         for radio in [self._min_radio, self._max_radio]:
             radio.setStyleSheet(f"""
                 QRadioButton {{
-                    padding: 8px 16px;
+                    padding: 8px 20px;
                     border-radius: 4px;
                     color: {COLORS["text_secondary"]};
-                    font-size: 12px;
-                    font-weight: 500;
+                    font-size: 13px;
+                    font-weight: 600;
+                    min-width: 50px;
                 }}
                 QRadioButton:checked {{
                     background-color: {COLORS["bg_elevated"]};
@@ -272,13 +284,13 @@ class ParameterSensitivityTab(QWidget):
         current_inner = QHBoxLayout(self._current_frame)
         current_inner.setContentsMargins(12, 8, 12, 8)
 
-        self._current_label = QLabel("—")
+        self._current_label = QLabel("Select filter")
         self._current_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px;")
         current_inner.addWidget(self._current_label)
 
         current_inner.addStretch()
 
-        self._current_value = QLabel("—")
+        self._current_value = QLabel("")
         self._current_value.setStyleSheet(f"""
             font-family: "Azeret Mono";
             font-size: 15px;
