@@ -520,3 +520,69 @@ class TestBinConfigDataclass:
         config = BinConfig.from_dict(data)
 
         assert config.bins[0].label == ""
+
+
+class TestPercentileSplits:
+    """Tests for percentile split calculation."""
+
+    def test_quartile_splits_returns_three_breakpoints(self) -> None:
+        """Quartile splits return 25th, 50th, 75th percentiles."""
+        engine = BinningEngine()
+        data = pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+        breakpoints = engine.get_percentile_splits(data, num_splits=4)
+
+        assert len(breakpoints) == 3
+        assert breakpoints[0] == pytest.approx(3.25, rel=0.01)  # 25th
+        assert breakpoints[1] == pytest.approx(5.5, rel=0.01)   # 50th
+        assert breakpoints[2] == pytest.approx(7.75, rel=0.01)  # 75th
+
+    def test_quintile_splits_returns_four_breakpoints(self) -> None:
+        """Quintile splits return 20th, 40th, 60th, 80th percentiles."""
+        engine = BinningEngine()
+        data = pd.Series(range(1, 101))  # 1 to 100
+
+        breakpoints = engine.get_percentile_splits(data, num_splits=5)
+
+        assert len(breakpoints) == 4
+        assert breakpoints[0] == pytest.approx(20.8, rel=0.01)
+        assert breakpoints[1] == pytest.approx(40.6, rel=0.01)
+        assert breakpoints[2] == pytest.approx(60.4, rel=0.01)
+        assert breakpoints[3] == pytest.approx(80.2, rel=0.01)
+
+    def test_decile_splits_returns_nine_breakpoints(self) -> None:
+        """Decile splits return 10th through 90th percentiles."""
+        engine = BinningEngine()
+        data = pd.Series(range(1, 101))
+
+        breakpoints = engine.get_percentile_splits(data, num_splits=10)
+
+        assert len(breakpoints) == 9
+
+    def test_percentile_splits_ignores_nan(self) -> None:
+        """Percentile calculation ignores NaN values."""
+        engine = BinningEngine()
+        data = pd.Series([1, 2, 3, None, 5, 6, 7, None, 9, 10])
+
+        breakpoints = engine.get_percentile_splits(data, num_splits=4)
+
+        assert len(breakpoints) == 3
+        # Should calculate on non-null values only
+
+    def test_percentile_splits_empty_data_returns_empty(self) -> None:
+        """Empty data returns empty breakpoints list."""
+        engine = BinningEngine()
+        data = pd.Series([], dtype=float)
+
+        breakpoints = engine.get_percentile_splits(data, num_splits=4)
+
+        assert breakpoints == []
+
+    def test_percentile_splits_all_same_values(self) -> None:
+        """All same values returns list with that value repeated."""
+        engine = BinningEngine()
+        data = pd.Series([5, 5, 5, 5, 5])
+
+        breakpoints = engine.get_percentile_splits(data, num_splits=4)
+
+        assert all(b == 5.0 for b in breakpoints)

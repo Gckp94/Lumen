@@ -176,3 +176,35 @@ class BinningEngine:
             )
 
         return results
+
+    def get_percentile_splits(
+        self,
+        data: pd.Series,
+        num_splits: int,
+    ) -> list[float]:
+        """Calculate percentile breakpoints for auto-split binning.
+
+        Args:
+            data: Series of values to calculate percentiles from.
+            num_splits: Number of bins to create (4=quartile, 5=quintile, 10=decile).
+
+        Returns:
+            List of breakpoint values. Length is num_splits - 1.
+            Empty list if data is empty or all NaN.
+        """
+        import numpy as np
+
+        # Remove NaN values
+        clean_data = data.dropna()
+
+        if len(clean_data) == 0:
+            return []
+
+        # Calculate percentile positions (e.g., for 4 splits: 25, 50, 75)
+        percentile_positions = [
+            (i * 100) / num_splits for i in range(1, num_splits)
+        ]
+
+        breakpoints = np.percentile(clean_data, percentile_positions).tolist()
+
+        return breakpoints
