@@ -245,12 +245,18 @@ class PortfolioOverviewTab(QWidget):
             column_mapping = dialog.get_column_mapping()
             df = dialog.get_dataframe()
 
+            logger.debug(
+                f"Import dialog result: file_path={file_path}, "
+                f"strategy_name={strategy_name}, df_shape={df.shape if df is not None else None}"
+            )
+
             if df is not None and file_path:
                 # Create strategy config
                 config = StrategyConfig(
                     name=strategy_name,
                     file_path=file_path,
                     column_mapping=column_mapping,
+                    sheet_name=dialog.get_selected_sheet(),
                 )
 
                 # Store the data
@@ -263,6 +269,10 @@ class PortfolioOverviewTab(QWidget):
                 self._schedule_recalculation()
 
                 logger.info(f"Added strategy: {strategy_name} from {file_path}")
+            else:
+                logger.warning(
+                    f"Import cancelled or failed: df={df is not None}, file_path={file_path}"
+                )
 
     def _schedule_recalculation(self) -> None:
         """Schedule a recalculation with debouncing."""
