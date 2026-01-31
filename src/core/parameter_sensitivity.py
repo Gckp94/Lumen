@@ -303,6 +303,70 @@ class ThresholdAnalysisEngine:
         )
 
 
+class ThresholdAnalysisWorker(QThread):
+    """Background worker for threshold analysis."""
+
+    progress = pyqtSignal(int)  # 0-100
+    completed = pyqtSignal(object)  # ThresholdAnalysisResult
+    error = pyqtSignal(str)
+
+    def __init__(
+        self,
+        baseline_df: pd.DataFrame,
+        column_mapping: "ColumnMapping",
+        active_filters: list["FilterCriteria"],
+        adjustment_params: "AdjustmentParams",
+        filter_index: int,
+        vary_bound: Literal["min", "max"],
+        step_size: float,
+    ) -> None:
+        """Initialize the worker.
+
+        Args:
+            baseline_df: Data BEFORE user filters.
+            column_mapping: Column mapping configuration.
+            active_filters: Current active filters.
+            adjustment_params: Stop loss and efficiency parameters.
+            filter_index: Index of filter to vary.
+            vary_bound: Which bound to vary.
+            step_size: Step size for threshold variation.
+        """
+        super().__init__()
+        self._baseline_df = baseline_df
+        self._column_mapping = column_mapping
+        self._active_filters = active_filters
+        self._adjustment_params = adjustment_params
+        self._filter_index = filter_index
+        self._vary_bound = vary_bound
+        self._step_size = step_size
+        self._engine: ThresholdAnalysisEngine | None = None
+
+    def run(self) -> None:
+        """Execute the analysis in background thread."""
+        try:
+            self._engine = ThresholdAnalysisEngine(
+                self._baseline_df,
+                self._column_mapping,
+                self._active_filters,
+                self._adjustment_params,
+            )
+            result = self._engine.analyze(
+                self._filter_index,
+                self._vary_bound,
+                self._step_size,
+                progress_callback=self.progress.emit,
+            )
+            self.completed.emit(result)
+        except Exception as e:
+            logger.exception("Threshold analysis failed")
+            self.error.emit(str(e))
+
+    def cancel(self) -> None:
+        """Cancel the running analysis."""
+        if self._engine:
+            self._engine.cancel()
+
+
 # Import after dataclasses to avoid circular import issues
 from src.core.models import ColumnMapping, FilterCriteria
 from src.core.filter_engine import FilterEngine
