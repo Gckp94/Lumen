@@ -21,6 +21,8 @@ class ColumnMapping:
         mae_pct: Column name for Maximum Adverse Excursion percentage.
         mfe_pct: Column name for Maximum Favorable Excursion percentage.
         win_loss: Optional column name for win/loss indicator.
+        mae_time: Optional column name for time when MAE occurred.
+        mfe_time: Optional column name for time when MFE occurred.
         win_loss_derived: Whether win/loss is derived from gain_pct.
         breakeven_is_win: When deriving, is 0% gain considered a win?
     """
@@ -32,6 +34,8 @@ class ColumnMapping:
     mae_pct: str
     mfe_pct: str
     win_loss: str | None = None
+    mae_time: str | None = None
+    mfe_time: str | None = None
     win_loss_derived: bool = False
     breakeven_is_win: bool = False
 
@@ -214,7 +218,7 @@ class AdjustmentParams:
 
     Attributes:
         stop_loss: Stop loss percentage (e.g., 8 = 8%).
-        efficiency: Efficiency/slippage percentage (e.g., 5 = 5%).
+        efficiency: Efficiency/slippage percentage (e.g., 5 = 5% slippage subtracted).
     """
 
     stop_loss: float = 8.0
@@ -236,7 +240,7 @@ class AdjustmentParams:
         """
         # Step 1: Stop loss adjustment
         stop_adjusted = -self.stop_loss if mae_pct > self.stop_loss else gain_pct
-        # Step 2: Efficiency adjustment
+        # Step 2: Efficiency adjustment (subtract slippage)
         return stop_adjusted - self.efficiency
 
     def calculate_adjusted_gains(
@@ -266,7 +270,7 @@ class AdjustmentParams:
         # This ensures no loss exceeds stop_loss, even if MAE data is inconsistent
         stop_adjusted = stop_adjusted.clip(lower=-self.stop_loss)
 
-        # Step 2: Efficiency adjustment (in percentage)
+        # Step 2: Efficiency adjustment (subtract slippage in percentage)
         adjusted_pct = stop_adjusted - self.efficiency
 
         # Convert back to decimal format for MetricsCalculator compatibility

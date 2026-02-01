@@ -118,6 +118,34 @@ class TestColumnMapping:
         )
         assert mapping.mfe_pct == "mfe_pct"
 
+    def test_column_mapping_time_fields_optional(self) -> None:
+        """Time columns should be optional with None defaults."""
+        mapping = ColumnMapping(
+            ticker="Ticker",
+            date="Date",
+            time="Time",
+            gain_pct="Gain%",
+            mae_pct="MAE%",
+            mfe_pct="MFE%",
+        )
+        assert mapping.mae_time is None
+        assert mapping.mfe_time is None
+
+    def test_column_mapping_with_time_fields(self) -> None:
+        """Time columns can be set explicitly."""
+        mapping = ColumnMapping(
+            ticker="Ticker",
+            date="Date",
+            time="Time",
+            gain_pct="Gain%",
+            mae_pct="MAE%",
+            mfe_pct="MFE%",
+            mae_time="MAE_Time",
+            mfe_time="MFE_Time",
+        )
+        assert mapping.mae_time == "MAE_Time"
+        assert mapping.mfe_time == "MFE_Time"
+
 
 class TestDetectionResult:
     """Tests for DetectionResult dataclass."""
