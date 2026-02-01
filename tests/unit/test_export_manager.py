@@ -179,6 +179,28 @@ class TestExportManagerToCSV:
         assert "gain_pct between" in content
         assert "volume not_between" in content
 
+    def test_export_csv_no_comment_lines(
+        self, sample_trades: pd.DataFrame, tmp_path: Path
+    ) -> None:
+        """CSV export has no comment lines - Excel compatible."""
+        exporter = ExportManager()
+        path = tmp_path / "export.csv"
+        exporter.to_csv(sample_trades, path)
+
+        with open(path, "rb") as f:
+            content = f.read()
+
+        # Should start with UTF-8 BOM followed by header row
+        assert content.startswith(b"\xef\xbb\xbf"), "Missing UTF-8 BOM"
+
+        # After BOM, first line should be header, not a comment
+        text = content.decode("utf-8-sig")
+        first_line = text.split("\n")[0]
+        assert not first_line.startswith("#"), "Comment lines break Excel compatibility"
+
+        # First line should be the column headers
+        assert "ticker" in first_line or sample_trades.columns[0] in first_line
+
 
 class TestExportManagerErrors:
     """Tests for ExportManager error handling."""
