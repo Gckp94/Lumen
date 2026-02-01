@@ -107,7 +107,7 @@ class PortfolioCalculator:
         """
         if trades_df.empty:
             return pd.DataFrame(
-                columns=["date", "trade_num", "pnl", "equity", "peak", "drawdown", "win"]
+                columns=["date", "trade_num", "gain_pct", "pnl", "equity", "peak", "drawdown", "win"]
             )
 
         mapping = config.column_mapping
@@ -167,6 +167,7 @@ class PortfolioCalculator:
                 result_row = {
                     "date": trade[mapping.date_col],
                     "trade_num": trade_num,
+                    "gain_pct": adjusted_gain,  # Adjusted gain in percentage form
                     "pnl": pnl,
                     "equity": account_value,
                     "peak": peak,

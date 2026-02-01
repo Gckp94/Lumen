@@ -199,6 +199,7 @@ class TestPortfolioCalculatorSingleStrategy:
         assert len(result) == 0
         assert "date" in result.columns
         assert "trade_num" in result.columns
+        assert "gain_pct" in result.columns
         assert "pnl" in result.columns
         assert "equity" in result.columns
         assert "peak" in result.columns
@@ -485,3 +486,32 @@ class TestPortfolioCalculatorMultiStrategy:
             assert len(dayfirst_warnings) == 0, f"Got dayfirst warning: {dayfirst_warnings}"
 
         assert len(result) == 2
+
+
+class TestPortfolioCalculatorGainPctOutput:
+    """Tests for gain_pct column in output."""
+
+    def test_calculate_single_strategy_includes_gain_pct(self):
+        """Output DataFrame should include gain_pct column with adjusted percentages."""
+        trades = pd.DataFrame({
+            "date": pd.to_datetime(["2024-01-01", "2024-01-02"]),
+            "gain_pct": [0.05, -0.02],  # Decimal form: 5%, -2%
+        })
+        config = StrategyConfig(
+            name="Test",
+            file_path="test.csv",
+            column_mapping=PortfolioColumnMapping("date", "gain_pct"),
+            size_type=PositionSizeType.FLAT_DOLLAR,
+            size_value=10_000,
+            stop_pct=2.0,
+            efficiency=1.0,  # 1% efficiency cost
+        )
+        calc = PortfolioCalculator(starting_capital=100_000)
+        result = calc.calculate_single_strategy(trades, config)
+
+        assert "gain_pct" in result.columns
+        # gain_pct should be adjusted gain in percentage form (already multiplied by 100)
+        # Trade 1: 5% - 1% efficiency = 4%
+        # Trade 2: -2% - 1% efficiency = -3%
+        assert result.iloc[0]["gain_pct"] == pytest.approx(4.0, rel=0.01)
+        assert result.iloc[1]["gain_pct"] == pytest.approx(-3.0, rel=0.01)
