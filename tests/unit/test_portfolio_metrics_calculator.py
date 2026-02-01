@@ -778,6 +778,38 @@ class TestPortfolioMetricsCalculator:
         assert result["median_gain_early"] > result["median_gain_recent"]
         assert result["median_gain_change_pct"] < 0  # Negative = decay
 
+    def test_calculate_edge_decay_without_gain_pct(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Edge decay works without gain_pct column (Sharpe only)."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(504)]
+        np.random.seed(42)
+
+        returns = np.random.normal(0.001, 0.015, 504)
+        equities = [100_000]
+        for r in returns:
+            equities.append(equities[-1] * (1 + r))
+
+        # No gain_pct column
+        df = pd.DataFrame({
+            "date": dates,
+            "equity": equities[1:],
+            "pnl": np.diff(equities),
+            "peak": np.maximum.accumulate(equities[1:]),
+            "drawdown": [0] * 504,
+            "win": [r > 0 for r in returns],
+        })
+
+        result = calculator.calculate_edge_decay(df, window=252)
+
+        assert result is not None
+        # Sharpe metrics should exist
+        assert "rolling_sharpe_current" in result
+        assert "decay_pct" in result
+        # Gain metrics should NOT exist
+        assert "avg_gain_early" not in result
+        assert "median_gain_early" not in result
+
     def test_calculate_ticker_overlap(
         self, calculator: PortfolioMetricsCalculator
     ) -> None:
