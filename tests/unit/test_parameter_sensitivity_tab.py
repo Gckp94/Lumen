@@ -129,3 +129,57 @@ def test_run_clicked_applies_first_trigger_filter(
         # Should have 2 rows (first trigger per ticker-date), not 5
         assert len(passed_df) == 2, f"Expected 2 first triggers, got {len(passed_df)}"
         assert set(passed_df["trigger_number"].unique()) == {1}
+
+
+def test_run_clicked_uses_all_triggers_when_disabled(
+    qtbot, mock_app_state, qapp
+):
+    """Verify _on_run_clicked uses all data when first_trigger_enabled is False."""
+    from unittest.mock import patch, MagicMock
+    from src.tabs.parameter_sensitivity import ParameterSensitivityTab
+    from src.core.models import ColumnMapping, FilterCriteria
+
+    # Create sample data with multiple triggers per ticker-date
+    df = pd.DataFrame({
+        "ticker": ["AAPL", "AAPL", "AAPL", "GOOG", "GOOG"],
+        "date": ["2024-01-01", "2024-01-01", "2024-01-01", "2024-01-01", "2024-01-01"],
+        "time": ["09:30", "09:35", "09:40", "09:30", "09:35"],
+        "trigger_number": [1, 2, 3, 1, 2],
+        "gain_pct": [0.05, 0.03, 0.02, 0.04, 0.01],
+        "gap_pct": [3.0, 3.0, 3.0, 4.0, 4.0],
+    })
+
+    mock_app_state.baseline_df = df
+    mock_app_state.first_trigger_enabled = False  # Disabled
+    mock_app_state.column_mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
+    )
+    mock_app_state.filters = [
+        FilterCriteria(column="gap_pct", operator="between", min_val=2.0, max_val=5.0)
+    ]
+    mock_app_state.adjustment_params = None  # Uses default AdjustmentParams
+
+    tab = ParameterSensitivityTab(mock_app_state)
+    qtbot.addWidget(tab)
+    tab._current_filter_index = 0
+
+    with patch(
+        "src.tabs.parameter_sensitivity.ThresholdAnalysisWorker"
+    ) as MockWorker:
+        mock_worker = MagicMock()
+        mock_worker.isRunning.return_value = False
+        MockWorker.return_value = mock_worker
+
+        tab._on_run_clicked()
+
+        MockWorker.assert_called_once()
+        call_kwargs = MockWorker.call_args.kwargs
+        passed_df = call_kwargs["baseline_df"]
+
+        # Should have all 5 rows when first trigger is disabled
+        assert len(passed_df) == 5, f"Expected all 5 rows, got {len(passed_df)}"
