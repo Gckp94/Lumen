@@ -56,6 +56,41 @@ class PortfolioCalculator:
 
         return kelly_pct
 
+    def _parse_dates(self, date_series: pd.Series) -> pd.Series:
+        """Parse dates flexibly, handling multiple formats.
+
+        Tries multiple parsing strategies to handle various date formats:
+        - ISO format (YYYY-MM-DD)
+        - Day-first format (DD/MM/YYYY, DD-MM-YYYY)
+        - Month-first format (MM/DD/YYYY)
+
+        Args:
+            date_series: Series containing date values.
+
+        Returns:
+            Series of parsed datetime values.
+        """
+        # First try: let pandas infer the format for each element
+        try:
+            return pd.to_datetime(date_series, format='mixed', dayfirst=True)
+        except Exception:
+            pass
+
+        # Second try: day-first parsing (European format)
+        try:
+            return pd.to_datetime(date_series, dayfirst=True)
+        except Exception:
+            pass
+
+        # Third try: month-first parsing (US format)
+        try:
+            return pd.to_datetime(date_series, dayfirst=False)
+        except Exception:
+            pass
+
+        # Final fallback: let pandas do its best
+        return pd.to_datetime(date_series)
+
     def calculate_single_strategy(
         self,
         trades_df: pd.DataFrame,
@@ -87,7 +122,7 @@ class PortfolioCalculator:
                 logger.info(f"Calculated Kelly %: {kelly_pct:.2f}% for strategy {config.name}")
 
         # Group by date for daily compounding
-        df["_date"] = pd.to_datetime(df[mapping.date_col], dayfirst=True).dt.date
+        df["_date"] = self._parse_dates(df[mapping.date_col]).dt.date
 
         results = []
         account_value = self.starting_capital
@@ -231,7 +266,7 @@ class PortfolioCalculator:
             mapping = config.column_mapping
             df["_strategy_name"] = config.name
             df["_gain_pct"] = df[mapping.gain_pct_col]
-            df["_date"] = pd.to_datetime(df[mapping.date_col], dayfirst=True)
+            df["_date"] = self._parse_dates(df[mapping.date_col])
             df["_config"] = [config] * len(df)
             # Pre-calculate Kelly % for this strategy if using Frac Kelly
             kelly_pct: float | None = None
