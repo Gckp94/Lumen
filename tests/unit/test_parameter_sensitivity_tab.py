@@ -121,14 +121,17 @@ def test_run_clicked_applies_first_trigger_filter(
 
         tab._on_run_clicked()
 
-        # Verify worker was created with first-trigger-filtered data
+        # Verify worker was created with first_trigger_enabled=True
+        # (First trigger filtering now happens inside the engine, not before)
         MockWorker.assert_called_once()
         call_kwargs = MockWorker.call_args.kwargs
+        
+        # All baseline data should be passed to worker
         passed_df = call_kwargs["baseline_df"]
-
-        # Should have 2 rows (first trigger per ticker-date), not 5
-        assert len(passed_df) == 2, f"Expected 2 first triggers, got {len(passed_df)}"
-        assert set(passed_df["trigger_number"].unique()) == {1}
+        assert len(passed_df) == 5, f"Expected all 5 rows passed to worker, got {len(passed_df)}"
+        
+        # first_trigger_enabled should be True so engine applies filtering internally
+        assert call_kwargs["first_trigger_enabled"] is True
 
 
 def test_run_clicked_uses_all_triggers_when_disabled(
@@ -181,5 +184,8 @@ def test_run_clicked_uses_all_triggers_when_disabled(
         call_kwargs = MockWorker.call_args.kwargs
         passed_df = call_kwargs["baseline_df"]
 
-        # Should have all 5 rows when first trigger is disabled
+        # Should have all 5 rows passed to worker
         assert len(passed_df) == 5, f"Expected all 5 rows, got {len(passed_df)}"
+        
+        # first_trigger_enabled should be False so engine skips filtering
+        assert call_kwargs["first_trigger_enabled"] is False

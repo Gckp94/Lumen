@@ -25,7 +25,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.core.first_trigger import FirstTriggerEngine
 from src.core.parameter_sensitivity import (
     ThresholdAnalysisResult,
     ThresholdAnalysisWorker,
@@ -642,27 +641,6 @@ class ParameterSensitivityTab(QWidget):
             logger.warning("No filters available")
             return
 
-        # Apply first trigger filter if enabled
-        df_for_analysis = self._app_state.baseline_df
-        if (
-            self._app_state.first_trigger_enabled
-            and "trigger_number" in df_for_analysis.columns
-        ):
-            mapping = self._app_state.column_mapping
-            if mapping and mapping.ticker and mapping.date and mapping.time:
-                first_trigger_engine = FirstTriggerEngine()
-                df_for_analysis = first_trigger_engine.apply_filtered(
-                    df_for_analysis,
-                    ticker_col=mapping.ticker,
-                    date_col=mapping.date,
-                    time_col=mapping.time,
-                )
-                logger.debug(
-                    "Parameter sensitivity using first triggers: %d rows from %d baseline",
-                    len(df_for_analysis),
-                    len(self._app_state.baseline_df),
-                )
-
         # Get adjustment params (use defaults if not set)
         from src.core.models import AdjustmentParams
 
@@ -675,13 +653,14 @@ class ParameterSensitivityTab(QWidget):
 
         # Start worker
         self._worker = ThresholdAnalysisWorker(
-            baseline_df=df_for_analysis,
+            baseline_df=self._app_state.baseline_df,
             column_mapping=self._app_state.column_mapping,
             active_filters=self._app_state.filters,
             adjustment_params=adjustment_params,
             filter_index=self._current_filter_index,
             vary_bound=vary_bound,
             step_size=step_size,
+            first_trigger_enabled=self._app_state.first_trigger_enabled,
         )
         self._worker.progress.connect(self._on_progress)
         self._worker.completed.connect(self._on_completed)

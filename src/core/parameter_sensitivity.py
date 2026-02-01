@@ -157,19 +157,22 @@ class ThresholdAnalysisEngine:
         column_mapping: ColumnMapping,
         active_filters: list[FilterCriteria],
         adjustment_params: AdjustmentParams,
+        first_trigger_enabled: bool = False,
     ) -> None:
         """Initialize the threshold analysis engine.
 
         Args:
-            baseline_df: Data BEFORE user filters (but after first-trigger).
+            baseline_df: Data BEFORE user filters.
             column_mapping: ColumnMapping dataclass with column names.
             active_filters: Current active filters.
             adjustment_params: Stop loss and efficiency parameters.
+            first_trigger_enabled: Whether to filter to first triggers after applying filters.
         """
         self._baseline_df = baseline_df
         self._column_mapping = column_mapping
         self._active_filters = active_filters
         self._adjustment_params = adjustment_params
+        self._first_trigger_enabled = first_trigger_enabled
         self._cancelled = False
 
     def cancel(self) -> None:
@@ -252,6 +255,24 @@ class ThresholdAnalysisEngine:
 
             # Apply filters
             filtered_df = filter_engine.apply_filters(self._baseline_df, modified_filters)
+
+            # Apply first trigger filter if enabled (after feature filters)
+            if (
+                self._first_trigger_enabled
+                and "trigger_number" in filtered_df.columns
+                and len(filtered_df) > 0
+            ):
+                mapping = self._column_mapping
+                if mapping and mapping.ticker and mapping.date and mapping.time:
+                    from src.core.first_trigger import FirstTriggerEngine
+                    first_trigger_engine = FirstTriggerEngine()
+                    filtered_df = first_trigger_engine.apply_filtered(
+                        filtered_df,
+                        ticker_col=mapping.ticker,
+                        date_col=mapping.date,
+                        time_col=mapping.time,
+                    )
+
             num_trades = len(filtered_df)
 
             # Calculate metrics
@@ -336,6 +357,7 @@ class ThresholdAnalysisWorker(QThread):
         filter_index: int,
         vary_bound: Literal["min", "max"],
         step_size: float,
+        first_trigger_enabled: bool = False,
     ) -> None:
         """Initialize the worker.
 
@@ -347,6 +369,7 @@ class ThresholdAnalysisWorker(QThread):
             filter_index: Index of filter to vary.
             vary_bound: Which bound to vary.
             step_size: Step size for threshold variation.
+            first_trigger_enabled: Whether to filter to first triggers after applying filters.
         """
         super().__init__()
         self._baseline_df = baseline_df
@@ -356,6 +379,7 @@ class ThresholdAnalysisWorker(QThread):
         self._filter_index = filter_index
         self._vary_bound = vary_bound
         self._step_size = step_size
+        self._first_trigger_enabled = first_trigger_enabled
         self._engine: ThresholdAnalysisEngine | None = None
 
     def run(self) -> None:
@@ -366,6 +390,7 @@ class ThresholdAnalysisWorker(QThread):
                 self._column_mapping,
                 self._active_filters,
                 self._adjustment_params,
+                first_trigger_enabled=self._first_trigger_enabled,
             )
             result = self._engine.analyze(
                 self._filter_index,
