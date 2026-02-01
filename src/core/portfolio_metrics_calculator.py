@@ -798,16 +798,17 @@ class PortfolioMetricsCalculator:
     def calculate_edge_decay(
         self, equity_curve: pd.DataFrame, window: int = 252
     ) -> dict[str, float | pd.Series | None] | None:
-        """Calculate edge decay analysis via rolling Sharpe ratio.
+        """Calculate edge decay analysis via rolling Sharpe ratio and gain metrics.
 
         Compares early period Sharpe to recent Sharpe to detect decay.
+        Also compares early vs recent average and median gain percentages.
 
         Args:
-            equity_curve: Equity curve DataFrame.
+            equity_curve: Equity curve DataFrame with 'equity' column and optional 'gain_pct'.
             window: Rolling window size (default 252 = 1 year).
 
         Returns:
-            Dict with rolling_sharpe_current, rolling_sharpe_early, decay_pct, series.
+            Dict with Sharpe metrics, avg/median gain metrics, or None if insufficient data.
         """
         returns = self._calculate_daily_returns(equity_curve)
 
@@ -828,18 +829,53 @@ class PortfolioMetricsCalculator:
         # Current period: most recent rolling Sharpe
         current_sharpe = float(rolling_sharpe.iloc[-1])
 
-        # Calculate decay percentage
+        # Calculate Sharpe decay percentage
         if early_sharpe != 0:
             decay_pct = ((current_sharpe - early_sharpe) / abs(early_sharpe)) * 100
         else:
             decay_pct = 0.0
 
-        return {
+        result: dict[str, float | pd.Series | None] = {
             "rolling_sharpe_current": current_sharpe,
             "rolling_sharpe_early": early_sharpe,
             "decay_pct": decay_pct,
             "rolling_sharpe_series": rolling_sharpe,
         }
+
+        # Calculate avg/median gain metrics if gain_pct column exists
+        if "gain_pct" in equity_curve.columns:
+            gains = equity_curve["gain_pct"].astype(float)
+            n = len(gains)
+
+            if n >= window * 2:
+                # Split into early and recent halves based on window
+                early_gains = gains.iloc[:window]
+                recent_gains = gains.iloc[-window:]
+
+                avg_early = float(early_gains.mean())
+                avg_recent = float(recent_gains.mean())
+                median_early = float(early_gains.median())
+                median_recent = float(recent_gains.median())
+
+                # Calculate change percentages
+                if avg_early != 0:
+                    avg_change_pct = ((avg_recent - avg_early) / abs(avg_early)) * 100
+                else:
+                    avg_change_pct = 0.0
+
+                if median_early != 0:
+                    median_change_pct = ((median_recent - median_early) / abs(median_early)) * 100
+                else:
+                    median_change_pct = 0.0
+
+                result["avg_gain_early"] = avg_early
+                result["avg_gain_recent"] = avg_recent
+                result["avg_gain_change_pct"] = avg_change_pct
+                result["median_gain_early"] = median_early
+                result["median_gain_recent"] = median_recent
+                result["median_gain_change_pct"] = median_change_pct
+
+        return result
 
     def calculate_ticker_overlap(
         self, baseline_df: pd.DataFrame, combined_df: pd.DataFrame

@@ -732,6 +732,52 @@ class TestPortfolioMetricsCalculator:
         assert result["rolling_sharpe_early"] > result["rolling_sharpe_current"]
         assert result["decay_pct"] < 0  # Negative = decay
 
+    def test_calculate_edge_decay_gain_metrics(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Edge decay analysis includes avg and median gain change metrics."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(504)]  # 2 years
+        np.random.seed(42)
+
+        # First year: high gains, second year: lower gains (decay)
+        gains_y1 = np.random.normal(0.02, 0.03, 252)  # 2% avg gain
+        gains_y2 = np.random.normal(0.005, 0.03, 252)  # 0.5% avg gain
+        gains = np.concatenate([gains_y1, gains_y2])
+
+        # Convert gains to equity curve
+        equities = [100_000]
+        pnls = []
+        for g in gains:
+            pnl = equities[-1] * g
+            pnls.append(pnl)
+            equities.append(equities[-1] + pnl)
+
+        df = pd.DataFrame({
+            "date": dates,
+            "gain_pct": gains * 100,  # Store as percentage
+            "equity": equities[1:],
+            "pnl": pnls,
+            "peak": np.maximum.accumulate(equities[1:]),
+            "drawdown": [0] * 504,
+            "win": [g > 0 for g in gains],
+        })
+
+        result = calculator.calculate_edge_decay(df, window=252)
+
+        assert result is not None
+        # New keys must exist
+        assert "avg_gain_early" in result
+        assert "avg_gain_recent" in result
+        assert "avg_gain_change_pct" in result
+        assert "median_gain_early" in result
+        assert "median_gain_recent" in result
+        assert "median_gain_change_pct" in result
+        # Early period should have higher gains than recent
+        assert result["avg_gain_early"] > result["avg_gain_recent"]
+        assert result["avg_gain_change_pct"] < 0  # Negative = decay
+        assert result["median_gain_early"] > result["median_gain_recent"]
+        assert result["median_gain_change_pct"] < 0  # Negative = decay
+
     def test_calculate_ticker_overlap(
         self, calculator: PortfolioMetricsCalculator
     ) -> None:
