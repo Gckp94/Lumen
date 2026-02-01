@@ -7,7 +7,6 @@ import pytest
 
 from src.core.exceptions import ExportError
 from src.core.export_manager import ExportManager
-from src.core.models import FilterCriteria
 
 
 class TestExportManagerToCSV:
@@ -19,8 +18,7 @@ class TestExportManagerToCSV:
         path = tmp_path / "export.csv"
         exporter.to_csv(sample_trades, path)
 
-        # Skip comment lines and read CSV
-        result = pd.read_csv(path, comment="#")
+        result = pd.read_csv(path, encoding="utf-8-sig")
         assert set(result.columns) == set(sample_trades.columns)
 
     def test_export_csv_row_count(self, sample_trades: pd.DataFrame, tmp_path: Path) -> None:
@@ -29,112 +27,30 @@ class TestExportManagerToCSV:
         path = tmp_path / "export.csv"
         exporter.to_csv(sample_trades, path)
 
-        result = pd.read_csv(path, comment="#")
+        result = pd.read_csv(path, encoding="utf-8-sig")
         assert len(result) == len(sample_trades)
-
-    def test_export_csv_metadata_header(
-        self, sample_trades: pd.DataFrame, tmp_path: Path
-    ) -> None:
-        """Export includes metadata comment header."""
-        exporter = ExportManager()
-        path = tmp_path / "export.csv"
-        filters = [
-            FilterCriteria(column="gain_pct", operator="between", min_val=0, max_val=5)
-        ]
-        exporter.to_csv(sample_trades, path, filters=filters, first_trigger_enabled=True)
-
-        with open(path) as f:
-            header = f.readline()
-
-        assert header.startswith("# Lumen Export")
-
-    def test_export_csv_metadata_includes_timestamp(
-        self, sample_trades: pd.DataFrame, tmp_path: Path
-    ) -> None:
-        """Metadata includes timestamp in expected format."""
-        exporter = ExportManager()
-        path = tmp_path / "export.csv"
-        exporter.to_csv(sample_trades, path)
-
-        with open(path) as f:
-            header = f.readline()
-
-        # Check for date-like pattern in header
-        assert "Lumen Export -" in header
-        # Should have format like "2024-01-01 12:00:00"
-        import re
-
-        assert re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", header)
-
-    def test_export_csv_filter_summary(
-        self, sample_trades: pd.DataFrame, tmp_path: Path
-    ) -> None:
-        """Metadata includes filter summary."""
-        exporter = ExportManager()
-        path = tmp_path / "export.csv"
-        filters = [
-            FilterCriteria(column="gain_pct", operator="between", min_val=0, max_val=5)
-        ]
-        exporter.to_csv(sample_trades, path, filters=filters)
-
-        with open(path) as f:
-            content = f.read()
-
-        assert "gain_pct" in content
-        assert "between" in content
-
-    def test_export_csv_no_filters_metadata(
-        self, sample_trades: pd.DataFrame, tmp_path: Path
-    ) -> None:
-        """Metadata shows 'Filters: None' when no filters applied."""
-        exporter = ExportManager()
-        path = tmp_path / "export.csv"
-        exporter.to_csv(sample_trades, path)
-
-        with open(path) as f:
-            content = f.read()
-
-        assert "Filters: None" in content
 
     def test_export_csv_first_trigger_on(
         self, sample_trades: pd.DataFrame, tmp_path: Path
     ) -> None:
-        """Metadata shows 'First Trigger: ON' when enabled."""
+        """Export works when first_trigger_enabled=True."""
         exporter = ExportManager()
         path = tmp_path / "export.csv"
         exporter.to_csv(sample_trades, path, first_trigger_enabled=True)
 
-        with open(path) as f:
-            content = f.read()
-
-        assert "First Trigger: ON" in content
+        result = pd.read_csv(path, encoding="utf-8-sig")
+        assert len(result) == len(sample_trades)
 
     def test_export_csv_first_trigger_off(
         self, sample_trades: pd.DataFrame, tmp_path: Path
     ) -> None:
-        """Metadata shows 'First Trigger: OFF' when disabled."""
+        """Export works when first_trigger_enabled=False."""
         exporter = ExportManager()
         path = tmp_path / "export.csv"
         exporter.to_csv(sample_trades, path, first_trigger_enabled=False)
 
-        with open(path) as f:
-            content = f.read()
-
-        assert "First Trigger: OFF" in content
-
-    def test_export_csv_total_rows_metadata(
-        self, sample_trades: pd.DataFrame, tmp_path: Path
-    ) -> None:
-        """Metadata shows row count with total when provided."""
-        exporter = ExportManager()
-        path = tmp_path / "export.csv"
-        exporter.to_csv(sample_trades, path, total_rows=100)
-
-        with open(path) as f:
-            content = f.read()
-
-        # Should show "Rows: 5 of 100"
-        assert "of 100" in content
+        result = pd.read_csv(path, encoding="utf-8-sig")
+        assert len(result) == len(sample_trades)
 
     def test_export_csv_empty_df(self, tmp_path: Path) -> None:
         """Empty DataFrame exports with header only."""
@@ -143,7 +59,7 @@ class TestExportManagerToCSV:
         empty = pd.DataFrame(columns=["ticker", "date", "gain_pct"])
         exporter.to_csv(empty, path)
 
-        result = pd.read_csv(path, comment="#")
+        result = pd.read_csv(path, encoding="utf-8-sig")
         assert len(result) == 0
         assert list(result.columns) == ["ticker", "date", "gain_pct"]
 
@@ -157,27 +73,10 @@ class TestExportManagerToCSV:
         })
         exporter.to_csv(df, path)
 
-        result = pd.read_csv(path, comment="#")
+        result = pd.read_csv(path, encoding="utf-8-sig")
         assert len(result) == 3
         assert result.iloc[0]["ticker"] == "ABC,DEF"
         assert result.iloc[1]["ticker"] == 'GHI"JKL'
-
-    def test_export_csv_multiple_filters_metadata(self, tmp_path: Path) -> None:
-        """Metadata includes all filter summaries."""
-        exporter = ExportManager()
-        path = tmp_path / "export.csv"
-        df = pd.DataFrame({"gain_pct": [1, 2, 3], "volume": [100, 200, 300]})
-        filters = [
-            FilterCriteria(column="gain_pct", operator="between", min_val=0, max_val=5),
-            FilterCriteria(column="volume", operator="not_between", min_val=50, max_val=150),
-        ]
-        exporter.to_csv(df, path, filters=filters)
-
-        with open(path) as f:
-            content = f.read()
-
-        assert "gain_pct between" in content
-        assert "volume not_between" in content
 
     def test_export_csv_no_comment_lines(
         self, sample_trades: pd.DataFrame, tmp_path: Path
