@@ -7,6 +7,7 @@ import pytest
 
 from src.core.exceptions import ExportError
 from src.core.export_manager import ExportManager
+from src.core.models import FilterCriteria
 
 
 class TestExportManagerToCSV:
@@ -376,3 +377,53 @@ class TestExportManagerChartsZIP:
             assert "flat_stake_pnl.png" in names
             assert "kelly_pnl.png" in names
             assert "equity_curve.png" in names
+
+
+class TestExportManagerToExcel:
+    """Tests for ExportManager.to_excel() method."""
+
+    def test_export_excel_creates_file(
+        self, sample_trades: pd.DataFrame, tmp_path: Path
+    ) -> None:
+        """Excel export creates valid .xlsx file."""
+        exporter = ExportManager()
+        path = tmp_path / "export.xlsx"
+        exporter.to_excel(sample_trades, path)
+
+        assert path.exists()
+        assert path.suffix == ".xlsx"
+
+    def test_export_excel_row_count(
+        self, sample_trades: pd.DataFrame, tmp_path: Path
+    ) -> None:
+        """Excel export includes correct number of rows."""
+        exporter = ExportManager()
+        path = tmp_path / "export.xlsx"
+        exporter.to_excel(sample_trades, path)
+
+        result = pd.read_excel(path, sheet_name="Data")
+        assert len(result) == len(sample_trades)
+
+    def test_export_excel_metadata_in_separate_sheet(
+        self, sample_trades: pd.DataFrame, tmp_path: Path
+    ) -> None:
+        """Excel export includes metadata in separate Metadata sheet."""
+        exporter = ExportManager()
+        path = tmp_path / "export.xlsx"
+        filters = [
+            FilterCriteria(column="gain_pct", operator="between", min_val=0, max_val=5)
+        ]
+        exporter.to_excel(sample_trades, path, filters=filters)
+
+        # Read both sheets
+        data_df = pd.read_excel(path, sheet_name="Data")
+        metadata_df = pd.read_excel(path, sheet_name="Metadata")
+
+        # Data sheet has actual data
+        assert len(data_df) == len(sample_trades)
+
+        # Metadata sheet has export info
+        assert "Export Info" in metadata_df.columns
+        metadata_text = "\n".join(metadata_df["Export Info"].astype(str))
+        assert "Lumen Export" in metadata_text
+        assert "gain_pct" in metadata_text
