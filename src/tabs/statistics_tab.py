@@ -871,7 +871,7 @@ class StatisticsTab(QWidget):
         # Calculate and populate Scaling table
         try:
             scale_out_pct = self._scale_out_spin.value() / 100.0
-            scaling_df = calculate_scaling_table(df, mapping, scale_out_pct)
+            scaling_df = calculate_scaling_table(df, mapping, scale_out_pct, params)
             self._populate_table(self._scaling_table, scaling_df)
         except Exception as e:
             logger.warning(f"Error calculating Scaling table: {e}")
@@ -923,7 +923,8 @@ class StatisticsTab(QWidget):
 
         try:
             scale_out_pct = self._scale_out_spin.value() / 100.0
-            scaling_df = calculate_scaling_table(df, mapping, scale_out_pct)
+            adjustment_params = self._app_state.adjustment_params
+            scaling_df = calculate_scaling_table(df, mapping, scale_out_pct, adjustment_params)
             self._populate_table(self._scaling_table, scaling_df)
         except Exception as e:
             logger.warning(f"Error refreshing Scaling table: {e}")
