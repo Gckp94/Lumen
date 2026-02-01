@@ -64,6 +64,7 @@ class StrategyTableWidget(QTableWidget):
 
     strategy_changed = pyqtSignal()
     load_data_requested = pyqtSignal(str)  # Emits strategy name
+    strategy_name_changed = pyqtSignal(str, str)  # (old_name, new_name)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         """Initialize the strategy table.
@@ -403,15 +404,24 @@ class StrategyTableWidget(QTableWidget):
         Returns:
             List of strategy configurations with current values.
         """
+        # Collect name changes first to avoid issues if signal handlers modify the table
+        name_changes: list[tuple[str, str]] = []
+
         # Update names from table items (editable cells)
         for row in range(self.rowCount()):
             name_item = self.item(row, self.COL_NAME)
             if name_item:
                 current_name = name_item.text()
-                if current_name != self._strategies[row].name:
+                old_name = self._strategies[row].name
+                if current_name != old_name:
                     self._strategies[row] = replace(
                         self._strategies[row], name=current_name
                     )
+                    name_changes.append((old_name, current_name))
+
+        # Emit signals after loop completes (safe from handler modifications)
+        for old_name, new_name in name_changes:
+            self.strategy_name_changed.emit(old_name, new_name)
 
         return list(self._strategies)
 
