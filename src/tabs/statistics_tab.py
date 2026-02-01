@@ -444,6 +444,22 @@ class StatisticsTab(QWidget):
         self._scaling_table = self._create_table()
         layout.addWidget(self._scaling_table)
 
+        # Message label for missing timing columns (scaling)
+        self._scaling_timing_msg = QLabel("MAE/MFE Time Mapping is required")
+        self._scaling_timing_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._scaling_timing_msg.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_SECONDARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                padding: 40px;
+            }}
+        """
+        )
+        self._scaling_timing_msg.hide()
+        layout.addWidget(self._scaling_timing_msg)
+
         # Spacer between sections
         layout.addSpacing(Spacing.LG)
 
@@ -491,6 +507,22 @@ class StatisticsTab(QWidget):
         # Cover table (Partial Cover %)
         self._cover_table = self._create_table()
         layout.addWidget(self._cover_table)
+
+        # Message label for missing timing columns (cover)
+        self._cover_timing_msg = QLabel("MAE/MFE Time Mapping is required")
+        self._cover_timing_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._cover_timing_msg.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_SECONDARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                padding: 40px;
+            }}
+        """
+        )
+        self._cover_timing_msg.hide()
+        layout.addWidget(self._cover_timing_msg)
 
         return widget
 
@@ -812,6 +844,30 @@ class StatisticsTab(QWidget):
             return self._app_state.filtered_df
         return self._app_state.baseline_df
 
+    def _has_timing_columns(self, df: pd.DataFrame | None = None) -> bool:
+        """Check if timing columns (mae_time, mfe_time) are mapped and available.
+
+        Args:
+            df: DataFrame to check. If None, uses current data.
+
+        Returns:
+            True if both timing columns are mapped and present in data.
+        """
+        mapping = self._app_state.column_mapping
+        if mapping is None:
+            return False
+
+        if mapping.mae_time is None or mapping.mfe_time is None:
+            return False
+
+        if df is None:
+            df = self._get_current_df()
+
+        if df is None or df.empty:
+            return False
+
+        return mapping.mae_time in df.columns and mapping.mfe_time in df.columns
+
     def _update_all_tables(self, df: pd.DataFrame) -> None:
         """Update all 5 tables with the given DataFrame.
 
@@ -868,23 +924,38 @@ class StatisticsTab(QWidget):
             logger.warning(f"Error calculating Offset table: {e}")
             self._offset_table.setRowCount(0)
 
-        # Calculate and populate Scaling table
-        try:
-            scale_out_pct = self._scale_out_spin.value() / 100.0
-            scaling_df = calculate_scaling_table(df, mapping, scale_out_pct, params)
-            self._populate_table(self._scaling_table, scaling_df)
-        except Exception as e:
-            logger.warning(f"Error calculating Scaling table: {e}")
-            self._scaling_table.setRowCount(0)
+        # Check if timing columns are available for Scaling/Cover tables
+        has_timing = self._has_timing_columns(df)
 
-        # Calculate and populate Cover table
-        try:
-            cover_pct = self._cover_spin.value() / 100.0
-            cover_df = calculate_partial_cover_table(df, mapping, cover_pct)
-            self._populate_table(self._cover_table, cover_df)
-        except Exception as e:
-            logger.warning(f"Error calculating Cover table: {e}")
-            self._cover_table.setRowCount(0)
+        # Calculate and populate Scaling table (requires timing columns)
+        if has_timing:
+            self._scaling_timing_msg.hide()
+            self._scaling_table.show()
+            try:
+                scale_out_pct = self._scale_out_spin.value() / 100.0
+                scaling_df = calculate_scaling_table(df, mapping, scale_out_pct, params)
+                self._populate_table(self._scaling_table, scaling_df)
+            except Exception as e:
+                logger.warning(f"Error calculating Scaling table: {e}")
+                self._scaling_table.setRowCount(0)
+        else:
+            self._scaling_table.hide()
+            self._scaling_timing_msg.show()
+
+        # Calculate and populate Cover table (requires timing columns)
+        if has_timing:
+            self._cover_timing_msg.hide()
+            self._cover_table.show()
+            try:
+                cover_pct = self._cover_spin.value() / 100.0
+                cover_df = calculate_partial_cover_table(df, mapping, cover_pct)
+                self._populate_table(self._cover_table, cover_df)
+            except Exception as e:
+                logger.warning(f"Error calculating Cover table: {e}")
+                self._cover_table.setRowCount(0)
+        else:
+            self._cover_table.hide()
+            self._cover_timing_msg.show()
 
         # Profit/Loss Chance tables
         try:
@@ -919,6 +990,15 @@ class StatisticsTab(QWidget):
         if df is None or df.empty:
             return
 
+        # Check if timing columns are available
+        if not self._has_timing_columns(df):
+            self._scaling_table.hide()
+            self._scaling_timing_msg.show()
+            return
+
+        self._scaling_timing_msg.hide()
+        self._scaling_table.show()
+
         mapping = self._app_state.column_mapping
 
         try:
@@ -939,6 +1019,15 @@ class StatisticsTab(QWidget):
 
         if df is None or df.empty:
             return
+
+        # Check if timing columns are available
+        if not self._has_timing_columns(df):
+            self._cover_table.hide()
+            self._cover_timing_msg.show()
+            return
+
+        self._cover_timing_msg.hide()
+        self._cover_table.show()
 
         try:
             cover_pct = self._cover_spin.value() / 100.0
@@ -965,6 +1054,11 @@ class StatisticsTab(QWidget):
         self._profit_chance_table.setColumnCount(0)
         self._loss_chance_table.setRowCount(0)
         self._loss_chance_table.setColumnCount(0)
+        # Reset scaling/cover visibility
+        self._scaling_timing_msg.hide()
+        self._scaling_table.show()
+        self._cover_timing_msg.hide()
+        self._cover_table.show()
 
     def _populate_table(self, table: QTableWidget, df: pd.DataFrame) -> None:
         """Populate a QTableWidget from a DataFrame.
