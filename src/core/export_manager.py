@@ -41,31 +41,30 @@ class ExportManager:
         first_trigger_enabled: bool = False,
         total_rows: int | None = None,
     ) -> None:
-        """Export to CSV with metadata header.
+        """Export to CSV with UTF-8 BOM for Excel compatibility.
 
         Args:
             df: DataFrame to export
             path: Output file path
-            filters: Active filters for metadata (optional)
-            first_trigger_enabled: First trigger toggle state
-            total_rows: Total rows before filtering (for metadata)
+            filters: Active filters (unused, kept for API compatibility)
+            first_trigger_enabled: First trigger toggle state (unused)
+            total_rows: Total rows before filtering (unused)
+
+        Note:
+            Metadata is not included in CSV exports for Excel compatibility.
+            Use XLSX export if metadata is needed.
 
         Raises:
             ExportError: If export fails
         """
         try:
-            # Build metadata header
-            metadata = self._build_metadata(
-                df, filters, first_trigger_enabled, total_rows
-            )
-
-            # Write metadata as comment lines
-            with open(path, "w", encoding="utf-8", newline="") as f:
-                for line in metadata:
-                    f.write(f"# {line}\n")
-
-                # Append DataFrame
-                df.to_csv(f, index=False)
+            # Write with UTF-8 BOM for Excel compatibility
+            with open(path, "wb") as f:
+                # Write UTF-8 BOM
+                f.write(b"\xef\xbb\xbf")
+                # Write DataFrame as CSV
+                csv_bytes = df.to_csv(index=False).encode("utf-8")
+                f.write(csv_bytes)
 
             logger.info("Exported %d rows to %s", len(df), path)
 
