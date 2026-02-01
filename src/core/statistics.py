@@ -804,10 +804,40 @@ def _calculate_scaling_row(
     # Full hold returns (in decimal, e.g., 0.10 = 10%)
     full_hold_returns = df["adjusted_gain_pct"].copy()
 
-    # Calculate blended returns for each trade
-    # If mfe_pct >= target: blended = scale_out_pct * (target/100) + (1-scale_out_pct) * full_hold
-    # If mfe_pct < target: blended = full_hold (couldn't reach target, so no scaling)
-    target_reached_mask = df[mfe_col] >= target
+    # Determine if timing-aware logic should be used
+    use_timing = (
+        mapping is not None
+        and adjustment_params is not None
+        and mapping.mfe_time is not None
+        and mapping.mae_time is not None
+        and mapping.mfe_time in df.columns
+        and mapping.mae_time in df.columns
+    )
+
+    # Calculate target reached mask
+    mfe_reached_mask = df[mfe_col] >= target
+
+    if use_timing:
+        # Timing-aware logic:
+        # Target captured if:
+        # 1. MFE >= target AND
+        # 2. (mfe_time < mae_time OR mae_pct < stop_loss)
+        mfe_time = df[mapping.mfe_time]
+        mae_time = df[mapping.mae_time]
+        mae_pct = df[mae_col]
+        stop_loss = adjustment_params.stop_loss
+
+        # MFE happened before MAE peaked
+        mfe_before_mae = mfe_time < mae_time
+        # MAE never exceeded stop loss
+        mae_below_stop = mae_pct < stop_loss
+
+        # Target captured = MFE reached AND (timing favorable OR no stop hit)
+        target_reached_mask = mfe_reached_mask & (mfe_before_mae | mae_below_stop)
+    else:
+        # Original logic: just check if MFE >= target
+        target_reached_mask = mfe_reached_mask
+
     reached_count = target_reached_mask.sum()
 
     # Calculate blended returns

@@ -1983,3 +1983,91 @@ class TestCalculateLossChanceTable:
         # 40% bucket is the last one, should have 0% Chance of Next
         row_40 = result[result["Loss Reached %"] == 40].iloc[0]
         assert row_40["Chance of Next %"] == 0.0
+
+
+# =============================================================================
+# Tests for Scaling Table Timing-Aware Logic
+# =============================================================================
+
+
+def test_scaling_row_timing_mfe_before_mae_captures_target():
+    """When MFE time < MAE time, target should be captured."""
+    df = pd.DataFrame({
+        "adjusted_gain_pct": [0.10],  # 10% final gain
+        "MFE%": [20.0],  # Hit 20% MFE
+        "MAE%": [15.0],  # Hit 15% MAE (would trigger 10% stop)
+        "MFE_Time": [pd.Timestamp("2024-01-01 09:35:00")],
+        "MAE_Time": [pd.Timestamp("2024-01-01 10:15:00")],
+    })
+    mapping = ColumnMapping(
+        ticker="Ticker", date="Date", time="Time",
+        gain_pct="Gain%", mae_pct="MAE%", mfe_pct="MFE%",
+        mae_time="MAE_Time", mfe_time="MFE_Time",
+    )
+    params = AdjustmentParams(stop_loss=10.0, efficiency=5.0)
+
+    result = calculate_scaling_table(df, mapping, 0.5, params)
+    row_10 = result[result["Partial Target %"] == 10].iloc[0]
+    assert row_10["% of Trades"] == 100.0  # Target captured
+
+
+def test_scaling_row_timing_mae_before_mfe_no_capture():
+    """When MAE time < MFE time and MAE > stop, target should NOT be captured."""
+    df = pd.DataFrame({
+        "adjusted_gain_pct": [0.10],  # 10% final gain
+        "MFE%": [20.0],  # Hit 20% MFE
+        "MAE%": [15.0],  # Hit 15% MAE (exceeds 10% stop)
+        "MFE_Time": [pd.Timestamp("2024-01-01 10:15:00")],
+        "MAE_Time": [pd.Timestamp("2024-01-01 09:35:00")],  # MAE first
+    })
+    mapping = ColumnMapping(
+        ticker="Ticker", date="Date", time="Time",
+        gain_pct="Gain%", mae_pct="MAE%", mfe_pct="MFE%",
+        mae_time="MAE_Time", mfe_time="MFE_Time",
+    )
+    params = AdjustmentParams(stop_loss=10.0, efficiency=5.0)
+
+    result = calculate_scaling_table(df, mapping, 0.5, params)
+    row_10 = result[result["Partial Target %"] == 10].iloc[0]
+    assert row_10["% of Trades"] == 0.0  # NOT captured (stopped first)
+
+
+def test_scaling_row_timing_mae_before_mfe_but_below_stop():
+    """When MAE time < MFE time but MAE < stop, target SHOULD be captured."""
+    df = pd.DataFrame({
+        "adjusted_gain_pct": [0.10],  # 10% final gain
+        "MFE%": [20.0],  # Hit 20% MFE
+        "MAE%": [5.0],   # Only 5% MAE (below 10% stop)
+        "MFE_Time": [pd.Timestamp("2024-01-01 10:15:00")],
+        "MAE_Time": [pd.Timestamp("2024-01-01 09:35:00")],  # MAE first but small
+    })
+    mapping = ColumnMapping(
+        ticker="Ticker", date="Date", time="Time",
+        gain_pct="Gain%", mae_pct="MAE%", mfe_pct="MFE%",
+        mae_time="MAE_Time", mfe_time="MFE_Time",
+    )
+    params = AdjustmentParams(stop_loss=10.0, efficiency=5.0)
+
+    result = calculate_scaling_table(df, mapping, 0.5, params)
+    row_10 = result[result["Partial Target %"] == 10].iloc[0]
+    assert row_10["% of Trades"] == 100.0  # Target captured (MAE was below stop)
+
+
+def test_scaling_row_no_timing_columns_uses_original_logic():
+    """Without timing columns, should use original MFE-only logic."""
+    df = pd.DataFrame({
+        "adjusted_gain_pct": [0.10],
+        "MFE%": [20.0],
+        "MAE%": [15.0],
+        # No MFE_Time or MAE_Time columns
+    })
+    mapping = ColumnMapping(
+        ticker="Ticker", date="Date", time="Time",
+        gain_pct="Gain%", mae_pct="MAE%", mfe_pct="MFE%",
+        # mae_time and mfe_time are None (not provided)
+    )
+    params = AdjustmentParams(stop_loss=10.0, efficiency=5.0)
+
+    result = calculate_scaling_table(df, mapping, 0.5, params)
+    row_10 = result[result["Partial Target %"] == 10].iloc[0]
+    assert row_10["% of Trades"] == 100.0  # Original logic: MFE >= 10, captured
