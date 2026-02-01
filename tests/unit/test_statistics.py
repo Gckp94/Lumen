@@ -1547,6 +1547,24 @@ class TestScalingEgCalculation:
             assert full_hold_eg < 40, f"Full Hold EG% {full_hold_eg} too high"
 
 
+def test_calculate_scaling_table_accepts_adjustment_params():
+    """Scaling table calculation should accept AdjustmentParams."""
+    df = pd.DataFrame({
+        "adjusted_gain_pct": [0.10, -0.05, 0.20],
+        "MFE%": [15.0, 8.0, 25.0],
+        "MAE%": [5.0, 12.0, 3.0],
+    })
+    mapping = ColumnMapping(
+        ticker="Ticker", date="Date", time="Time",
+        gain_pct="Gain%", mae_pct="MAE%", mfe_pct="MFE%",
+    )
+    params = AdjustmentParams(stop_loss=10.0, efficiency=5.0)
+
+    # Should not raise - signature accepts params
+    result = calculate_scaling_table(df, mapping, 0.5, params)
+    assert isinstance(result, pd.DataFrame)
+
+
 class TestPartialCoverAnalysis:
     """Tests for partial cover analysis calculations."""
 

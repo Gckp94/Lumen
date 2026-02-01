@@ -724,6 +724,7 @@ def calculate_scaling_table(
     df: pd.DataFrame,
     mapping: ColumnMapping,
     scale_out_pct: float,
+    adjustment_params: AdjustmentParams | None = None,
 ) -> pd.DataFrame:
     """Compare blended partial-profit returns vs full hold.
 
@@ -733,6 +734,7 @@ def calculate_scaling_table(
         df: Trade data with adjusted_gain_pct and mfe_pct columns.
         mapping: Column mapping configuration.
         scale_out_pct: Fraction of position to scale out (0-1, e.g., 0.5 for 50%).
+        adjustment_params: Optional adjustment parameters for timing-aware logic.
 
     Returns:
         DataFrame with rows for each target level comparing blended vs full hold.
@@ -744,9 +746,12 @@ def calculate_scaling_table(
     """
     rows = []
     mfe_col = mapping.mfe_pct
+    mae_col = mapping.mae_pct
 
     for target in SCALING_TARGET_LEVELS:
-        row = _calculate_scaling_row(df, mfe_col, target, scale_out_pct)
+        row = _calculate_scaling_row(
+            df, mfe_col, mae_col, target, scale_out_pct, mapping, adjustment_params
+        )
         rows.append(row)
 
     return pd.DataFrame(rows)
@@ -755,16 +760,22 @@ def calculate_scaling_table(
 def _calculate_scaling_row(
     df: pd.DataFrame,
     mfe_col: str,
+    mae_col: str,
     target: int,
     scale_out_pct: float,
+    mapping: ColumnMapping | None = None,
+    adjustment_params: AdjustmentParams | None = None,
 ) -> dict:
     """Calculate metrics for a single scaling target level.
 
     Args:
         df: Trade data DataFrame.
         mfe_col: Column name for MFE percentage (percentage points).
+        mae_col: Column name for MAE percentage (percentage points).
         target: Target level for partial profit (e.g., 10 for 10%).
         scale_out_pct: Fraction of position to scale out (0-1).
+        mapping: Optional column mapping for timing columns.
+        adjustment_params: Optional adjustment parameters for timing-aware logic.
 
     Returns:
         Dictionary with metrics for this target level.
