@@ -651,16 +651,26 @@ class ParameterSensitivityTab(QWidget):
         self._progress.setValue(0)
         self._run_btn.setEnabled(False)
 
+        # Use filtered_df as baseline to respect date/time range filters from Feature Explorer
+        # filtered_df already has: date range + time range + feature filters + first trigger applied
+        # This ensures the baseline row matches Feature Explorer's metrics exactly
+        source_df = (
+            self._app_state.filtered_df
+            if self._app_state.filtered_df is not None
+            else self._app_state.baseline_df
+        )
+
         # Start worker
+        # Note: first_trigger_enabled=False since filtered_df already has first trigger applied
         self._worker = ThresholdAnalysisWorker(
-            baseline_df=self._app_state.baseline_df,
+            baseline_df=source_df,
             column_mapping=self._app_state.column_mapping,
             active_filters=self._app_state.filters,
             adjustment_params=adjustment_params,
             filter_index=self._current_filter_index,
             vary_bound=vary_bound,
             step_size=step_size,
-            first_trigger_enabled=self._app_state.first_trigger_enabled,
+            first_trigger_enabled=False,
         )
         self._worker.progress.connect(self._on_progress)
         self._worker.completed.connect(self._on_completed)

@@ -74,10 +74,10 @@ def mock_app_state():
     return state
 
 
-def test_run_clicked_applies_first_trigger_filter(
+def test_run_clicked_uses_filtered_df_with_first_triggers(
     qtbot, mock_app_state, qapp
 ):
-    """Verify _on_run_clicked applies first trigger filtering when enabled."""
+    """Verify _on_run_clicked uses filtered_df which has first triggers applied."""
     from unittest.mock import patch, MagicMock
     from src.tabs.parameter_sensitivity import ParameterSensitivityTab
     from src.core.models import ColumnMapping, FilterCriteria
@@ -92,7 +92,11 @@ def test_run_clicked_applies_first_trigger_filter(
         "gap_pct": [3.0, 3.0, 3.0, 4.0, 4.0],
     })
 
+    # Create filtered_df simulating Feature Explorer's output (first triggers only)
+    filtered_df = df[df["trigger_number"] == 1].copy()
+    
     mock_app_state.baseline_df = df
+    mock_app_state.filtered_df = filtered_df  # Already has first triggers + filters applied
     mock_app_state.first_trigger_enabled = True
     mock_app_state.column_mapping = ColumnMapping(
         ticker="ticker",
@@ -121,23 +125,22 @@ def test_run_clicked_applies_first_trigger_filter(
 
         tab._on_run_clicked()
 
-        # Verify worker was created with first_trigger_enabled=True
-        # (First trigger filtering now happens inside the engine, not before)
+        # Verify worker uses filtered_df (which has first triggers already applied)
         MockWorker.assert_called_once()
         call_kwargs = MockWorker.call_args.kwargs
         
-        # All baseline data should be passed to worker
+        # Should use filtered_df (2 rows = first triggers only)
         passed_df = call_kwargs["baseline_df"]
-        assert len(passed_df) == 5, f"Expected all 5 rows passed to worker, got {len(passed_df)}"
+        assert len(passed_df) == 2, f"Expected filtered_df with 2 rows, got {len(passed_df)}"
         
-        # first_trigger_enabled should be True so engine applies filtering internally
-        assert call_kwargs["first_trigger_enabled"] is True
+        # first_trigger_enabled should be False since filtered_df already has it applied
+        assert call_kwargs["first_trigger_enabled"] is False
 
 
-def test_run_clicked_uses_all_triggers_when_disabled(
+def test_run_clicked_uses_filtered_df(
     qtbot, mock_app_state, qapp
 ):
-    """Verify _on_run_clicked uses all data when first_trigger_enabled is False."""
+    """Verify _on_run_clicked uses filtered_df to respect date/time range filters."""
     from unittest.mock import patch, MagicMock
     from src.tabs.parameter_sensitivity import ParameterSensitivityTab
     from src.core.models import ColumnMapping, FilterCriteria
@@ -151,8 +154,12 @@ def test_run_clicked_uses_all_triggers_when_disabled(
         "gain_pct": [0.05, 0.03, 0.02, 0.04, 0.01],
         "gap_pct": [3.0, 3.0, 3.0, 4.0, 4.0],
     })
+    
+    # When first_trigger_enabled is False, filtered_df has all triggers
+    filtered_df = df.copy()
 
     mock_app_state.baseline_df = df
+    mock_app_state.filtered_df = filtered_df
     mock_app_state.first_trigger_enabled = False  # Disabled
     mock_app_state.column_mapping = ColumnMapping(
         ticker="ticker",
@@ -184,8 +191,8 @@ def test_run_clicked_uses_all_triggers_when_disabled(
         call_kwargs = MockWorker.call_args.kwargs
         passed_df = call_kwargs["baseline_df"]
 
-        # Should have all 5 rows passed to worker
-        assert len(passed_df) == 5, f"Expected all 5 rows, got {len(passed_df)}"
+        # Should use filtered_df (all 5 rows when first trigger disabled)
+        assert len(passed_df) == 5, f"Expected filtered_df with 5 rows, got {len(passed_df)}"
         
-        # first_trigger_enabled should be False so engine skips filtering
+        # first_trigger_enabled should be False (filtered_df already processed)
         assert call_kwargs["first_trigger_enabled"] is False
