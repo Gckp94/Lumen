@@ -192,6 +192,7 @@ class PortfolioOverviewTab(QWidget):
         """Connect widget signals to handlers."""
         self._add_strategy_btn.clicked.connect(self._on_add_strategy)
         self._strategy_table.strategy_changed.connect(self._schedule_recalculation)
+        self._strategy_table.strategy_name_changed.connect(self._on_strategy_name_changed)
         self._account_start_spin.valueChanged.connect(self._schedule_recalculation)
 
     def _load_saved_config(self) -> None:
@@ -278,6 +279,22 @@ class PortfolioOverviewTab(QWidget):
         """Schedule a recalculation with debouncing."""
         self._recalc_timer.start(RECALC_DEBOUNCE_MS)
 
+    def _on_strategy_name_changed(self, old_name: str, new_name: str) -> None:
+        """Handle strategy name change by updating _strategy_data key.
+
+        Args:
+            old_name: The previous strategy name.
+            new_name: The new strategy name.
+        """
+        if old_name in self._strategy_data:
+            self._strategy_data[new_name] = self._strategy_data.pop(old_name)
+            logger.info(f"Renamed strategy data key: '{old_name}' -> '{new_name}'")
+        else:
+            logger.warning(
+                f"Cannot rename strategy '{old_name}' -> '{new_name}': "
+                f"old name not found in strategy data"
+            )
+
     def _recalculate(self) -> None:
         """Recalculate equity curves for all strategies.
 
@@ -294,6 +311,7 @@ class PortfolioOverviewTab(QWidget):
             return
         if not strategies:
             self._charts.set_data({})
+            self.portfolio_data_changed.emit({})
             return
 
         # Update calculator starting capital
