@@ -1536,7 +1536,10 @@ class DataInputTab(QWidget):
             "time": "detected",
             "gain_pct": "detected",
             "mae_pct": "detected",
+            "mfe_pct": "detected",
             "win_loss": "detected" if mapping and mapping.win_loss else "missing",
+            "mae_time": "detected" if mapping and mapping.mae_time else "missing",
+            "mfe_time": "detected" if mapping and mapping.mfe_time else "missing",
         }
         detection_result = DetectionResult(
             mapping=mapping,
