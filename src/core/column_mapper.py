@@ -26,6 +26,8 @@ class ColumnMapper:
         "mae_pct": ["mae", "max_adverse", "adverse", "drawdown", "mae_pct"],
         "mfe_pct": ["mfe", "max_favorable", "favorable", "runup", "mfe_pct"],
         "win_loss": ["win", "loss", "result", "outcome"],
+        "mae_time": ["mae_time", "mae time", "time_mae", "adverse_time"],
+        "mfe_time": ["mfe_time", "mfe time", "time_mfe", "favorable_time"],
     }
 
     REQUIRED_COLUMNS = ["ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct"]
@@ -70,6 +72,8 @@ class ColumnMapper:
                 mae_pct=detected["mae_pct"],  # type: ignore[arg-type]
                 mfe_pct=detected["mfe_pct"],  # type: ignore[arg-type]
                 win_loss=detected.get("win_loss"),
+                mae_time=detected.get("mae_time"),
+                mfe_time=detected.get("mfe_time"),
             )
             logger.info(
                 "Column mapping completed: ticker=%s, date=%s, time=%s, gain=%s, mae=%s, mfe=%s",

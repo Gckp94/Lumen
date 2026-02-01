@@ -119,6 +119,10 @@ class ColumnConfigPanel(QWidget):
         # Win/Loss optional field
         row = self._add_field_row(grid, row, "win_loss", "Win/Loss", required=False)
 
+        # MAE/MFE Time optional fields (for timing-aware scaling logic)
+        row = self._add_field_row(grid, row, "mae_time", "MAE Time", required=False)
+        row = self._add_field_row(grid, row, "mfe_time", "MFE Time", required=False)
+
         layout.addLayout(grid)
 
         # Derive Win/Loss checkbox
@@ -543,6 +547,8 @@ class ColumnConfigPanel(QWidget):
             mae_pct=self._combos["mae_pct"].currentText(),
             mfe_pct=self._combos["mfe_pct"].currentText(),
             win_loss=self._combos["win_loss"].currentText() or None,
+            mae_time=self._combos["mae_time"].currentText() or None,
+            mfe_time=self._combos["mfe_time"].currentText() or None,
             win_loss_derived=self._derive_checkbox.isChecked(),
             breakeven_is_win=self._breakeven_checkbox.isChecked(),
         )
@@ -669,6 +675,10 @@ class ColumnMappingSuccessPanel(QWidget):
         )
         if mapping.win_loss:
             summary += f"\nWin/Loss: {mapping.win_loss}"
+        if mapping.mae_time:
+            summary += f"\nMAE Time: {mapping.mae_time}"
+        if mapping.mfe_time:
+            summary += f"\nMFE Time: {mapping.mfe_time}"
         self._summary_label.setText(summary)
 
     def get_mapping(self) -> ColumnMapping | None:
@@ -904,14 +914,16 @@ class MetricsPanel(QWidget):
 
         # Title
         title = QLabel("Baseline Metrics")
-        title.setStyleSheet(f"""
+        title.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
                 font-family: {Fonts.UI};
                 font-size: 18px;
                 font-weight: bold;
             }}
-        """)
+        """
+        )
         layout.addWidget(title)
 
         # Grid of metric cards
@@ -1572,9 +1584,7 @@ class DataInputTab(QWidget):
         self._pending_adjustment_params = adjustment_params
 
         # Get flat stake and start capital from AppState or use defaults
-        metrics_inputs = (
-            self._app_state.metrics_user_inputs if self._app_state else None
-        )
+        metrics_inputs = self._app_state.metrics_user_inputs if self._app_state else None
         flat_stake = metrics_inputs.flat_stake if metrics_inputs else 10000.0
         start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
 
@@ -1730,6 +1740,10 @@ class DataInputTab(QWidget):
                     "Updated adjusted_gain_pct in filtered_df (%d rows)",
                     len(filtered_df),
                 )
+                # Emit filtered_data_updated so tabs like Statistics refresh with new values
+                # This is critical because Statistics ignores baseline_calculated when
+                # filtered_df exists, so it needs this signal to see updated adjusted_gain_pct
+                self._app_state.filtered_data_updated.emit(filtered_df)
 
         # Ensure time_minutes column exists for time-based analysis
         has_time_col = mapping.time and mapping.time in baseline_df.columns
