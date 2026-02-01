@@ -326,6 +326,10 @@ class PortfolioOverviewTab(QWidget):
         for config in strategies:
             df = self._strategy_data.get(config.name)
             if df is None:
+                logger.warning(
+                    f"Strategy '{config.name}' has no data in _strategy_data. "
+                    f"Available keys: {list(self._strategy_data.keys())}"
+                )
                 continue
 
             # Calculate individual equity curve
