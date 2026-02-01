@@ -376,18 +376,25 @@ class ColumnConfigPanel(QWidget):
         self._validate()
 
     def _update_status_indicators(self) -> None:
-        """Update status indicator labels based on detection result."""
-        if not self._detection_result:
-            return
-
+        """Update status indicator labels based on detection result and current values."""
         for field_name, label in self._status_labels.items():
-            status = self._detection_result.statuses.get(field_name, "missing")
-            if status == "detected":
+            combo = self._combos.get(field_name)
+            # First check if combo has a value (user selection or auto-detected)
+            if combo and combo.currentText():
                 label.setText("✓")
                 label.setStyleSheet(f"color: {Colors.SIGNAL_CYAN}; font-size: 14px;")
-            elif status == "guessed":
-                label.setText("⚠")
-                label.setStyleSheet(f"color: {Colors.SIGNAL_AMBER}; font-size: 14px;")
+            elif self._detection_result:
+                # Fall back to detection result status
+                status = self._detection_result.statuses.get(field_name, "missing")
+                if status == "detected":
+                    label.setText("✓")
+                    label.setStyleSheet(f"color: {Colors.SIGNAL_CYAN}; font-size: 14px;")
+                elif status == "guessed":
+                    label.setText("⚠")
+                    label.setStyleSheet(f"color: {Colors.SIGNAL_AMBER}; font-size: 14px;")
+                else:
+                    label.setText("✗")
+                    label.setStyleSheet(f"color: {Colors.SIGNAL_CORAL}; font-size: 14px;")
             else:
                 label.setText("✗")
                 label.setStyleSheet(f"color: {Colors.SIGNAL_CORAL}; font-size: 14px;")
@@ -514,18 +521,22 @@ class ColumnConfigPanel(QWidget):
             mae_pct=self._combos["mae_pct"].currentText(),
             mfe_pct=self._combos["mfe_pct"].currentText(),
             win_loss=self._combos["win_loss"].currentText() or None,
+            mae_time=self._combos["mae_time"].currentText() or None,
+            mfe_time=self._combos["mfe_time"].currentText() or None,
             win_loss_derived=self._derive_checkbox.isChecked(),
             breakeven_is_win=self._breakeven_checkbox.isChecked(),
         )
 
         logger.info(
-            "Column mapping completed: ticker=%s, date=%s, time=%s, gain=%s, mae=%s, mfe=%s",
+            "Column mapping completed: ticker=%s, date=%s, time=%s, gain=%s, mae=%s, mfe=%s, mae_time=%s, mfe_time=%s",
             mapping.ticker,
             mapping.date,
             mapping.time,
             mapping.gain_pct,
             mapping.mae_pct,
             mapping.mfe_pct,
+            mapping.mae_time,
+            mapping.mfe_time,
         )
 
         self.mapping_completed.emit(mapping)
