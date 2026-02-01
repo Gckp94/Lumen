@@ -394,6 +394,12 @@ class PortfolioMetricsTab(QWidget):
                 edge_decay.get("rolling_sharpe_current"),
                 edge_decay.get("rolling_sharpe_early"),
                 edge_decay.get("decay_pct"),
+                edge_decay.get("avg_gain_early"),
+                edge_decay.get("avg_gain_recent"),
+                edge_decay.get("avg_gain_change_pct"),
+                edge_decay.get("median_gain_early"),
+                edge_decay.get("median_gain_recent"),
+                edge_decay.get("median_gain_change_pct"),
             )
         else:
             self._edge_decay_card.update_metrics(None, None, None)
