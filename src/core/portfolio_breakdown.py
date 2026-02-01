@@ -78,9 +78,16 @@ class PortfolioBreakdownCalculator:
         period_start = equity_values[0] - pnl_values[0]
         period_end = equity_values[-1]
 
-        # Total gain (for this period only)
+        # Total gain (sum of raw trade gain percentages)
         total_gain_dollars = float(pnl_values.sum())
-        total_gain_pct = (total_gain_dollars / period_start * 100) if period_start > 0 else 0.0
+        if "gain_pct" in df.columns:
+            # Use raw trade gain percentages (already in percentage form)
+            total_gain_pct = float(df["gain_pct"].sum())
+        else:
+            # Fallback to account return if gain_pct not available
+            total_gain_pct = (total_gain_dollars / period_start * 100) if period_start > 0 else 0.0
+
+        
 
         # Account growth (cumulative growth from reference capital)
         # Shows the % gain/loss from the reference point
@@ -135,7 +142,11 @@ class PortfolioBreakdownCalculator:
         df["_month"] = df["_date"].dt.month
 
         # Filter to requested year
-        year_df = df[df["_year"] == year].sort_values("_date")
+        # Sort by date and trade_num to ensure consistent ordering with Portfolio Metrics
+        sort_cols = ["_date"]
+        if "trade_num" in df.columns:
+            sort_cols.append("trade_num")
+        year_df = df[df["_year"] == year].sort_values(sort_cols)
         if year_df.empty:
             return {}
 
@@ -150,6 +161,8 @@ class PortfolioBreakdownCalculator:
             results[int(month)] = self._calculate_period_metrics(
                 month_df, start_of_year_equity
             )
+
+        
 
         return results
 

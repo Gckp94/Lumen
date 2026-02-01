@@ -202,3 +202,30 @@ class TestPortfolioBreakdownCalculatorAvailableYears:
         result = calculator.get_available_years(empty_df)
 
         assert result == []
+
+
+class TestPortfolioBreakdownCalculatorMetrics:
+    """Tests for _calculate_period_metrics."""
+
+    @pytest.fixture
+    def calculator(self):
+        return PortfolioBreakdownCalculator(starting_capital=100_000)
+
+    def test_total_gain_pct_is_sum_of_trade_gains(self, calculator):
+        """total_gain_pct should be sum of gain_pct values, not account return."""
+        # 3 trades with gain_pct: 5%, -2%, 3% = 6% total
+        # But PnL might be different due to position sizing
+        df = pd.DataFrame({
+            "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"]),
+            "gain_pct": [5.0, -2.0, 3.0],  # Already in percentage form
+            "pnl": [500, -200, 300],  # $500, -$200, $300 = $600 total
+            "equity": [100_500, 100_300, 100_600],
+            "peak": [100_500, 100_500, 100_600],
+            "drawdown": [0, -200, 0],
+        })
+
+        metrics = calculator._calculate_period_metrics(df, starting_capital=100_000)
+
+        # total_gain_pct should be sum of trade gains: 5 + (-2) + 3 = 6%
+        # NOT account return: $600 / $100,000 = 0.6%
+        assert metrics["total_gain_pct"] == pytest.approx(6.0, rel=0.01)
