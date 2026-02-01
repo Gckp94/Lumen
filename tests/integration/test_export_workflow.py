@@ -63,10 +63,14 @@ class TestExportWorkflow:
         result = pd.read_csv(path, comment="#")
         assert len(result) == len(sample_trades)
 
-    def test_export_with_first_trigger_on_metadata(
+    def test_export_with_first_trigger_on_no_metadata(
         self, sample_trades: pd.DataFrame, tmp_path: Path
     ) -> None:
-        """Export with first-trigger ON includes it in metadata."""
+        """Export with first-trigger ON produces clean CSV without metadata comments.
+
+        CSV export was updated to remove metadata comments for Excel compatibility.
+        Metadata is no longer included in CSV files.
+        """
         path = tmp_path / "export.csv"
         exporter = ExportManager()
         exporter.to_csv(
@@ -75,15 +79,22 @@ class TestExportWorkflow:
             first_trigger_enabled=True,
         )
 
-        with open(path) as f:
+        with open(path, encoding="utf-8-sig") as f:
             content = f.read()
 
-        assert "First Trigger: ON" in content
+        # CSV should NOT contain metadata comments (Excel compatibility)
+        assert "#" not in content
+        # Should have data rows
+        assert "AAPL" in content
 
-    def test_export_with_first_trigger_off_metadata(
+    def test_export_with_first_trigger_off_no_metadata(
         self, sample_trades: pd.DataFrame, tmp_path: Path
     ) -> None:
-        """Export with first-trigger OFF includes it in metadata."""
+        """Export with first-trigger OFF produces clean CSV without metadata comments.
+
+        CSV export was updated to remove metadata comments for Excel compatibility.
+        Metadata is no longer included in CSV files.
+        """
         path = tmp_path / "export.csv"
         exporter = ExportManager()
         exporter.to_csv(
@@ -92,10 +103,13 @@ class TestExportWorkflow:
             first_trigger_enabled=False,
         )
 
-        with open(path) as f:
+        with open(path, encoding="utf-8-sig") as f:
             content = f.read()
 
-        assert "First Trigger: OFF" in content
+        # CSV should NOT contain metadata comments (Excel compatibility)
+        assert "#" not in content
+        # Should have data rows
+        assert "AAPL" in content
 
     def test_export_suggested_filename_format(self) -> None:
         """Suggested filename follows expected pattern."""
@@ -111,10 +125,13 @@ class TestExportWorkflow:
 
         assert re.match(r"lumen_export_\d{8}_\d{6}\.csv", suggested)
 
-    def test_export_with_multiple_filters_metadata(
+    def test_export_with_multiple_filters_no_metadata(
         self, tmp_path: Path
     ) -> None:
-        """Export with multiple filters includes all in metadata."""
+        """Export with multiple filters produces clean CSV without metadata.
+
+        CSV export was updated to remove metadata comments for Excel compatibility.
+        """
         df = pd.DataFrame({
             "gain_pct": [1.0, 2.0, 3.0, 4.0, 5.0],
             "volume": [100, 200, 300, 400, 500],
@@ -131,11 +148,14 @@ class TestExportWorkflow:
         exporter = ExportManager()
         exporter.to_csv(filtered, path, filters=filters, total_rows=len(df))
 
-        with open(path) as f:
+        with open(path, encoding="utf-8-sig") as f:
             content = f.read()
 
-        assert "gain_pct between" in content
-        assert "volume between" in content
+        # CSV should NOT contain metadata comments (Excel compatibility)
+        assert "#" not in content
+        # Should have header and data
+        assert "gain_pct" in content
+        assert "volume" in content
 
     def test_export_preserves_all_columns(
         self, sample_trades: pd.DataFrame, tmp_path: Path
@@ -191,8 +211,11 @@ class TestExportEdgeCases:
         result = pd.read_csv(path, comment="#")
         assert len(result) == 0
 
-    def test_export_not_between_filter_metadata(self, tmp_path: Path) -> None:
-        """Export includes not_between filter in metadata."""
+    def test_export_not_between_filter_no_metadata(self, tmp_path: Path) -> None:
+        """Export with not_between filter produces clean CSV without metadata.
+
+        CSV export was updated to remove metadata comments for Excel compatibility.
+        """
         df = pd.DataFrame({"gain_pct": [1.0, 2.0, 3.0]})
         filters = [
             FilterCriteria(
@@ -204,13 +227,20 @@ class TestExportEdgeCases:
         exporter = ExportManager()
         exporter.to_csv(df, path, filters=filters)
 
-        with open(path) as f:
+        with open(path, encoding="utf-8-sig") as f:
             content = f.read()
 
-        assert "not_between" in content
+        # CSV should NOT contain metadata comments (Excel compatibility)
+        assert "#" not in content
+        # Should have header
+        assert "gain_pct" in content
 
-    def test_export_large_row_count_in_metadata(self, tmp_path: Path) -> None:
-        """Export shows formatted row counts for large datasets."""
+    def test_export_large_dataset_no_metadata(self, tmp_path: Path) -> None:
+        """Export of large dataset produces clean CSV without metadata.
+
+        CSV export was updated to remove metadata comments for Excel compatibility.
+        Row counts are no longer included in CSV files.
+        """
         # Simulate filtered subset of large dataset
         df = pd.DataFrame({"value": range(1234)})
 
@@ -218,12 +248,16 @@ class TestExportEdgeCases:
         exporter = ExportManager()
         exporter.to_csv(df, path, total_rows=100_000)
 
-        with open(path) as f:
+        with open(path, encoding="utf-8-sig") as f:
             content = f.read()
 
-        # Should show "Rows: 1,234 of 100,000"
-        assert "1,234" in content
-        assert "100,000" in content
+        # CSV should NOT contain metadata comments (Excel compatibility)
+        assert "#" not in content
+        # Should have header and data
+        assert "value" in content
+        # Verify data was written
+        result = pd.read_csv(path)
+        assert len(result) == 1234
 
 
 class TestParquetExportIntegration:
