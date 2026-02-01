@@ -31,10 +31,13 @@ class TestPortfolioBreakdownTabSignalIntegration:
 
         baseline_df = pd.DataFrame({
             "date": pd.to_datetime(["2024-01-01", "2024-02-01"]),
+            "trade_num": [1, 2],
+            "gain_pct": [1.0, 2.0],  # Adjusted gain in percentage form
             "pnl": [100.0, 200.0],
             "equity": [10100.0, 10300.0],
             "peak": [10100.0, 10300.0],
             "drawdown": [0.0, 0.0],
+            "win": [True, True],
         })
 
         breakdown_tab.on_portfolio_data_changed({"baseline": baseline_df})
