@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QSplitter,
     QStackedWidget,
     QVBoxLayout,
@@ -164,21 +165,64 @@ class FeatureExplorerTab(QWidget):
 
     def _setup_sidebar(self) -> None:
         """Set up the sidebar with column selector and filter panel."""
-        layout = QVBoxLayout(self._sidebar)
-        layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
-        layout.setSpacing(Spacing.SM)
+        # Create outer layout for sidebar frame
+        outer_layout = QVBoxLayout(self._sidebar)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+
+        # Create scroll area to contain all sidebar content
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setStyleSheet(f"""
+            QScrollArea {{
+                background: transparent;
+                border: none;
+            }}
+            QScrollArea > QWidget > QWidget {{
+                background: transparent;
+            }}
+            QScrollBar:vertical {{
+                background: {Colors.BG_BASE};
+                width: 8px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {Colors.BG_BORDER};
+                border-radius: 4px;
+                min-height: 20px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {Colors.TEXT_SECONDARY};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+        """)
+
+        # Create content widget for scroll area
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
+        content_layout.setSpacing(Spacing.SM)
 
         # Axis column selector (replaces single column selector)
         self._axis_selector = AxisColumnSelector()
-        layout.addWidget(self._axis_selector)
+        content_layout.addWidget(self._axis_selector)
 
         # Filter panel below column selector
         self._filter_panel = FilterPanel()
-        layout.addWidget(self._filter_panel)
+        content_layout.addWidget(self._filter_panel)
 
         # Axis control panel below filter panel
         self._axis_control_panel = AxisControlPanel()
-        layout.addWidget(self._axis_control_panel)
+        content_layout.addWidget(self._axis_control_panel)
 
         # Contrast colors toggle
         self._contrast_toggle = QCheckBox("Contrast colors (\u00b10)")
@@ -202,10 +246,14 @@ class FeatureExplorerTab(QWidget):
         """)
         self._contrast_toggle.setToolTip("Color points cyan if \u22650, coral if <0")
         self._contrast_toggle.toggled.connect(self._on_contrast_toggled)
-        layout.addWidget(self._contrast_toggle)
+        content_layout.addWidget(self._contrast_toggle)
 
-        # Spacer
-        layout.addStretch()
+        # Spacer to push content to top
+        content_layout.addStretch()
+
+        # Set content widget in scroll area
+        scroll_area.setWidget(content_widget)
+        outer_layout.addWidget(scroll_area)
 
     def _setup_bottom_bar(self) -> None:
         """Set up the bottom bar with data point count, filter summary, and export button."""
@@ -592,6 +640,13 @@ class FeatureExplorerTab(QWidget):
         self._date_start = start
         self._date_end = end
         self._all_dates = all_dates
+
+        # Also store in AppState for other tabs (e.g., Parameter Sensitivity)
+        self._app_state.date_start = start
+        self._app_state.date_end = end
+        self._app_state.all_dates = all_dates
+        self._app_state.date_time_range_changed.emit()
+
         self._apply_current_filters()
         self._update_filter_summary()
         if all_dates:
@@ -612,6 +667,13 @@ class FeatureExplorerTab(QWidget):
         self._time_start = start
         self._time_end = end
         self._all_times = all_times
+
+        # Also store in AppState for other tabs (e.g., Parameter Sensitivity)
+        self._app_state.time_start = start
+        self._app_state.time_end = end
+        self._app_state.all_times = all_times
+        self._app_state.date_time_range_changed.emit()
+
         self._apply_current_filters()
         self._update_filter_summary()
         if all_times:
