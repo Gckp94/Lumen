@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QApplication
 
 from src.__version__ import __version__
 from src.core.config import CHECK_FOR_UPDATES, GITHUB_OWNER, GITHUB_REPO
+from src.core.dataframe_utils import enable_copy_on_write
 from src.core.update_checker import UpdateChecker
 from src.ui import theme
 from src.ui.dialogs.update_dialog import UpdateDialog
@@ -38,6 +39,9 @@ def main() -> int:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
     logger.info("Starting Lumen %s", __version__)
+
+    # Enable pandas Copy-on-Write for memory optimization
+    enable_copy_on_write()
 
     app = QApplication(sys.argv)
 

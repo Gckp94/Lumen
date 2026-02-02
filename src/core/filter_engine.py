@@ -6,6 +6,7 @@ from datetime import time as dt_time
 import numpy as np
 import pandas as pd
 
+from .dataframe_utils import filter_with_mask, lazy_copy
 from .models import FilterCriteria
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,8 @@ def time_to_minutes(series: pd.Series) -> pd.Series:
     - Integer HHMMSS (e.g., 93000)
     - Excel serial time (float 0-1)
     - datetime.time objects
+
+    Uses vectorized operations for performance with large datasets.
 
     Args:
         series: Pandas Series containing time values in any supported format.
@@ -39,13 +42,20 @@ def time_to_minutes(series: pd.Series) -> pd.Series:
     if first_val is None:
         return result
 
-    # Strategy 1: datetime.time objects
+    # Strategy 1: datetime.time objects - VECTORIZED
     if isinstance(first_val, dt_time):
-        result = series.apply(
-            lambda x: x.hour * 60 + x.minute + x.second / 60 if pd.notna(x) else np.nan
-        )
+        # Convert to timedelta for vectorized extraction
+        # Create a reference date to combine with time objects
+        time_df = pd.DataFrame({"time": series})
+        # Use vectorized string conversion and parsing
+        time_strings = series.apply(lambda x: x.strftime("%H:%M:%S") if pd.notna(x) else None)
+        parsed = pd.to_datetime(time_strings, format="%H:%M:%S", errors="coerce")
+        hours = parsed.dt.hour
+        minutes = parsed.dt.minute
+        seconds = parsed.dt.second
+        result = hours * 60 + minutes + seconds / 60.0
 
-    # Strategy 2: Excel serial time (float between 0 and 1)
+    # Strategy 2: Excel serial time (float between 0 and 1) - Already vectorized
     elif pd.api.types.is_float_dtype(series):
         col_values = series.dropna()
         if len(col_values) > 0 and col_values.between(0, 1).all():
@@ -58,37 +68,64 @@ def time_to_minutes(series: pd.Series) -> pd.Series:
             )
             # Return NaN result (already initialized as NaN)
 
-    # Strategy 3: Integer HHMMSS format
+    # Strategy 3: Integer HHMMSS format - VECTORIZED
     elif pd.api.types.is_integer_dtype(series):
-        def int_to_minutes(val):
-            if pd.isna(val):
-                return np.nan
-            val_str = str(int(val)).zfill(6)
-            hours = int(val_str[:2])
-            mins = int(val_str[2:4])
-            secs = int(val_str[4:6])
-            return hours * 60 + mins + secs / 60
-        result = series.apply(int_to_minutes)
+        # Vectorized extraction: HHMMSS -> hours, minutes, seconds
+        # Example: 93015 -> hours=9, minutes=30, seconds=15
+        values = series.fillna(0).astype(np.int64)
+        hours = values // 10000
+        minutes = (values % 10000) // 100
+        seconds = values % 100
+        result = hours * 60 + minutes + seconds / 60.0
+        # Restore NaN for original NaN values
+        result = result.where(series.notna(), np.nan)
 
-    # Strategy 4: String formats
+    # Strategy 4: String formats - VECTORIZED via pandas datetime parsing
     else:
-        def parse_time_string(val):
-            if pd.isna(val) or val == "":
-                return np.nan
-            val_str = str(val).strip()
-            if ":" in val_str:
-                parts = val_str.split(":")
-                hours = int(parts[0])
-                mins = int(parts[1])
-                secs = int(parts[2]) if len(parts) > 2 else 0
+        # Try to parse strings as times using pandas vectorized parsing
+        try:
+            # First try HH:MM:SS format
+            parsed = pd.to_datetime(series, format="%H:%M:%S", errors="coerce")
+            if parsed.notna().sum() == 0:
+                # Try HH:MM format
+                parsed = pd.to_datetime(series, format="%H:%M", errors="coerce")
+            if parsed.notna().sum() == 0:
+                # Try mixed format as fallback
+                parsed = pd.to_datetime(series, format="mixed", errors="coerce")
+
+            if parsed.notna().sum() > 0:
+                hours = parsed.dt.hour
+                minutes = parsed.dt.minute
+                seconds = parsed.dt.second
+                result = hours * 60 + minutes + seconds / 60.0
+            else:
+                # Fallback for integer-like strings (e.g., "93000")
+                # Convert to numeric and process as HHMMSS
+                numeric = pd.to_numeric(series, errors="coerce").fillna(0).astype(np.int64)
+                hours = numeric // 10000
+                minutes = (numeric % 10000) // 100
+                seconds = numeric % 100
+                result = hours * 60 + minutes + seconds / 60.0
+                result = result.where(series.notna() & (series != ""), np.nan)
+        except Exception:
+            # Last resort: use apply (but this should rarely happen)
+            def parse_time_string(val):
+                if pd.isna(val) or val == "":
+                    return np.nan
+                val_str = str(val).strip()
+                if ":" in val_str:
+                    parts = val_str.split(":")
+                    hours = int(parts[0])
+                    mins = int(parts[1])
+                    secs = int(parts[2]) if len(parts) > 2 else 0
+                    return hours * 60 + mins + secs / 60
+                # Try integer format
+                val_str = val_str.zfill(6)
+                hours = int(val_str[:2])
+                mins = int(val_str[2:4])
+                secs = int(val_str[4:6])
                 return hours * 60 + mins + secs / 60
-            # Try integer format
-            val_str = val_str.zfill(6)
-            hours = int(val_str[:2])
-            mins = int(val_str[2:4])
-            secs = int(val_str[4:6])
-            return hours * 60 + mins + secs / 60
-        result = series.apply(parse_time_string)
+            result = series.apply(parse_time_string)
 
     return result
 
@@ -111,7 +148,7 @@ class FilterEngine:
             Filtered DataFrame (copy, not view).
         """
         if not filters:
-            return df.copy()
+            return lazy_copy(df)
 
         mask = pd.Series(True, index=df.index)
         for criteria in filters:
@@ -120,7 +157,7 @@ class FilterEngine:
         logger.debug(
             "Filter applied: %d rows match out of %d", mask.sum(), len(df)
         )
-        return df[mask].copy()
+        return filter_with_mask(df, mask, copy=True)
 
     def apply_date_range(
         self,
@@ -143,11 +180,11 @@ class FilterEngine:
             Filtered DataFrame (copy).
         """
         if all_dates or (start is None and end is None):
-            return df.copy()
+            return lazy_copy(df)
 
         if date_col not in df.columns:
             logger.warning("Date column '%s' not found in DataFrame", date_col)
-            return df.copy()
+            return lazy_copy(df)
 
         col = pd.to_datetime(df[date_col], errors="coerce")
         mask = pd.Series(True, index=df.index)
@@ -158,7 +195,7 @@ class FilterEngine:
             mask &= col <= pd.Timestamp(end)
 
         logger.debug("Date filter: %d rows match out of %d", mask.sum(), len(df))
-        return df[mask].copy()
+        return filter_with_mask(df, mask, copy=True)
 
     @staticmethod
     def apply_time_range(
@@ -179,11 +216,11 @@ class FilterEngine:
             Filtered DataFrame.
         """
         if start_time is None and end_time is None:
-            return df.copy()
+            return lazy_copy(df)
 
         if time_col not in df.columns:
             logger.warning("Time column '%s' not found, skipping time filter", time_col)
-            return df.copy()
+            return lazy_copy(df)
 
         # Get raw time values for diagnostic
         raw_values = df[time_col].head(5).tolist()
@@ -237,7 +274,7 @@ class FilterEngine:
                     "Sample: %s",
                     time_col, raw_values
                 )
-                return df.copy()
+                return lazy_copy(df)
 
         else:
             # Strategy 4: Parse string formats
@@ -265,10 +302,10 @@ class FilterEngine:
                                 "Sample: %s",
                                 time_col, raw_values
                             )
-                            return df.copy()
+                            return lazy_copy(df)
             except Exception as e:
                 logger.warning("Time filter: failed to parse column '%s': %s", time_col, e)
-                return df.copy()
+                return lazy_copy(df)
 
         if time_series is None:
             logger.warning("Time filter: could not parse column '%s'", time_col)
@@ -310,4 +347,4 @@ class FilterEngine:
             result_count, len(df), start_time, end_time
         )
 
-        return df[mask].copy()
+        return filter_with_mask(df, mask, copy=True)
