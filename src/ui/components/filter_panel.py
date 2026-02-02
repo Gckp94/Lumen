@@ -370,6 +370,9 @@ class FilterPanel(QWidget):
             self._filter_chips.append(chip)
             self._chips_layout.addWidget(chip)
 
+        # Trigger geometry update so scroll area recalculates content size
+        self._chips_frame.updateGeometry()
+
     def _on_chip_removed(self, criteria: FilterCriteria) -> None:
         """Handle chip removal.
 

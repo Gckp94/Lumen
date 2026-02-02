@@ -72,7 +72,19 @@ class FlowLayout(QLayout):
         self._do_layout(rect, test_only=False)
 
     def sizeHint(self) -> QSize:
-        """Return preferred size."""
+        """Return preferred size.
+
+        For height-for-width layouts in scroll areas, we need to report
+        a height that accounts for wrapping at the current width.
+        """
+        # Get the parent widget's width if available
+        parent = self.parentWidget()
+        if parent is not None:
+            width = parent.width()
+            if width > 0:
+                height = self.heightForWidth(width)
+                min_size = self.minimumSize()
+                return QSize(min_size.width(), height)
         return self.minimumSize()
 
     def minimumSize(self) -> QSize:
