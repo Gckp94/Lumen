@@ -1,27 +1,21 @@
 """Main application window for Lumen.
 
 Contains the MainWindow class with dockable tab container for the application workflow.
+Uses lazy loading for heavy tabs to improve startup performance.
 """
 
 import logging
+from typing import TYPE_CHECKING
 
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QMainWindow
 
 from src.core.app_state import AppState
-from src.tabs.breakdown import BreakdownTab
-from src.tabs.data_binning import DataBinningTab
-from src.tabs.data_input import DataInputTab
-from src.tabs.feature_explorer import FeatureExplorerTab
-from src.tabs.feature_insights import FeatureInsightsTab
-from src.tabs.monte_carlo import MonteCarloTab
-from src.tabs.parameter_sensitivity import ParameterSensitivityTab
-from src.tabs.pnl_stats import PnLStatsTab
-from src.tabs.portfolio_breakdown import PortfolioBreakdownTab
-from src.tabs.portfolio_metrics import PortfolioMetricsTab
-from src.tabs.portfolio_overview import PortfolioOverviewTab
-from src.tabs.statistics_tab import StatisticsTab
 from src.ui.dock_manager import DockManager
+from src.ui.lazy_tab import LazyTabContainer
+
+if TYPE_CHECKING:
+    from PyQt6.QtWidgets import QWidget
 
 logger = logging.getLogger(__name__)
 
@@ -52,43 +46,144 @@ class MainWindow(QMainWindow):
         logger.debug("MainWindow initialized with dockable tabs")
 
     def _setup_docks(self) -> None:
-        """Set up dockable widgets for all workflow tabs."""
-        # Create Portfolio tabs with signal connection
-        portfolio_overview = PortfolioOverviewTab(self._app_state)
-        portfolio_breakdown = PortfolioBreakdownTab()
+        """Set up dockable widgets for all workflow tabs.
 
-        # Connect Portfolio Overview signal to Breakdown handler
-        portfolio_overview.portfolio_data_changed.connect(
-            portfolio_breakdown.on_portfolio_data_changed
-        )
+        Uses lazy loading for heavy tabs to improve startup performance.
+        The Data Input tab is loaded immediately as it's the default tab.
+        Other tabs are loaded on first access.
+        """
+        # Import tab modules here to avoid circular imports and enable lazy loading
+        from src.tabs.data_input import DataInputTab
 
-        portfolio_metrics = PortfolioMetricsTab()
+        # Data Input is always loaded immediately (it's the default tab)
+        data_input_tab = DataInputTab(self._app_state)
+        self.dock_manager.add_dock("Data Input", data_input_tab)
 
-        # Connect Portfolio Overview signal to Portfolio Metrics handler
-        portfolio_overview.portfolio_data_changed.connect(
-            portfolio_metrics.on_portfolio_data_changed
-        )
-
-        # Add tabs in workflow order, passing AppState where needed
-        tabs = [
-            ("Data Input", DataInputTab(self._app_state)),
-            ("Feature Explorer", FeatureExplorerTab(self._app_state)),
-            ("Breakdown", BreakdownTab(self._app_state)),
-            ("Data Binning", DataBinningTab(self._app_state)),
-            ("PnL & Trading Stats", PnLStatsTab(self._app_state)),
-            ("Monte Carlo", MonteCarloTab(self._app_state)),
-            ("Parameter Sensitivity", ParameterSensitivityTab(self._app_state)),
-            ("Feature Insights", FeatureInsightsTab(self._app_state)),
-            ("Portfolio Overview", portfolio_overview),
-            ("Portfolio Breakdown", portfolio_breakdown),
-            ("Portfolio Metrics", portfolio_metrics),
-            ("Statistics", StatisticsTab(self._app_state)),
+        # Define lazy factories for heavy tabs
+        # These are only instantiated when the tab is first accessed
+        lazy_tabs: list[tuple[str, "type[QWidget]"]] = [
+            ("Feature Explorer", self._create_feature_explorer),
+            ("Breakdown", self._create_breakdown),
+            ("Data Binning", self._create_data_binning),
+            ("PnL & Trading Stats", self._create_pnl_stats),
+            ("Monte Carlo", self._create_monte_carlo),
+            ("Parameter Sensitivity", self._create_parameter_sensitivity),
+            ("Feature Insights", self._create_feature_insights),
+            ("Portfolio Overview", self._create_portfolio_overview),
+            ("Portfolio Breakdown", self._create_portfolio_breakdown),
+            ("Portfolio Metrics", self._create_portfolio_metrics),
+            ("Statistics", self._create_statistics),
         ]
 
-        for title, widget in tabs:
-            self.dock_manager.add_dock(title, widget)
+        # Store lazy containers for signal connections after loading
+        self._lazy_containers: dict[str, LazyTabContainer] = {}
 
-        logger.debug("Dock manager configured with %d docks", self.dock_manager.dock_count())
+        for title, factory in lazy_tabs:
+            container = LazyTabContainer(factory, f"Loading {title}...")
+            self._lazy_containers[title] = container
+            self.dock_manager.add_dock(title, container)
+
+        # Connect portfolio signals after portfolio tabs are loaded
+        # This is deferred until both tabs are accessed
+        self._portfolio_signals_connected = False
+
+        logger.debug("Dock manager configured with %d docks (lazy loading enabled)",
+                     self.dock_manager.dock_count())
+
+    def _create_feature_explorer(self) -> "QWidget":
+        """Factory for Feature Explorer tab."""
+        from src.tabs.feature_explorer import FeatureExplorerTab
+        return FeatureExplorerTab(self._app_state)
+
+    def _create_breakdown(self) -> "QWidget":
+        """Factory for Breakdown tab."""
+        from src.tabs.breakdown import BreakdownTab
+        return BreakdownTab(self._app_state)
+
+    def _create_data_binning(self) -> "QWidget":
+        """Factory for Data Binning tab."""
+        from src.tabs.data_binning import DataBinningTab
+        return DataBinningTab(self._app_state)
+
+    def _create_pnl_stats(self) -> "QWidget":
+        """Factory for PnL & Trading Stats tab."""
+        from src.tabs.pnl_stats import PnLStatsTab
+        return PnLStatsTab(self._app_state)
+
+    def _create_monte_carlo(self) -> "QWidget":
+        """Factory for Monte Carlo tab."""
+        from src.tabs.monte_carlo import MonteCarloTab
+        return MonteCarloTab(self._app_state)
+
+    def _create_parameter_sensitivity(self) -> "QWidget":
+        """Factory for Parameter Sensitivity tab."""
+        from src.tabs.parameter_sensitivity import ParameterSensitivityTab
+        return ParameterSensitivityTab(self._app_state)
+
+    def _create_feature_insights(self) -> "QWidget":
+        """Factory for Feature Insights tab."""
+        from src.tabs.feature_insights import FeatureInsightsTab
+        return FeatureInsightsTab(self._app_state)
+
+    def _create_portfolio_overview(self) -> "QWidget":
+        """Factory for Portfolio Overview tab."""
+        from src.tabs.portfolio_overview import PortfolioOverviewTab
+        tab = PortfolioOverviewTab(self._app_state)
+        # Connect signals when both portfolio tabs are loaded
+        self._connect_portfolio_signals_if_ready()
+        return tab
+
+    def _create_portfolio_breakdown(self) -> "QWidget":
+        """Factory for Portfolio Breakdown tab."""
+        from src.tabs.portfolio_breakdown import PortfolioBreakdownTab
+        tab = PortfolioBreakdownTab()
+        # Connect signals when both portfolio tabs are loaded
+        self._connect_portfolio_signals_if_ready()
+        return tab
+
+    def _create_portfolio_metrics(self) -> "QWidget":
+        """Factory for Portfolio Metrics tab."""
+        from src.tabs.portfolio_metrics import PortfolioMetricsTab
+        tab = PortfolioMetricsTab()
+        # Connect signals when both portfolio tabs are loaded
+        self._connect_portfolio_signals_if_ready()
+        return tab
+
+    def _create_statistics(self) -> "QWidget":
+        """Factory for Statistics tab."""
+        from src.tabs.statistics_tab import StatisticsTab
+        return StatisticsTab(self._app_state)
+
+    def _connect_portfolio_signals_if_ready(self) -> None:
+        """Connect portfolio signals when all portfolio tabs are loaded."""
+        if self._portfolio_signals_connected:
+            return
+
+        overview_container = self._lazy_containers.get("Portfolio Overview")
+        breakdown_container = self._lazy_containers.get("Portfolio Breakdown")
+        metrics_container = self._lazy_containers.get("Portfolio Metrics")
+
+        if not all([overview_container, breakdown_container, metrics_container]):
+            return
+
+        # Check if all are loaded
+        if not (overview_container.is_loaded and
+                breakdown_container.is_loaded and
+                metrics_container.is_loaded):
+            return
+
+        # Connect signals
+        overview = overview_container.widget
+        breakdown = breakdown_container.widget
+        metrics = metrics_container.widget
+
+        if overview and breakdown:
+            overview.portfolio_data_changed.connect(breakdown.on_portfolio_data_changed)
+        if overview and metrics:
+            overview.portfolio_data_changed.connect(metrics.on_portfolio_data_changed)
+
+        self._portfolio_signals_connected = True
+        logger.debug("Portfolio signals connected")
 
     @property
     def app_state(self) -> AppState:

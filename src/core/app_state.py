@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from PyQt6.QtCore import QObject, pyqtSignal
 
+from src.core.computation_cache import invalidate_all_caches
 from src.core.models import AdjustmentParams, MetricsUserInputs
 
 if TYPE_CHECKING:
@@ -138,3 +139,43 @@ class AppState(QObject):
             value: Whether simulation is in progress.
         """
         self._monte_carlo_running = value
+
+    def invalidate_computation_caches(self) -> None:
+        """Invalidate all computation caches.
+
+        Call this when source data changes (new file loaded, columns remapped, etc.)
+        to ensure fresh calculations on subsequent requests.
+        """
+        invalidate_all_caches()
+        logger.debug("Computation caches invalidated due to data change")
+
+    def set_raw_data(self, df: pd.DataFrame) -> None:
+        """Set raw data and invalidate caches.
+
+        Args:
+            df: Raw DataFrame from file load.
+        """
+        self.raw_df = df
+        self.invalidate_computation_caches()
+        self.data_loaded.emit(df)
+
+    def set_baseline_data(self, df: pd.DataFrame) -> None:
+        """Set baseline data after first trigger and invalidate caches.
+
+        Args:
+            df: Baseline DataFrame.
+        """
+        self.baseline_df = df
+        self.invalidate_computation_caches()
+
+    def set_filtered_data(self, df: pd.DataFrame) -> None:
+        """Set filtered data and emit signal.
+
+        Note: Does not invalidate all caches as filtered data is derived.
+        Only metrics/breakdown caches for filtered data should refresh.
+
+        Args:
+            df: Filtered DataFrame.
+        """
+        self.filtered_df = df
+        self.filtered_data_updated.emit(df)

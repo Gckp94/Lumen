@@ -130,6 +130,7 @@ def calculate_mutual_information(
     MI(X;Y) = H(Y) - H(Y|X)
 
     Higher MI means knowing the feature value reduces uncertainty about gains.
+    Uses fully vectorized numpy operations for performance.
 
     Args:
         feature: Array of feature values.
@@ -169,15 +170,19 @@ def calculate_mutual_information(
     except Exception:
         return 0.0
 
-    # Calculate joint histogram
+    # Calculate joint histogram - VECTORIZED using numpy histogram2d
     n_feature_bins = len(feature_edges) - 1
     n_gains_bins = len(gains_edges) - 1
 
-    joint_hist = np.zeros((n_feature_bins, n_gains_bins))
-    for f_bin, g_bin in zip(feature_bins, gains_bins, strict=False):
-        f_idx = min(f_bin, n_feature_bins - 1)
-        g_idx = min(g_bin, n_gains_bins - 1)
-        joint_hist[f_idx, g_idx] += 1
+    # Clip bin indices to valid range
+    feature_bins_clipped = np.clip(feature_bins, 0, n_feature_bins - 1)
+    gains_bins_clipped = np.clip(gains_bins, 0, n_gains_bins - 1)
+
+    # Use numpy's bincount for fast histogram computation
+    # Convert 2D indices to 1D for bincount
+    flat_indices = feature_bins_clipped * n_gains_bins + gains_bins_clipped
+    joint_hist_flat = np.bincount(flat_indices, minlength=n_feature_bins * n_gains_bins)
+    joint_hist = joint_hist_flat.reshape(n_feature_bins, n_gains_bins).astype(np.float64)
 
     # Convert to probabilities
     total = joint_hist.sum()
@@ -188,14 +193,24 @@ def calculate_mutual_information(
     feature_prob = joint_prob.sum(axis=1)
     gains_prob = joint_prob.sum(axis=0)
 
-    # Calculate MI: sum of p(x,y) * log2(p(x,y) / (p(x) * p(y)))
-    mi = 0.0
-    for i in range(n_feature_bins):
-        for j in range(n_gains_bins):
-            if joint_prob[i, j] > 0 and feature_prob[i] > 0 and gains_prob[j] > 0:
-                mi += joint_prob[i, j] * np.log2(
-                    joint_prob[i, j] / (feature_prob[i] * gains_prob[j])
-                )
+    # Calculate MI - FULLY VECTORIZED
+    # MI = sum of p(x,y) * log2(p(x,y) / (p(x) * p(y)))
+    # Create outer product of marginals: p(x) * p(y)
+    marginal_product = np.outer(feature_prob, gains_prob)
+
+    # Mask for valid cells (where all probabilities are positive)
+    valid_mask = (joint_prob > 0) & (marginal_product > 0)
+
+    # Compute MI using vectorized operations with masking
+    if not valid_mask.any():
+        return 0.0
+
+    # Calculate log ratio only where valid
+    log_ratio = np.zeros_like(joint_prob)
+    log_ratio[valid_mask] = np.log2(joint_prob[valid_mask] / marginal_product[valid_mask])
+
+    # Weighted sum
+    mi = np.sum(joint_prob * log_ratio)
 
     # Apply Miller-Madow bias correction for small samples
     # Bias ~ (|X|-1)(|Y|-1) / (2*N*ln(2))
