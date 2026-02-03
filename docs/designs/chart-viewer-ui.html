@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumen Chart Viewer - UI Design</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Core palette - industrial dark */
+            --bg-primary: #0a0b0d;
+            --bg-secondary: #12141a;
+            --bg-tertiary: #1a1d24;
+            --bg-elevated: #22262f;
+
+            /* Borders and lines */
+            --border-subtle: #2a2f3a;
+            --border-medium: #3a4150;
+            --border-bright: #4a5568;
+
+            /* Text hierarchy */
+            --text-primary: #e8eaed;
+            --text-secondary: #9ca3af;
+            --text-tertiary: #6b7280;
+            --text-muted: #4b5563;
+
+            /* Accent colors - trading specific */
+            --accent-profit: #10b981;
+            --accent-profit-dim: rgba(16, 185, 129, 0.15);
+            --accent-loss: #ef4444;
+            --accent-loss-dim: rgba(239, 68, 68, 0.15);
+            --accent-entry: #3b82f6;
+            --accent-entry-dim: rgba(59, 130, 246, 0.15);
+            --accent-target: #f59e0b;
+            --accent-target-dim: rgba(245, 158, 11, 0.15);
+            --accent-stop: #ef4444;
+            --accent-vwap: #8b5cf6;
+
+            /* Interactive states */
+            --hover-overlay: rgba(255, 255, 255, 0.04);
+            --active-overlay: rgba(255, 255, 255, 0.08);
+            --selected-bg: rgba(59, 130, 246, 0.12);
+            --selected-border: rgba(59, 130, 246, 0.4);
+
+            /* Spacing scale */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 12px;
+            --space-lg: 16px;
+            --space-xl: 24px;
+            --space-2xl: 32px;
+
+            /* Typography */
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Space Grotesk', sans-serif;
+
+            /* Effects */
+            --glow-profit: 0 0 20px rgba(16, 185, 129, 0.3);
+            --glow-loss: 0 0 20px rgba(239, 68, 68, 0.3);
+            --shadow-elevated: 0 4px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ============================================
+           MAIN LAYOUT
+           ============================================ */
+        .chart-viewer {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+            gap: 1px;
+            background: var(--border-subtle);
+        }
+
+        /* ============================================
+           TOP TOOLBAR
+           ============================================ */
+        .toolbar {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            padding: var(--space-md) var(--space-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--space-xl);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .toolbar-section {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+
+        .toolbar-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toolbar-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px;
+            padding: var(--space-sm) var(--space-md);
+            padding-right: var(--space-xl);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+
+        .toolbar-select:hover {
+            border-color: var(--border-medium);
+            background-color: var(--bg-elevated);
+        }
+
+        .toolbar-select:focus {
+            outline: none;
+            border-color: var(--accent-entry);
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border-subtle);
+        }
+
+        /* Trade Info Box */
+        .trade-info-box {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: var(--space-lg);
+            background: var(--bg-tertiary);
+            padding: var(--space-sm) var(--space-lg);
+            border-radius: 4px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .trade-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .trade-info-label {
+            font-size: 9px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .trade-info-value {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .trade-info-value.ticker {
+            color: var(--accent-entry);
+        }
+
+        .trade-info-value.profit {
+            color: var(--accent-profit);
+        }
+
+        .trade-info-value.loss {
+            color: var(--accent-loss);
+        }
+
+        .trade-direction {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            padding: var(--space-xs) var(--space-sm);
+            border-radius: 3px;
+        }
+
+        .trade-direction.long {
+            background: var(--accent-profit-dim);
+            color: var(--accent-profit);
+        }
+
+        .trade-direction.short {
+            background: var(--accent-loss-dim);
+            color: var(--accent-loss);
+        }
+
+        /* ============================================
+           LEFT PANEL
+           ============================================ */
+        .left-panel {
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-section {
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .panel-header {
+            padding: var(--space-md) var(--space-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .panel-badge {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            background: var(--bg-primary);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        /* Trade Browser */
+        .trade-browser {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .trade-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-sm);
+        }
+
+        .trade-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .trade-list::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        .trade-list::-webkit-scrollbar-thumb {
+            background: var(--border-medium);
+            border-radius: 3px;
+        }
+
+        .trade-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.1s;
+            border: 1px solid transparent;
+        }
+
+        .trade-item:hover {
+            background: var(--hover-overlay);
+        }
+
+        .trade-item.selected {
+            background: var(--selected-bg);
+            border-color: var(--selected-border);
+        }
+
+        .trade-item-indicator {
+            width: 3px;
+            height: 28px;
+            border-radius: 2px;
+        }
+
+        .trade-item-indicator.profit {
+            background: var(--accent-profit);
+        }
+
+        .trade-item-indicator.loss {
+            background: var(--accent-loss);
+        }
+
+        .trade-item-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .trade-item-ticker {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .trade-item-meta {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-tertiary);
+            display: flex;
+            gap: var(--space-sm);
+        }
+
+        .trade-item-pnl {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .trade-item-pnl.profit {
+            color: var(--accent-profit);
+        }
+
+        .trade-item-pnl.loss {
+            color: var(--accent-loss);
+        }
+
+        /* Navigation */
+        .trade-nav {
+            display: flex;
+            gap: var(--space-sm);
+            padding: var(--space-md);
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .trade-nav-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-xs);
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .trade-nav-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--border-medium);
+            color: var(--text-primary);
+        }
+
+        .trade-nav-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Scaling Config */
+        .scaling-config {
+            padding: var(--space-lg);
+        }
+
+        .config-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            flex-wrap: wrap;
+            line-height: 2;
+        }
+
+        .config-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .config-input {
+            width: 52px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 3px;
+            padding: var(--space-xs) var(--space-sm);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            text-align: center;
+            transition: border-color 0.15s;
+        }
+
+        .config-input:hover {
+            border-color: var(--border-medium);
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--accent-entry);
+        }
+
+        .config-unit {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+
+        /* ============================================
+           CHART AREA
+           ============================================ */
+        .chart-area {
+            background: var(--bg-primary);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+            padding: var(--space-lg);
+        }
+
+        /* Simulated chart canvas */
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+            background:
+                linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px),
+                linear-gradient(0deg, var(--border-subtle) 1px, transparent 1px);
+            background-size: 60px 40px;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Price axis */
+        .price-axis {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 70px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: var(--space-lg) var(--space-sm);
+        }
+
+        .price-tick {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-tertiary);
+            text-align: right;
+        }
+
+        /* Time axis */
+        .time-axis {
+            position: absolute;
+            left: 0;
+            right: 70px;
+            bottom: 0;
+            height: 28px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 var(--space-lg);
+        }
+
+        .time-tick {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-tertiary);
+        }
+
+        /* Chart levels */
+        .chart-level {
+            position: absolute;
+            left: 0;
+            right: 70px;
+            height: 1px;
+            display: flex;
+            align-items: center;
+        }
+
+        .chart-level::before {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: currentColor;
+        }
+
+        .chart-level-label {
+            position: absolute;
+            right: 75px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 2px;
+            white-space: nowrap;
+        }
+
+        .chart-level.stop {
+            top: 70%;
+            color: var(--accent-loss);
+        }
+
+        .chart-level.stop::before {
+            background: repeating-linear-gradient(
+                90deg,
+                var(--accent-loss),
+                var(--accent-loss) 8px,
+                transparent 8px,
+                transparent 12px
+            );
+        }
+
+        .chart-level.stop .chart-level-label {
+            background: var(--accent-loss-dim);
+            color: var(--accent-loss);
+        }
+
+        .chart-level.target {
+            top: 25%;
+            color: var(--accent-target);
+        }
+
+        .chart-level.target::before {
+            background: repeating-linear-gradient(
+                90deg,
+                var(--accent-target),
+                var(--accent-target) 8px,
+                transparent 8px,
+                transparent 12px
+            );
+        }
+
+        .chart-level.target .chart-level-label {
+            background: var(--accent-target-dim);
+            color: var(--accent-target);
+        }
+
+        .chart-level.vwap {
+            top: 48%;
+            color: var(--accent-vwap);
+        }
+
+        .chart-level.vwap::before {
+            background: var(--accent-vwap);
+            opacity: 0.4;
+        }
+
+        .chart-level.vwap .chart-level-label {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--accent-vwap);
+        }
+
+        /* Candlesticks (simulated) */
+        .candlesticks {
+            position: absolute;
+            top: 60px;
+            left: var(--space-lg);
+            right: 90px;
+            bottom: 48px;
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            padding: 0 40px;
+        }
+
+        .candle {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 12px;
+        }
+
+        .candle-wick {
+            width: 1px;
+            background: currentColor;
+        }
+
+        .candle-body {
+            width: 100%;
+            min-height: 2px;
+            border-radius: 1px;
+        }
+
+        .candle.green {
+            color: var(--accent-profit);
+        }
+
+        .candle.green .candle-body {
+            background: var(--accent-profit);
+        }
+
+        .candle.red {
+            color: var(--accent-loss);
+        }
+
+        .candle.red .candle-body {
+            background: var(--accent-loss);
+        }
+
+        /* Trade markers */
+        .trade-marker {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        .trade-marker.entry {
+            left: 25%;
+            bottom: 45%;
+        }
+
+        .trade-marker.exit1 {
+            left: 60%;
+            bottom: 70%;
+        }
+
+        .trade-marker.exit2 {
+            left: 85%;
+            bottom: 55%;
+        }
+
+        .marker-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: var(--shadow-elevated);
+        }
+
+        .marker-icon.entry {
+            background: var(--accent-entry);
+            color: white;
+        }
+
+        .marker-icon.exit {
+            background: var(--accent-profit);
+            color: white;
+        }
+
+        .marker-line {
+            width: 1px;
+            height: 40px;
+        }
+
+        .marker-line.entry {
+            background: var(--accent-entry);
+        }
+
+        .marker-line.exit {
+            background: var(--accent-profit);
+        }
+
+        .marker-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 2px;
+            white-space: nowrap;
+            margin-top: 4px;
+        }
+
+        .marker-label.entry {
+            background: var(--accent-entry-dim);
+            color: var(--accent-entry);
+        }
+
+        .marker-label.exit {
+            background: var(--accent-profit-dim);
+            color: var(--accent-profit);
+        }
+
+        /* Chart legend */
+        .chart-legend {
+            position: absolute;
+            top: var(--space-lg);
+            left: var(--space-lg);
+            display: flex;
+            gap: var(--space-lg);
+            background: rgba(10, 11, 13, 0.85);
+            backdrop-filter: blur(8px);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: 4px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+
+        .legend-color.entry { background: var(--accent-entry); }
+        .legend-color.exit { background: var(--accent-profit); }
+        .legend-color.stop { background: var(--accent-loss); }
+        .legend-color.target { background: var(--accent-target); }
+        .legend-color.vwap { background: var(--accent-vwap); }
+
+        /* ============================================
+           ANIMATIONS
+           ============================================ */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .trade-marker {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .trade-item.selected .trade-item-indicator {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 1200px) {
+            .chart-viewer {
+                grid-template-columns: 240px 1fr;
+            }
+
+            .trade-info-box {
+                gap: var(--space-md);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chart-viewer">
+        <!-- Top Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-section">
+                <span class="toolbar-label">Resolution</span>
+                <select class="toolbar-select">
+                    <option>1 Second</option>
+                    <option>5 Second</option>
+                    <option>15 Second</option>
+                    <option>30 Second</option>
+                    <option selected>1 Minute</option>
+                    <option>2 Minute</option>
+                    <option>5 Minute</option>
+                    <option>15 Minute</option>
+                    <option>30 Minute</option>
+                    <option>60 Minute</option>
+                    <option>Daily</option>
+                </select>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-section">
+                <span class="toolbar-label">Zoom</span>
+                <select class="toolbar-select">
+                    <option>Trade Only</option>
+                    <option>± 15 min</option>
+                    <option selected>± 30 min</option>
+                    <option>± 60 min</option>
+                    <option>Full Session</option>
+                </select>
+            </div>
+
+            <div class="trade-info-box">
+                <div class="trade-direction long">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                    LONG
+                </div>
+
+                <div class="trade-info-item">
+                    <span class="trade-info-label">Ticker</span>
+                    <span class="trade-info-value ticker">AAPL</span>
+                </div>
+
+                <div class="trade-info-item">
+                    <span class="trade-info-label">Date</span>
+                    <span class="trade-info-value">2024-01-15</span>
+                </div>
+
+                <div class="trade-info-item">
+                    <span class="trade-info-label">Entry</span>
+                    <span class="trade-info-value">$185.42 @ 09:32</span>
+                </div>
+
+                <div class="trade-info-item">
+                    <span class="trade-info-label">PnL</span>
+                    <span class="trade-info-value profit">+$847.50 (+2.3%)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <!-- Trade Browser -->
+            <div class="panel-section trade-browser">
+                <div class="panel-header">
+                    <span class="panel-title">Trade Browser</span>
+                    <span class="panel-badge">47 trades</span>
+                </div>
+
+                <div class="trade-list">
+                    <div class="trade-item">
+                        <div class="trade-item-indicator profit"></div>
+                        <div class="trade-item-main">
+                            <span class="trade-item-ticker">NVDA</span>
+                            <span class="trade-item-meta">
+                                <span>01-15</span>
+                                <span>09:31</span>
+                            </span>
+                        </div>
+                        <span class="trade-item-pnl profit">+3.1%</span>
+                    </div>
+
+                    <div class="trade-item selected">
+                        <div class="trade-item-indicator profit"></div>
+                        <div class="trade-item-main">
+                            <span class="trade-item-ticker">AAPL</span>
+                            <span class="trade-item-meta">
+                                <span>01-15</span>
+                                <span>09:32</span>
+                            </span>
+                        </div>
+                        <span class="trade-item-pnl profit">+2.3%</span>
+                    </div>
+
+                    <div class="trade-item">
+                        <div class="trade-item-indicator loss"></div>
+                        <div class="trade-item-main">
+                            <span class="trade-item-ticker">TSLA</span>
+                            <span class="trade-item-meta">
+                                <span>01-15</span>
+                                <span>09:45</span>
+                            </span>
+                        </div>
+                        <span class="trade-item-pnl loss">-1.8%</span>
+                    </div>
+
+                    <div class="trade-item">
+                        <div class="trade-item-indicator profit"></div>
+                        <div class="trade-item-main">
+                            <span class="trade-item-ticker">MSFT</span>
+                            <span class="trade-item-meta">
+                                <span>01-15</span>
+                                <span>10:02</span>
+                            </span>
+                        </div>
+                        <span class="trade-item-pnl profit">+1.5%</span>
+                    </div>
+
+                    <div class="trade-item">
+                        <div class="trade-item-indicator profit"></div>
+                        <div class="trade-item-main">
+                            <span class="trade-item-ticker">AMD</span>
+                            <span class="trade-item-meta">
+                                <span>01-15</span>
+                                <span>10:15</span>
+                            </span>
+                        </div>
+                        <span class="trade-item-pnl profit">+2.8%</span>
+                    </div>
+
+                    <div class="trade-item">
+                        <div class="trade-item-indicator loss"></div>
+                        <div class="trade-item-main">
+                            <span class="trade-item-ticker">META</span>
+                            <span class="trade-item-meta">
+                                <span>01-15</span>
+                                <span>10:28</span>
+                            </span>
+                        </div>
+                        <span class="trade-item-pnl loss">-0.9%</span>
+                    </div>
+
+                    <div class="trade-item">
+                        <div class="trade-item-indicator profit"></div>
+                        <div class="trade-item-main">
+                            <span class="trade-item-ticker">GOOGL</span>
+                            <span class="trade-item-meta">
+                                <span>01-15</span>
+                                <span>10:41</span>
+                            </span>
+                        </div>
+                        <span class="trade-item-pnl profit">+1.2%</span>
+                    </div>
+
+                    <div class="trade-item">
+                        <div class="trade-item-indicator profit"></div>
+                        <div class="trade-item-main">
+                            <span class="trade-item-ticker">AMZN</span>
+                            <span class="trade-item-meta">
+                                <span>01-15</span>
+                                <span>11:03</span>
+                            </span>
+                        </div>
+                        <span class="trade-item-pnl profit">+0.7%</span>
+                    </div>
+                </div>
+
+                <div class="trade-nav">
+                    <button class="trade-nav-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M15 18l-6-6 6-6"/>
+                        </svg>
+                        Prev
+                    </button>
+                    <button class="trade-nav-btn">
+                        Next
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scaling Config -->
+            <div class="panel-section">
+                <div class="panel-header">
+                    <span class="panel-title">Scaling Config</span>
+                </div>
+
+                <div class="scaling-config">
+                    <div class="config-row">
+                        <span class="config-text">Exit</span>
+                        <input type="text" class="config-input" value="50">
+                        <span class="config-unit">%</span>
+                        <span class="config-text">at</span>
+                        <input type="text" class="config-input" value="35">
+                        <span class="config-unit">%</span>
+                        <span class="config-text">profit</span>
+                    </div>
+                    <div class="config-row" style="margin-top: 8px;">
+                        <span class="config-text">Exit remaining at session close</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Area -->
+        <div class="chart-area">
+            <div class="chart-container">
+                <div class="chart-canvas">
+                    <!-- Legend -->
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <div class="legend-color entry"></div>
+                            <span>Entry</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color exit"></div>
+                            <span>Exit</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color stop"></div>
+                            <span>Stop</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color target"></div>
+                            <span>Target</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color vwap"></div>
+                            <span>VWAP</span>
+                        </div>
+                    </div>
+
+                    <!-- Chart levels -->
+                    <div class="chart-level target">
+                        <span class="chart-level-label">$189.91 (+35%)</span>
+                    </div>
+
+                    <div class="chart-level vwap">
+                        <span class="chart-level-label">VWAP $186.20</span>
+                    </div>
+
+                    <div class="chart-level stop">
+                        <span class="chart-level-label">$182.71 (-1.5%)</span>
+                    </div>
+
+                    <!-- Simulated candlesticks -->
+                    <div class="candlesticks">
+                        <div class="candle red"><div class="candle-wick" style="height:15px"></div><div class="candle-body" style="height:8px"></div><div class="candle-wick" style="height:10px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:8px"></div><div class="candle-body" style="height:12px"></div><div class="candle-wick" style="height:6px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:5px"></div><div class="candle-body" style="height:18px"></div><div class="candle-wick" style="height:8px"></div></div>
+                        <div class="candle red"><div class="candle-wick" style="height:12px"></div><div class="candle-body" style="height:6px"></div><div class="candle-wick" style="height:14px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:10px"></div><div class="candle-body" style="height:22px"></div><div class="candle-wick" style="height:4px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:6px"></div><div class="candle-body" style="height:28px"></div><div class="candle-wick" style="height:8px"></div></div>
+                        <div class="candle red"><div class="candle-wick" style="height:18px"></div><div class="candle-body" style="height:10px"></div><div class="candle-wick" style="height:12px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:8px"></div><div class="candle-body" style="height:15px"></div><div class="candle-wick" style="height:10px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:4px"></div><div class="candle-body" style="height:20px"></div><div class="candle-wick" style="height:6px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:6px"></div><div class="candle-body" style="height:32px"></div><div class="candle-wick" style="height:4px"></div></div>
+                        <div class="candle red"><div class="candle-wick" style="height:14px"></div><div class="candle-body" style="height:8px"></div><div class="candle-wick" style="height:16px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:10px"></div><div class="candle-body" style="height:18px"></div><div class="candle-wick" style="height:8px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:5px"></div><div class="candle-body" style="height:25px"></div><div class="candle-wick" style="height:6px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:8px"></div><div class="candle-body" style="height:30px"></div><div class="candle-wick" style="height:4px"></div></div>
+                        <div class="candle red"><div class="candle-wick" style="height:12px"></div><div class="candle-body" style="height:12px"></div><div class="candle-wick" style="height:10px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:6px"></div><div class="candle-body" style="height:16px"></div><div class="candle-wick" style="height:8px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:4px"></div><div class="candle-body" style="height:22px"></div><div class="candle-wick" style="height:6px"></div></div>
+                        <div class="candle red"><div class="candle-wick" style="height:15px"></div><div class="candle-body" style="height:10px"></div><div class="candle-wick" style="height:12px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:8px"></div><div class="candle-body" style="height:14px"></div><div class="candle-wick" style="height:10px"></div></div>
+                        <div class="candle green"><div class="candle-wick" style="height:6px"></div><div class="candle-body" style="height:18px"></div><div class="candle-wick" style="height:8px"></div></div>
+                    </div>
+
+                    <!-- Trade markers -->
+                    <div class="trade-marker entry">
+                        <div class="marker-label entry">ENTRY $185.42</div>
+                        <div class="marker-line entry"></div>
+                        <div class="marker-icon entry">▲</div>
+                    </div>
+
+                    <div class="trade-marker exit1">
+                        <div class="marker-icon exit">▼</div>
+                        <div class="marker-line exit"></div>
+                        <div class="marker-label exit">50% @ $189.91</div>
+                    </div>
+
+                    <div class="trade-marker exit2">
+                        <div class="marker-icon exit">▼</div>
+                        <div class="marker-line exit"></div>
+                        <div class="marker-label exit">50% @ $187.65</div>
+                    </div>
+
+                    <!-- Price axis -->
+                    <div class="price-axis">
+                        <span class="price-tick">$192.00</span>
+                        <span class="price-tick">$190.00</span>
+                        <span class="price-tick">$188.00</span>
+                        <span class="price-tick">$186.00</span>
+                        <span class="price-tick">$184.00</span>
+                        <span class="price-tick">$182.00</span>
+                    </div>
+
+                    <!-- Time axis -->
+                    <div class="time-axis">
+                        <span class="time-tick">09:02</span>
+                        <span class="time-tick">09:15</span>
+                        <span class="time-tick">09:30</span>
+                        <span class="time-tick">09:45</span>
+                        <span class="time-tick">10:00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
