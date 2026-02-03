@@ -403,6 +403,9 @@ def _calculate_stop_level_row(
     mae_col: str,
     stop_level: int,
     efficiency: float,
+    start_capital: float | None = None,
+    fractional_kelly_pct: float = 25.0,
+    date_col: str | None = None,
 ) -> dict:
     """Calculate metrics for a single stop loss level.
 
@@ -412,6 +415,9 @@ def _calculate_stop_level_row(
         mae_col: Column name for MAE percentage (percentage points).
         stop_level: Stop loss level (e.g., 20 for 20%).
         efficiency: Efficiency/slippage percentage (e.g., 5 for 5% slippage).
+        start_capital: Starting capital for Kelly calculations (e.g., 100000.0).
+        fractional_kelly_pct: Fractional Kelly percentage (e.g., 25 = 25%).
+        date_col: Optional date column name for equity curve.
 
     Returns:
         Dictionary with metrics for this stop level.
@@ -433,6 +439,8 @@ def _calculate_stop_level_row(
             "Full Kelly (Stop Adj)": None,
             "Half Kelly (Stop Adj)": None,
             "Quarter Kelly (Stop Adj)": None,
+            "Max DD %": None,
+            "Total Kelly $": None,
         }
 
     # Identify trades that would be stopped at this stop level
@@ -519,6 +527,35 @@ def _calculate_stop_level_row(
         half_kelly = None
         quarter_kelly = None
 
+    # Calculate Kelly metrics (Max DD % and Total Kelly $)
+    max_dd_pct = None
+    kelly_pnl = None
+
+    if start_capital is not None and full_kelly is not None and total_trades > 0:
+        try:
+            # Create temporary DataFrame with adjusted returns for this stop level
+            kelly_df = df.copy()
+            # EquityCalculator expects gains in percentage format (e.g., 15 for 15%)
+            kelly_df["_stop_adj_gains_pct"] = adjusted_returns * 100
+
+            equity_calculator = EquityCalculator()
+            kelly_result = equity_calculator.calculate_kelly_metrics(
+                kelly_df,
+                "_stop_adj_gains_pct",
+                start_capital,
+                fractional_kelly_pct,
+                full_kelly,  # Use the stop-adjusted full Kelly for this level
+                date_col=date_col,
+            )
+            kelly_pnl = kelly_result.get("pnl")
+            max_dd_pct = kelly_result.get("max_dd_pct")
+        except Exception as e:
+            logger.warning(
+                "Failed to calculate Kelly metrics for stop level %d: %s",
+                stop_level,
+                str(e),
+            )
+
     return {
         "Stop %": stop_level,
         "Win %": win_pct,
@@ -532,6 +569,8 @@ def _calculate_stop_level_row(
         "Full Kelly (Stop Adj)": full_kelly,
         "Half Kelly (Stop Adj)": half_kelly,
         "Quarter Kelly (Stop Adj)": quarter_kelly,
+        "Max DD %": max_dd_pct,
+        "Total Kelly $": kelly_pnl,
     }
 
 
