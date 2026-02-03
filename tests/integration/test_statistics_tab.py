@@ -731,3 +731,38 @@ class TestStatisticsTabIntegration:
         # Values should be non-empty strings
         assert max_dd_item.text().strip() != "", "Max DD % should have a value"
         assert total_kelly_item.text().strip() != "", "Total Kelly $ should have a value"
+
+    def test_offset_table_displays_kelly_metrics_columns(
+        self, app, qtbot, app_state_with_statistics_data: AppState
+    ) -> None:
+        """Test that Offset table shows Max DD % and Total Kelly $ columns."""
+        tab = StatisticsTab(app_state_with_statistics_data)
+        qtbot.addWidget(tab)
+
+        # Trigger baseline calculation to populate tables
+        dummy_metrics = TradingMetrics(
+            num_trades=20,
+            win_rate=70.0,
+            avg_winner=25.0,
+            avg_loser=-6.0,
+            rr_ratio=4.17,
+            ev=15.0,
+            kelly=20.0,
+            winner_count=14,
+            loser_count=6,
+        )
+        app_state_with_statistics_data.baseline_calculated.emit(dummy_metrics)
+
+        # Process events
+        qtbot.wait(100)
+
+        # Get column headers from offset table
+        headers = []
+        for i in range(tab._offset_table.columnCount()):
+            header_item = tab._offset_table.horizontalHeaderItem(i)
+            if header_item:
+                headers.append(header_item.text())
+
+        # Verify new columns are present
+        assert "Max DD %" in headers, f"Max DD % not found in headers: {headers}"
+        assert "Total Kelly $" in headers, f"Total Kelly $ not found in headers: {headers}"
