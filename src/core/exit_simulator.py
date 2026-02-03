@@ -18,6 +18,18 @@ class ScalingConfig:
     scale_pct: float = 50.0
     profit_target_pct: float = 35.0
 
+    def __post_init__(self) -> None:
+        """Validate configuration values."""
+        if not (0 < self.scale_pct <= 100):
+            raise ValueError(
+                f"scale_pct must be between 0 (exclusive) and 100 (inclusive), "
+                f"got {self.scale_pct}"
+            )
+        if self.profit_target_pct <= 0:
+            raise ValueError(
+                f"profit_target_pct must be greater than 0, got {self.profit_target_pct}"
+            )
+
 
 @dataclass
 class ExitEvent:
@@ -65,7 +77,23 @@ class ExitSimulator:
             stop_level: Stop loss price level.
             scaling_config: Configuration for profit target scaling.
             session_close_time: Time string (HH:MM) when session closes.
+
+        Raises:
+            ValueError: If entry_price, stop_level, or session_close_time are invalid.
         """
+        # Validate entry_price and stop_level
+        if entry_price <= 0:
+            raise ValueError(f"entry_price must be greater than 0, got {entry_price}")
+        if stop_level <= 0:
+            raise ValueError(f"stop_level must be greater than 0, got {stop_level}")
+        if entry_price == stop_level:
+            raise ValueError(
+                f"entry_price and stop_level must be different, both are {entry_price}"
+            )
+
+        # Validate session_close_time format
+        self._validate_session_close_time(session_close_time)
+
         self.entry_price = entry_price
         self.entry_time = entry_time
         self.stop_level = stop_level
@@ -84,6 +112,38 @@ class ExitSimulator:
             self.profit_target = entry_price * (
                 1 - scaling_config.profit_target_pct / 100
             )
+
+    def _validate_session_close_time(self, time_str: str) -> None:
+        """Validate session_close_time format (HH:MM).
+
+        Args:
+            time_str: Time string in HH:MM format.
+
+        Raises:
+            ValueError: If format is invalid or hours/minutes are out of range.
+        """
+        try:
+            parts = time_str.split(":")
+            if len(parts) != 2:
+                raise ValueError(
+                    f"session_close_time must be in HH:MM format, got '{time_str}'"
+                )
+            hours = int(parts[0])
+            minutes = int(parts[1])
+            if not (0 <= hours <= 23):
+                raise ValueError(
+                    f"session_close_time hours must be 0-23, got {hours} in '{time_str}'"
+                )
+            if not (0 <= minutes <= 59):
+                raise ValueError(
+                    f"session_close_time minutes must be 0-59, got {minutes} in '{time_str}'"
+                )
+        except ValueError as e:
+            if "must be" in str(e):
+                raise
+            raise ValueError(
+                f"session_close_time must be in HH:MM format, got '{time_str}'"
+            ) from e
 
     def simulate(self, bars: pd.DataFrame) -> list[ExitEvent]:
         """Process bars and return exit events.

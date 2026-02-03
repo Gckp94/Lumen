@@ -23,6 +23,36 @@ class TestScalingConfig:
         assert config.scale_pct == 25.0
         assert config.profit_target_pct == 50.0
 
+    def test_scale_pct_zero_raises_error(self) -> None:
+        """scale_pct of 0 should raise ValueError."""
+        with pytest.raises(ValueError, match="scale_pct must be between 0"):
+            ScalingConfig(scale_pct=0, profit_target_pct=35.0)
+
+    def test_scale_pct_negative_raises_error(self) -> None:
+        """Negative scale_pct should raise ValueError."""
+        with pytest.raises(ValueError, match="scale_pct must be between 0"):
+            ScalingConfig(scale_pct=-10, profit_target_pct=35.0)
+
+    def test_scale_pct_over_100_raises_error(self) -> None:
+        """scale_pct over 100 should raise ValueError."""
+        with pytest.raises(ValueError, match="scale_pct must be between 0"):
+            ScalingConfig(scale_pct=101, profit_target_pct=35.0)
+
+    def test_scale_pct_100_is_valid(self) -> None:
+        """scale_pct of exactly 100 should be valid."""
+        config = ScalingConfig(scale_pct=100, profit_target_pct=35.0)
+        assert config.scale_pct == 100
+
+    def test_profit_target_pct_zero_raises_error(self) -> None:
+        """profit_target_pct of 0 should raise ValueError."""
+        with pytest.raises(ValueError, match="profit_target_pct must be greater than 0"):
+            ScalingConfig(scale_pct=50.0, profit_target_pct=0)
+
+    def test_profit_target_pct_negative_raises_error(self) -> None:
+        """Negative profit_target_pct should raise ValueError."""
+        with pytest.raises(ValueError, match="profit_target_pct must be greater than 0"):
+            ScalingConfig(scale_pct=50.0, profit_target_pct=-5)
+
 
 class TestExitEvent:
     """Tests for ExitEvent dataclass."""
@@ -309,3 +339,106 @@ class TestExitSimulator:
         assert exits[0].reason == "stop_hit"
         assert exits[0].price == 105.0  # Stop price
         assert exits[0].pct == 100  # Full position
+
+    def test_entry_price_zero_raises_error(self) -> None:
+        """entry_price of 0 should raise ValueError."""
+        config = ScalingConfig()
+        with pytest.raises(ValueError, match="entry_price must be greater than 0"):
+            ExitSimulator(
+                entry_price=0,
+                entry_time=datetime(2024, 1, 15, 9, 32),
+                stop_level=95.0,
+                scaling_config=config,
+            )
+
+    def test_entry_price_negative_raises_error(self) -> None:
+        """Negative entry_price should raise ValueError."""
+        config = ScalingConfig()
+        with pytest.raises(ValueError, match="entry_price must be greater than 0"):
+            ExitSimulator(
+                entry_price=-100.0,
+                entry_time=datetime(2024, 1, 15, 9, 32),
+                stop_level=95.0,
+                scaling_config=config,
+            )
+
+    def test_stop_level_zero_raises_error(self) -> None:
+        """stop_level of 0 should raise ValueError."""
+        config = ScalingConfig()
+        with pytest.raises(ValueError, match="stop_level must be greater than 0"):
+            ExitSimulator(
+                entry_price=100.0,
+                entry_time=datetime(2024, 1, 15, 9, 32),
+                stop_level=0,
+                scaling_config=config,
+            )
+
+    def test_stop_level_negative_raises_error(self) -> None:
+        """Negative stop_level should raise ValueError."""
+        config = ScalingConfig()
+        with pytest.raises(ValueError, match="stop_level must be greater than 0"):
+            ExitSimulator(
+                entry_price=100.0,
+                entry_time=datetime(2024, 1, 15, 9, 32),
+                stop_level=-50.0,
+                scaling_config=config,
+            )
+
+    def test_entry_price_equals_stop_level_raises_error(self) -> None:
+        """entry_price equal to stop_level should raise ValueError."""
+        config = ScalingConfig()
+        with pytest.raises(ValueError, match="entry_price and stop_level must be different"):
+            ExitSimulator(
+                entry_price=100.0,
+                entry_time=datetime(2024, 1, 15, 9, 32),
+                stop_level=100.0,
+                scaling_config=config,
+            )
+
+    def test_session_close_time_invalid_format_raises_error(self) -> None:
+        """Invalid session_close_time format should raise ValueError."""
+        config = ScalingConfig()
+        with pytest.raises(ValueError, match="session_close_time must be in HH:MM format"):
+            ExitSimulator(
+                entry_price=100.0,
+                entry_time=datetime(2024, 1, 15, 9, 32),
+                stop_level=95.0,
+                scaling_config=config,
+                session_close_time="16-00",
+            )
+
+    def test_session_close_time_invalid_hours_raises_error(self) -> None:
+        """Invalid hours in session_close_time should raise ValueError."""
+        config = ScalingConfig()
+        with pytest.raises(ValueError, match="hours must be 0-23"):
+            ExitSimulator(
+                entry_price=100.0,
+                entry_time=datetime(2024, 1, 15, 9, 32),
+                stop_level=95.0,
+                scaling_config=config,
+                session_close_time="25:00",
+            )
+
+    def test_session_close_time_invalid_minutes_raises_error(self) -> None:
+        """Invalid minutes in session_close_time should raise ValueError."""
+        config = ScalingConfig()
+        with pytest.raises(ValueError, match="minutes must be 0-59"):
+            ExitSimulator(
+                entry_price=100.0,
+                entry_time=datetime(2024, 1, 15, 9, 32),
+                stop_level=95.0,
+                scaling_config=config,
+                session_close_time="16:60",
+            )
+
+    def test_session_close_time_non_numeric_raises_error(self) -> None:
+        """Non-numeric session_close_time should raise ValueError."""
+        config = ScalingConfig()
+        with pytest.raises(ValueError, match="session_close_time must be in HH:MM format"):
+            ExitSimulator(
+                entry_price=100.0,
+                entry_time=datetime(2024, 1, 15, 9, 32),
+                stop_level=95.0,
+                scaling_config=config,
+                session_close_time="ab:cd",
+            )
