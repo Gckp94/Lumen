@@ -248,10 +248,7 @@ class PriceDataLoader:
             return df
 
         # Determine aggregation period
-        if resolution.unit == "minute":
-            freq = f"{resolution.value}min"
-        else:  # second
-            freq = f"{resolution.value}s"
+        freq = f"{resolution.value}min" if resolution.unit == "minute" else f"{resolution.value}s"
 
         # Sort by datetime
         df = df.sort_values("datetime")

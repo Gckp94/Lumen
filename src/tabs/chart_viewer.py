@@ -12,8 +12,8 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
-    QSplitter,
     QSpinBox,
+    QSplitter,
     QVBoxLayout,
     QWidget,
 )
@@ -152,7 +152,7 @@ class ChartViewerTab(QWidget):
 
         self._resolution_combo = QComboBox()
         self._resolution_combo.setObjectName("resolutionCombo")
-        for label in RESOLUTION_MAP.keys():
+        for label in RESOLUTION_MAP:
             self._resolution_combo.addItem(label)
         # Default to 1-minute
         self._resolution_combo.setCurrentText("1m")
@@ -167,7 +167,7 @@ class ChartViewerTab(QWidget):
 
         self._zoom_combo = QComboBox()
         self._zoom_combo.setObjectName("zoomCombo")
-        for preset in ZOOM_PRESETS.keys():
+        for preset in ZOOM_PRESETS:
             self._zoom_combo.addItem(preset)
         # Default to +/- 30min
         self._zoom_combo.setCurrentText("Trade +/- 30min")
@@ -365,9 +365,11 @@ class ChartViewerTab(QWidget):
         Args:
             metrics: TradingMetrics (unused, we use baseline_df).
         """
-        if self._app_state.filtered_df is None or self._app_state.filtered_df.empty:
-            if self._app_state.baseline_df is not None:
-                self._update_trade_browser(self._app_state.baseline_df)
+        if (
+            (self._app_state.filtered_df is None or self._app_state.filtered_df.empty)
+            and self._app_state.baseline_df is not None
+        ):
+            self._update_trade_browser(self._app_state.baseline_df)
 
     def _update_trade_browser(self, df: pd.DataFrame) -> None:
         """Update trade browser with DataFrame.
@@ -506,10 +508,7 @@ class ChartViewerTab(QWidget):
                 date_str = entry_time.date().isoformat()
             else:
                 date = trade_data.get("date")
-                if hasattr(date, "isoformat"):
-                    date_str = date.isoformat()
-                else:
-                    date_str = str(date)
+                date_str = date.isoformat() if hasattr(date, "isoformat") else str(date)
         except (AttributeError, TypeError, ValueError) as e:
             logger.warning("Failed to parse date for chart loading: %s", e)
             return
