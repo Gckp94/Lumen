@@ -4,6 +4,7 @@ import logging
 
 import pandas as pd
 
+from src.core.equity import EquityCalculator
 from src.core.models import AdjustmentParams, ColumnMapping
 
 logger = logging.getLogger(__name__)
@@ -886,6 +887,83 @@ def _calculate_scaling_row(
         "Blended EG %": blended_metrics["eg_pct"],
         "Full Hold EG %": full_hold_metrics["eg_pct"],
     }
+
+
+def calculate_scale_adjusted_gains(
+    df: pd.DataFrame,
+    mapping: ColumnMapping,
+    target: int,
+    scale_out_pct: float,
+    adjustment_params: AdjustmentParams | None = None,
+) -> pd.Series:
+    """Calculate scale-adjusted gain for each trade.
+
+    For trades reaching the target level, the return is:
+        scale_out_pct * (target/100) + (1-scale_out_pct) * adjusted_gain_pct
+
+    Trades not reaching target keep their original adjusted_gain_pct.
+
+    Args:
+        df: Trade data with adjusted_gain_pct and mfe_pct columns.
+        mapping: Column mapping configuration.
+        target: Target level for partial profit (e.g., 10 for 10%).
+        scale_out_pct: Fraction of position to scale out (0-1).
+        adjustment_params: Optional adjustment parameters for timing-aware logic.
+
+    Returns:
+        Series with scale-adjusted gain for each trade (in decimal form, e.g., 0.10 = 10%).
+    """
+    if df.empty:
+        return pd.Series(dtype=float)
+
+    mfe_col = mapping.mfe_pct
+    mae_col = mapping.mae_pct
+
+    # Start with original adjusted gains
+    scale_adjusted = df["adjusted_gain_pct"].copy()
+
+    # Determine if timing-aware logic should be used
+    use_timing = (
+        mapping is not None
+        and adjustment_params is not None
+        and mapping.mfe_time is not None
+        and mapping.mae_time is not None
+        and mapping.mfe_time in df.columns
+        and mapping.mae_time in df.columns
+    )
+
+    # Calculate target reached mask
+    mfe_reached_mask = df[mfe_col] >= target
+
+    if use_timing:
+        # Timing-aware logic:
+        # Target captured if:
+        # 1. MFE >= target AND
+        # 2. (mfe_time < mae_time OR mae_pct < stop_loss)
+        mfe_time = df[mapping.mfe_time]
+        mae_time = df[mapping.mae_time]
+        mae_pct = df[mae_col]
+        stop_loss = adjustment_params.stop_loss
+
+        # MFE happened before MAE peaked
+        mfe_before_mae = mfe_time < mae_time
+        # MAE never exceeded stop loss
+        mae_below_stop = mae_pct < stop_loss
+
+        # Target captured = MFE reached AND (timing favorable OR no stop hit)
+        target_reached_mask = mfe_reached_mask & (mfe_before_mae | mae_below_stop)
+    else:
+        # Original logic: just check if MFE >= target
+        target_reached_mask = mfe_reached_mask
+
+    # For trades that reached the target, apply the blending formula
+    # target/100 converts target (percentage points) to decimal
+    scale_adjusted[target_reached_mask] = (
+        scale_out_pct * (target / 100.0)
+        + (1 - scale_out_pct) * df.loc[target_reached_mask, "adjusted_gain_pct"]
+    )
+
+    return scale_adjusted
 
 
 def _calculate_cover_row(
