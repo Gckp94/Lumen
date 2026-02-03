@@ -727,6 +727,9 @@ class StatisticsTab(QWidget):
         # Connect to adjustment params changes (stop loss, efficiency)
         self._app_state.adjustment_params_changed.connect(self._on_adjustment_params_changed)
 
+        # Connect to metrics user inputs changes (Kelly/capital)
+        self._app_state.metrics_user_inputs_changed.connect(self._on_metrics_inputs_changed)
+
         # Connect scale out spinbox to refresh scaling table
         self._scale_out_spin.valueChanged.connect(self._on_scale_out_changed)
         self._cover_spin.valueChanged.connect(self._on_cover_changed)
@@ -801,6 +804,14 @@ class StatisticsTab(QWidget):
 
         Args:
             params: New adjustment parameters.
+        """
+        self._refresh_all_tables()
+
+    def _on_metrics_inputs_changed(self, inputs) -> None:
+        """Refresh tables when Kelly/capital inputs change.
+
+        Args:
+            inputs: New metrics user inputs (starting capital, fractional kelly, etc.).
         """
         self._refresh_all_tables()
 
@@ -955,7 +966,18 @@ class StatisticsTab(QWidget):
         # Calculate and populate Stop Loss table
         # Pass AdjustmentParams directly - function will compute adjusted gains fresh
         try:
-            stop_loss_df = calculate_stop_loss_table(df, mapping, params)
+            # Get Kelly parameters from app state
+            metrics_inputs = self._app_state.metrics_user_inputs
+            start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
+            fractional_kelly_pct = metrics_inputs.fractional_kelly if metrics_inputs else 25.0
+
+            stop_loss_df = calculate_stop_loss_table(
+                df,
+                mapping,
+                params,
+                start_capital=start_capital,
+                fractional_kelly_pct=fractional_kelly_pct,
+            )
             self._populate_table(self._stop_loss_table, stop_loss_df)
         except Exception as e:
             logger.warning(f"Error calculating Stop Loss table: {e}")
