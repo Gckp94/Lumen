@@ -2,19 +2,22 @@
 
 import logging
 import math
-from typing import Tuple
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
 import pandas as pd
-from PyQt6.QtCore import QPoint, Qt
-from PyQt6.QtGui import QAction, QBrush, QColor, QFont
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QBrush, QColor, QFont
 from PyQt6.QtWidgets import (
+    QButtonGroup,
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
-    QMenu,
     QMessageBox,
     QPushButton,
+    QRadioButton,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -24,17 +27,22 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.app_state import AppState
+from src.core.exceptions import ExportError
+from src.core.export_manager import ExportManager
 from src.core.models import AdjustmentParams, TradingMetrics
 from src.core.statistics import (
+    SCALING_TARGET_LEVELS,
     calculate_loss_chance_table,
     calculate_mae_before_win,
     calculate_mfe_before_loss,
     calculate_offset_table,
     calculate_partial_cover_table,
     calculate_profit_chance_table,
+    calculate_scale_adjusted_gains,
     calculate_scaling_table,
     calculate_stop_loss_table,
 )
+from src.ui.components.toast import Toast
 from src.ui.constants import Colors, Fonts, Spacing
 from src.utils.table_export import table_to_markdown
 
@@ -89,6 +97,7 @@ PERCENTAGE_COLUMNS = {
     ">10% MFE Probability",
     ">15% MFE Probability",
     ">20% MFE Probability",
+    "Max DD %",
 }
 
 # Kelly columns (show as percentages with 2 decimals)
@@ -96,6 +105,11 @@ KELLY_COLUMNS = {
     "Full Kelly (Stop Adj)",
     "Half Kelly (Stop Adj)",
     "Quarter Kelly (Stop Adj)",
+}
+
+# Dollar/currency columns (show with $ symbol and commas)
+DOLLAR_COLUMNS = {
+    "Total Kelly $",
 }
 
 # =============================================================================
@@ -138,7 +152,7 @@ def calculate_gradient_colors(
     min_val: float,
     max_val: float,
     invert: bool = False
-) -> Tuple[QColor, QColor]:
+) -> tuple[QColor, QColor]:
     """Calculate background and text colors based on value position in range."""
     if min_val == max_val:
         return (GRADIENT_MID, TEXT_MID)
@@ -183,7 +197,7 @@ class GradientStyler:
     """
 
     def __init__(self):
-        self._column_ranges: dict[str, Tuple[float, float]] = {}
+        self._column_ranges: dict[str, tuple[float, float]] = {}
 
     def set_column_range(self, column_name: str, min_val: float, max_val: float) -> None:
         """Register the min/max range for a column."""
@@ -197,7 +211,7 @@ class GradientStyler:
         self,
         column_name: str,
         value: float | None
-    ) -> Tuple[QColor, QColor]:
+    ) -> tuple[QColor, QColor]:
         """Get background and text colors for a cell.
 
         Args:
@@ -267,6 +281,9 @@ class StatisticsTab(QWidget):
         super().__init__(parent)
         self._app_state = app_state
         self._gradient_styler = GradientStyler()
+        # Scaling export state
+        self._selected_scaling_target: int = SCALING_TARGET_LEVELS[0]
+        self._scaling_radio_group: QButtonGroup | None = None
         self._setup_ui()
         self._connect_signals()
         self._initialize_from_state()
@@ -314,7 +331,7 @@ class StatisticsTab(QWidget):
         export_row = QHBoxLayout()
         export_row.addStretch()
 
-        self._export_btn = QPushButton("Export to Markdown")
+        self._export_btn = QPushButton("Export")
         self._export_btn.setStyleSheet(
             f"""
             QPushButton {{
@@ -368,7 +385,7 @@ class StatisticsTab(QWidget):
         )
 
     def _create_table(self) -> QTableWidget:
-        """Create a styled table widget with context menu support."""
+        """Create a styled table widget."""
         table = QTableWidget()
         table.setStyleSheet(
             f"""
@@ -390,11 +407,6 @@ class StatisticsTab(QWidget):
                 padding: 8px;
             }}
         """
-        )
-        # Enable custom context menu
-        table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        table.customContextMenuRequested.connect(
-            lambda pos, t=table: self._show_table_context_menu(pos, t)
         )
         return table
 
@@ -442,9 +454,37 @@ class StatisticsTab(QWidget):
         """
         )
         scale_out_row.addWidget(self._scale_out_spin)
+
+        # Export button for scaling table
+        self._scaling_export_btn = QPushButton("Export")
+        self._scaling_export_btn.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                padding: 6px 12px;
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: {Colors.BG_BORDER};
+            }}
+            QPushButton:pressed {{
+                background-color: {Colors.BG_SURFACE};
+            }}
+        """
+        )
+        self._scaling_export_btn.clicked.connect(self._on_scaling_export_clicked)
+        scale_out_row.addWidget(self._scaling_export_btn)
+
         scale_out_row.addStretch()
 
         layout.addLayout(scale_out_row)
+
+        # Initialize radio button group for scaling table selection
+        self._scaling_radio_group = QButtonGroup(self)
+        self._scaling_radio_group.setExclusive(True)
 
         # Scaling table (Partial Target %)
         self._scaling_table = self._create_table()
@@ -940,7 +980,14 @@ class StatisticsTab(QWidget):
             try:
                 scale_out_pct = self._scale_out_spin.value() / 100.0
                 scaling_df = calculate_scaling_table(df, mapping, scale_out_pct, params)
+                
+                # Clear table completely before repopulating to avoid duplicate columns
+                self._scaling_table.clear()
+                self._scaling_table.setRowCount(0)
+                self._scaling_table.setColumnCount(0)
+                
                 self._populate_table(self._scaling_table, scaling_df)
+                self._add_scaling_radio_buttons(scaling_df)
             except Exception as e:
                 logger.warning(f"Error calculating Scaling table: {e}")
                 self._scaling_table.setRowCount(0)
@@ -1011,9 +1058,217 @@ class StatisticsTab(QWidget):
             scale_out_pct = self._scale_out_spin.value() / 100.0
             adjustment_params = self._app_state.adjustment_params
             scaling_df = calculate_scaling_table(df, mapping, scale_out_pct, adjustment_params)
+            
+            # Clear table completely before repopulating to avoid duplicate columns
+            self._scaling_table.clear()
+            self._scaling_table.setRowCount(0)
+            self._scaling_table.setColumnCount(0)
+            
             self._populate_table(self._scaling_table, scaling_df)
+            self._add_scaling_radio_buttons(scaling_df)
         except Exception as e:
             logger.warning(f"Error refreshing Scaling table: {e}")
+
+    def _add_scaling_radio_buttons(self, scaling_df: pd.DataFrame) -> None:
+        """Add radio button selection column to scaling table.
+
+        Args:
+            scaling_df: DataFrame used to populate the table (for target values).
+        """
+        if scaling_df is None or scaling_df.empty:
+            return
+
+        table = self._scaling_table
+        row_count = table.rowCount()
+        col_count = table.columnCount()
+
+        if row_count == 0 or col_count == 0:
+            return
+
+        # Check if Select column already exists (first header is "Select")
+        first_header = table.horizontalHeaderItem(0)
+        if first_header is None or first_header.text() != "Select":
+            # Insert new column at position 0 only if it doesn't exist
+            table.insertColumn(0)
+            table.setHorizontalHeaderItem(0, QTableWidgetItem("Select"))
+
+        # Clear existing radio group
+        if self._scaling_radio_group:
+            for button in self._scaling_radio_group.buttons():
+                self._scaling_radio_group.removeButton(button)
+
+        # Get target values from DataFrame
+        targets = scaling_df["Partial Target %"].tolist()
+
+        # Add radio buttons for each row
+        for row_idx in range(row_count):
+            radio = QRadioButton()
+            radio.setStyleSheet(
+                f"""
+                QRadioButton {{
+                    margin-left: 8px;
+                }}
+                QRadioButton::indicator {{
+                    width: 14px;
+                    height: 14px;
+                }}
+                QRadioButton::indicator:checked {{
+                    background-color: {Colors.SIGNAL_CYAN};
+                    border: 2px solid {Colors.SIGNAL_CYAN};
+                    border-radius: 7px;
+                }}
+                QRadioButton::indicator:unchecked {{
+                    background-color: {Colors.BG_ELEVATED};
+                    border: 2px solid {Colors.BG_BORDER};
+                    border-radius: 7px;
+                }}
+            """
+            )
+
+            # Store target value as property
+            target_value = targets[row_idx] if row_idx < len(targets) else SCALING_TARGET_LEVELS[0]
+            radio.setProperty("target", target_value)
+
+            # Connect signal
+            radio.toggled.connect(
+                lambda checked, t=target_value: self._on_scaling_target_selected(checked, t)
+            )
+
+            # Add to button group
+            self._scaling_radio_group.addButton(radio, row_idx)
+
+            # Create container widget for centering
+            container = QWidget()
+            container_layout = QHBoxLayout(container)
+            container_layout.setContentsMargins(4, 0, 4, 0)
+            container_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            container_layout.addWidget(radio)
+
+            table.setCellWidget(row_idx, 0, container)
+
+            # Check first row by default (or match current selection)
+            if target_value == self._selected_scaling_target:
+                radio.setChecked(True)
+
+        # If no selection matched, select first row
+        if self._scaling_radio_group.checkedButton() is None and row_count > 0:
+            first_button = self._scaling_radio_group.button(0)
+            if first_button:
+                first_button.setChecked(True)
+                self._selected_scaling_target = targets[0] if targets else SCALING_TARGET_LEVELS[0]
+
+        # Resize the select column to be narrow
+        table.setColumnWidth(0, 60)
+
+    def _on_scaling_target_selected(self, checked: bool, target: int) -> None:
+        """Handle scaling target selection change.
+
+        Args:
+            checked: Whether the radio button is now checked.
+            target: The target percentage value selected.
+        """
+        if checked:
+            self._selected_scaling_target = target
+
+    def _on_scaling_export_clicked(self) -> None:
+        """Handle scaling export button click.
+
+        Exports filtered data with a scale_adjusted_gain_pct column based on
+        the selected target level and current scale out percentage.
+        """
+        # Get current filtered DataFrame
+        df = self._get_current_df()
+        if df is None or df.empty:
+            Toast.display(self, "No data available for export", "error")
+            return
+
+        if not self._app_state.column_mapping:
+            Toast.display(self, "Column mapping not configured", "error")
+            return
+
+        mapping = self._app_state.column_mapping
+
+        # Get scale out percentage
+        scale_out_pct = self._scale_out_spin.value() / 100.0
+
+        # Get adjustment params
+        adjustment_params = self._app_state.adjustment_params
+
+        # Calculate scale-adjusted gains
+        try:
+            scale_adjusted = calculate_scale_adjusted_gains(
+                df,
+                mapping,
+                self._selected_scaling_target,
+                scale_out_pct,
+                adjustment_params,
+            )
+        except Exception as e:
+            Toast.display(self, f"Error calculating scale-adjusted gains: {e}", "error")
+            logger.error(f"Scale-adjusted calculation error: {e}")
+            return
+
+        # Create export DataFrame with the new column
+        export_df = df.copy()
+        export_df["scale_adjusted_gain_pct"] = scale_adjusted
+
+        # Generate suggested filename with user's home directory as default
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        target = self._selected_scaling_target
+        scale_out = self._scale_out_spin.value()
+        default_dir = Path.home()
+        suggested_path = default_dir / f"lumen_scaling_target{target}_scale{scale_out}_{timestamp}.csv"
+
+        # Show save dialog with CSV and Excel options
+        path_str, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export Scaling Data",
+            str(suggested_path),
+            "CSV Files (*.csv);;Excel Files (*.xlsx);;All Files (*)",
+        )
+
+        if not path_str:
+            return  # User cancelled
+
+        path = Path(path_str)
+
+        # Determine format based on extension or selected filter
+        is_excel = path.suffix.lower() == ".xlsx" or "Excel" in selected_filter
+
+        # Ensure correct extension
+        if is_excel and path.suffix.lower() != ".xlsx":
+            path = path.with_suffix(".xlsx")
+        elif not is_excel and path.suffix.lower() != ".csv":
+            path = path.with_suffix(".csv")
+
+        try:
+            exporter = ExportManager()
+            export_args = {
+                "df": export_df,
+                "path": path,
+                "filters": self._app_state.filters,
+                "first_trigger_enabled": self._app_state.first_trigger_enabled,
+                "total_rows": (
+                    len(self._app_state.raw_df)
+                    if self._app_state.raw_df is not None
+                    else None
+                ),
+            }
+
+            if is_excel:
+                exporter.to_excel(**export_args)
+            else:
+                exporter.to_csv(**export_args)
+
+            Toast.display(
+                self,
+                f"Exported {len(export_df):,} rows to {path.name}",
+                "success",
+            )
+            logger.info(f"Scaling export completed: {path}")
+        except ExportError as e:
+            Toast.display(self, str(e), "error")
+            logger.error(f"Scaling export failed: {e}")
 
     def _refresh_cover_table(self) -> None:
         """Refresh only the cover table with current data."""
@@ -1170,6 +1425,10 @@ class StatisticsTab(QWidget):
         if column_name in KELLY_COLUMNS:
             return f"{value:.2f}%"
 
+        # Dollar columns: currency format with commas
+        if column_name in DOLLAR_COLUMNS:
+            return f"${value:,.2f}"
+
         # Default formatting for other floats
         if isinstance(value, float):
             return f"{value:.2f}"
@@ -1250,10 +1509,49 @@ class StatisticsTab(QWidget):
                     if current_bg.alpha() == 0:  # No existing background
                         item.setBackground(QBrush(ROW_OPTIMAL_BG))
 
+
+    def _table_to_dataframe(self, table: QTableWidget) -> Optional[pd.DataFrame]:
+        """Convert a QTableWidget to a pandas DataFrame.
+
+        Args:
+            table: The QTableWidget to convert.
+
+        Returns:
+            DataFrame with table contents, or None if table is empty.
+        """
+        row_count = table.rowCount()
+        col_count = table.columnCount()
+
+        if row_count == 0 or col_count == 0:
+            return None
+
+        # Get column headers
+        headers = []
+        for col_idx in range(col_count):
+            header_item = table.horizontalHeaderItem(col_idx)
+            headers.append(header_item.text() if header_item else f"Column {col_idx}")
+
+        # Skip "Select" column if present (it contains radio buttons, not data)
+        start_col = 1 if headers and headers[0] == "Select" else 0
+        headers = headers[start_col:]
+
+        # Get data
+        data = []
+        for row_idx in range(row_count):
+            row_data = []
+            for col_idx in range(start_col, col_count):
+                item = table.item(row_idx, col_idx)
+                row_data.append(item.text() if item else "")
+            data.append(row_data)
+
+        return pd.DataFrame(data, columns=headers)
+
     def _on_export_clicked(self) -> None:
-        """Handle export button click - export all tables to markdown."""
+        """Handle export button click - export all tables to CSV or Excel."""
+        from datetime import datetime
+        
         # Collect all tables with their titles
-        tables = [
+        tables_data = [
             ("MAE Before Win", self._mae_table),
             ("MFE Before Loss", self._mfe_table),
             ("Stop Loss", self._stop_loss_table),
@@ -1264,131 +1562,71 @@ class StatisticsTab(QWidget):
             ("Loss Chance", self._loss_chance_table),
         ]
 
-        # Build combined markdown
-        sections = []
-        sections.append("# Statistics Export")
-        sections.append("")
-
-        for title, table in tables:
-            if table.rowCount() > 0:
-                md = table_to_markdown(table, title=title)
-                if md:
-                    sections.append(md)
-                    sections.append("")
-
-        markdown_content = "\n".join(sections)
-
-        if not markdown_content.strip() or markdown_content == "# Statistics Export\n":
+        # Check if there's any data to export
+        has_data = any(table.rowCount() > 0 for _, table in tables_data)
+        if not has_data:
             QMessageBox.information(self, "Export", "No data to export.")
             return
 
-        # Open file dialog
-        file_path, _ = QFileDialog.getSaveFileName(
+        # Generate suggested filename with user's home directory as default
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_dir = Path.home()
+        suggested_path = default_dir / f"lumen_statistics_{timestamp}.csv"
+
+        # Show save dialog with CSV and Excel options
+        path_str, selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Export Statistics to Markdown",
-            "statistics_export.md",
-            "Markdown Files (*.md);;All Files (*)",
+            "Export Statistics",
+            str(suggested_path),
+            "CSV Files (*.csv);;Excel Files (*.xlsx);;All Files (*)",
         )
 
-        if file_path:
-            try:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(markdown_content)
-                QMessageBox.information(
-                    self, "Export Complete", f"Statistics exported to:\n{file_path}"
-                )
-            except Exception as e:
-                QMessageBox.critical(self, "Export Error", f"Failed to export:\n{e}")
+        if not path_str:
+            return  # User cancelled
 
-    def _show_table_context_menu(self, pos: QPoint, table: QTableWidget) -> None:
-        """Show context menu for table at the given position.
+        path = Path(path_str)
 
-        Args:
-            pos: Position where context menu was requested.
-            table: The table widget that triggered the context menu.
-        """
-        # Get the item at the clicked position
-        item = table.itemAt(pos)
-        if item is None:
-            return
+        # Determine format based on extension or selected filter
+        is_excel = path.suffix.lower() == ".xlsx" or "Excel" in selected_filter
 
-        # Store reference to the current table and row for the action handler
-        self._context_menu_table = table
-        self._context_menu_row = item.row()
+        # Ensure correct extension
+        if is_excel and path.suffix.lower() != ".xlsx":
+            path = path.with_suffix(".xlsx")
+        elif not is_excel and path.suffix.lower() != ".csv":
+            path = path.with_suffix(".csv")
 
-        # Create context menu
-        menu = QMenu(self)
-        menu.setStyleSheet(
-            f"""
-            QMenu {{
-                background-color: {Colors.BG_SURFACE};
-                color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BG_BORDER};
-                border-radius: 4px;
-                padding: 4px;
-            }}
-            QMenu::item {{
-                padding: 8px 24px;
-                border-radius: 2px;
-            }}
-            QMenu::item:selected {{
-                background-color: {Colors.BG_ELEVATED};
-            }}
-            QMenu::item:disabled {{
-                color: {Colors.TEXT_SECONDARY};
-            }}
-        """
-        )
+        try:
+            if is_excel:
+                # Export each table to a separate sheet
+                with pd.ExcelWriter(path, engine="openpyxl") as writer:
+                    for title, table in tables_data:
+                        if table.rowCount() > 0:
+                            df = self._table_to_dataframe(table)
+                            if df is not None and not df.empty:
+                                # Clean sheet name (Excel has restrictions)
+                                sheet_name = title.replace("/", "-")[:31]
+                                df.to_excel(writer, sheet_name=sheet_name, index=False)
+            else:
+                # Export all tables to a single CSV, writing each table separately
+                with open(path, "w", newline="", encoding="utf-8") as f:
+                    first_table = True
+                    for title, table in tables_data:
+                        if table.rowCount() > 0:
+                            df = self._table_to_dataframe(table)
+                            if df is not None and not df.empty:
+                                # Add blank line between tables (not before first)
+                                if not first_table:
+                                    f.write("\n")
+                                first_table = False
+                                
+                                # Write section header
+                                f.write(f"=== {title} ===\n")
+                                
+                                # Write table data
+                                df.to_csv(f, index=False)
 
-        # Add "View Chart" action
-        view_chart_action = QAction("View Chart", self)
-        view_chart_action.triggered.connect(self._on_view_chart)
-        menu.addAction(view_chart_action)
-
-        # Show the menu at the cursor position
-        menu.exec(table.viewport().mapToGlobal(pos))
-
-    def _on_view_chart(self) -> None:
-        """Handle View Chart action from context menu.
-
-        Retrieves trade data from the selected row and emits signal to view chart.
-        Note: Statistics tables contain aggregated data, not individual trades.
-        This method is designed to work with future trade-level data additions
-        or can be used when the table contains row-level trade identifiers.
-        """
-        if not hasattr(self, "_context_menu_table") or not hasattr(self, "_context_menu_row"):
-            return
-
-        table = self._context_menu_table
-        row = self._context_menu_row
-
-        if row < 0 or row >= table.rowCount():
-            return
-
-        # Get the current DataFrame to find underlying trade data
-        df = self._get_current_df()
-        if df is None or df.empty:
             QMessageBox.information(
-                self,
-                "View Chart",
-                "No trade data available to view chart."
+                self, "Export Complete", f"Statistics exported to:\n{path}"
             )
-            return
-
-        # For now, show info message since statistics tables have aggregated data
-        # In the future, this could be enhanced to:
-        # 1. Filter trades matching the selected row criteria
-        # 2. Navigate to Chart Viewer with the first matching trade
-        # 3. Or show a trade list popup for selection
-
-        # Get the first column value (usually the bucket/level identifier)
-        first_col_item = table.item(row, 0)
-        row_label = first_col_item.text() if first_col_item else "Unknown"
-
-        QMessageBox.information(
-            self,
-            "View Chart",
-            f"Selected row: {row_label}\n\n"
-            "Chart viewing for aggregated statistics rows is not yet implemented.\n"
-            "Use the Chart Viewer tab to browse individual trades."
-        )
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export:\n{e}")
