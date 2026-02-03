@@ -10,6 +10,7 @@ import pandas as pd
 from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtWidgets import (
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QScrollArea,
@@ -120,54 +121,29 @@ class PortfolioMetricsTab(QWidget):
         header = self._create_header()
         content_layout.addWidget(header)
 
-        # Main metrics panels (3 columns)
-        panels_layout = QHBoxLayout()
-        panels_layout.setSpacing(Spacing.LG)
+        # Main metrics panels (3x3 grid for alignment)
+        panels_grid = QGridLayout()
+        panels_grid.setSpacing(Spacing.LG)
+        panels_grid.setColumnStretch(0, 1)
+        panels_grid.setColumnStretch(1, 1)
+        panels_grid.setColumnStretch(2, 1)
 
-        # Left column: Core + Risk metrics
-        left_col = QVBoxLayout()
-        left_col.setSpacing(Spacing.LG)
-
+        # Row 0: Performance | Correlation | Stat+EdgeDecay
         self._core_panel = ComparisonPanel("Performance Metrics", self.CORE_METRICS)
-        left_col.addWidget(self._core_panel)
-
-        self._risk_panel = ComparisonPanel("Risk Metrics", self.RISK_METRICS)
-        left_col.addWidget(self._risk_panel)
-
-        left_col.addStretch()
-        panels_layout.addLayout(left_col, 1)
-
-        # Center column: Correlation + Contribution + Baseline Period
-        center_col = QVBoxLayout()
-        center_col.setSpacing(Spacing.LG)
+        panels_grid.addWidget(self._core_panel, 0, 0)
 
         self._correlation_panel = CorrelationPanel()
-        # Make correlation expand to match Performance Metrics height
-        self._correlation_panel.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
-        )
-        center_col.addWidget(self._correlation_panel)
+        panels_grid.addWidget(self._correlation_panel, 0, 1)
 
-        self._contribution_panel = ContributionPanel()
-        # Make contribution expand to match Risk Metrics height
-        self._contribution_panel.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
-        )
-        center_col.addWidget(self._contribution_panel)
-
-        # Baseline period section
-        baseline_period = self._create_baseline_period_section()
-        center_col.addWidget(baseline_period)
-
-        center_col.addStretch()
-        panels_layout.addLayout(center_col, 1)
-
-        # Right column: Statistical + Edge decay (grouped) + Ticker overlap + Combined Period
-        right_col = QVBoxLayout()
-        right_col.setSpacing(Spacing.LG)
-
-        # Group Statistical Analysis and Edge Decay to align with Performance Metrics
-        stat_edge_container = QWidget()
+        # Group Statistical Analysis and Edge Decay
+        stat_edge_container = QFrame()
+        stat_edge_container.setObjectName("statEdgeContainer")
+        stat_edge_container.setStyleSheet(f"""
+            QFrame#statEdgeContainer {{
+                background-color: transparent;
+                border: none;
+            }}
+        """)
         stat_edge_layout = QVBoxLayout(stat_edge_container)
         stat_edge_layout.setContentsMargins(0, 0, 0, 0)
         stat_edge_layout.setSpacing(Spacing.LG)
@@ -178,26 +154,31 @@ class PortfolioMetricsTab(QWidget):
         self._edge_decay_card = EdgeDecayCard()
         stat_edge_layout.addWidget(self._edge_decay_card)
 
-        stat_edge_container.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
-        )
-        right_col.addWidget(stat_edge_container)
+        stat_edge_layout.addStretch()  # Push content to top, fill remaining space
+        panels_grid.addWidget(stat_edge_container, 0, 2)
+
+        # Row 1: Risk | Contribution | Ticker Overlap
+        self._risk_panel = ComparisonPanel("Risk Metrics", self.RISK_METRICS)
+        panels_grid.addWidget(self._risk_panel, 1, 0)
+
+        self._contribution_panel = ContributionPanel()
+        panels_grid.addWidget(self._contribution_panel, 1, 1)
 
         self._ticker_overlap_card = TickerOverlapCard()
-        # Make ticker overlap expand to match Risk Metrics height
-        self._ticker_overlap_card.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
-        )
-        right_col.addWidget(self._ticker_overlap_card)
+        panels_grid.addWidget(self._ticker_overlap_card, 1, 2)
 
-        # Combined period section
+        # Row 2: (empty) | Baseline Period | Combined Period
+        # Add empty spacer in first column to maintain grid structure
+        empty_spacer = QWidget()
+        panels_grid.addWidget(empty_spacer, 2, 0)
+
+        baseline_period = self._create_baseline_period_section()
+        panels_grid.addWidget(baseline_period, 2, 1)
+
         combined_period = self._create_combined_period_section()
-        right_col.addWidget(combined_period)
+        panels_grid.addWidget(combined_period, 2, 2)
 
-        right_col.addStretch()
-        panels_layout.addLayout(right_col, 1)
-
-        content_layout.addLayout(panels_layout)
+        content_layout.addLayout(panels_grid)
         content_layout.addStretch()
 
         scroll.setWidget(content)
