@@ -986,7 +986,13 @@ class StatisticsTab(QWidget):
         # Calculate and populate Offset table
         # Pass AdjustmentParams directly - function will compute adjusted gains fresh
         try:
-            offset_df = calculate_offset_table(df, mapping, params)
+            offset_df = calculate_offset_table(
+                df,
+                mapping,
+                params,
+                start_capital=start_capital,
+                fractional_kelly_pct=fractional_kelly_pct,
+            )
             self._populate_table(self._offset_table, offset_df)
         except Exception as e:
             logger.warning(f"Error calculating Offset table: {e}")
