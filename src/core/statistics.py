@@ -330,6 +330,8 @@ def calculate_stop_loss_table(
     df: pd.DataFrame,
     mapping: ColumnMapping,
     adjustment_params: AdjustmentParams,
+    start_capital: float | None = None,
+    fractional_kelly_pct: float = 25.0,
 ) -> pd.DataFrame:
     """Simulate stop loss levels and calculate metrics.
 
@@ -337,16 +339,21 @@ def calculate_stop_loss_table(
         df: Trade data with gain_pct and mae_pct columns.
         mapping: Column mapping configuration.
         adjustment_params: Adjustment parameters (stop_loss, efficiency).
+        start_capital: Starting capital for Kelly calculations (e.g., 100000.0).
+            If None, Kelly PnL and Max DD columns will be None.
+        fractional_kelly_pct: Fractional Kelly percentage (e.g., 25 = 25%).
 
     Returns:
         DataFrame with rows for each stop level and performance metrics.
         Columns: Stop %, Win %, EV %, Avg Gain %, Median Gain %, Profit Ratio,
                  Edge %, EG %, Max Loss %, Full Kelly (Stop Adj),
-                 Half Kelly (Stop Adj), Quarter Kelly (Stop Adj)
+                 Half Kelly (Stop Adj), Quarter Kelly (Stop Adj),
+                 Max DD %, Total Kelly $
     """
     rows = []
     gain_col = mapping.gain_pct
     mae_col = mapping.mae_pct
+    date_col = mapping.date if hasattr(mapping, 'date') else None
 
     # Compute adjusted gains fresh using the same method as MetricsCalculator
     # This ensures consistency between Statistics and baseline metrics
@@ -367,7 +374,14 @@ def calculate_stop_loss_table(
 
     for stop_level in STOP_LOSS_LEVELS:
         row = _calculate_stop_level_row(
-            df, adjusted_gains, mae_col, stop_level, adjustment_params.efficiency
+            df,
+            adjusted_gains,
+            mae_col,
+            stop_level,
+            adjustment_params.efficiency,
+            start_capital=start_capital,
+            fractional_kelly_pct=fractional_kelly_pct,
+            date_col=date_col,
         )
         rows.append(row)
 
