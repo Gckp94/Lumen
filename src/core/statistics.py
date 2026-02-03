@@ -624,6 +624,9 @@ def _calculate_offset_level_row(
     mfe_col: str,
     offset: int,
     adjustment_params: AdjustmentParams,
+    start_capital: float | None = None,
+    fractional_kelly_pct: float = 25.0,
+    date_col: str | None = None,
 ) -> dict:
     """Calculate metrics for a single offset level.
 
@@ -634,6 +637,10 @@ def _calculate_offset_level_row(
         mfe_col: Column name for MFE percentage (percentage points).
         offset: Offset level (e.g., -10 for -10%, 20 for +20%).
         adjustment_params: Adjustment parameters (stop_loss, efficiency).
+        start_capital: Starting capital for Kelly calculations (e.g., 100000.0).
+            If None, Kelly PnL and Max DD columns will be None.
+        fractional_kelly_pct: Fractional Kelly percentage (e.g., 25 = 25%).
+        date_col: Optional date column name for equity curve.
 
     Returns:
         Dictionary with metrics for this offset level.
@@ -671,6 +678,8 @@ def _calculate_offset_level_row(
             "EG %": None,
             "Max Loss %": 0.0,
             "Total Gain %": 0.0,
+            "Max DD %": None,
+            "Total Kelly $": None,
         }
 
     # Recalculate MAE/MFE from new entry point
@@ -757,10 +766,48 @@ def _calculate_offset_level_row(
         edge_decimal = (profit_ratio + 1) * win_rate - 1
         edge_pct = edge_decimal * 100
     else:
+        edge_decimal = None
         edge_pct = None
 
     # EG %: Geometric growth formula at full Kelly stake
     eg_pct = calculate_expected_growth(win_rate, profit_ratio)
+
+    # Calculate Kelly % (stop-adjusted) for this offset level
+    # Kelly = edge / profit_ratio / (stop_loss/100) * 100
+    if profit_ratio is not None and profit_ratio > 0 and edge_decimal is not None:
+        stop_decimal = stop_loss / 100.0
+        full_kelly = (edge_decimal / profit_ratio / stop_decimal) * 100
+    else:
+        full_kelly = None
+
+    # Calculate Kelly metrics (Max DD % and Total Kelly $)
+    max_dd_pct = None
+    kelly_pnl = None
+
+    if start_capital is not None and full_kelly is not None and num_trades > 0:
+        try:
+            # Create temporary DataFrame with adjusted returns for this offset level
+            kelly_df = qualifying_df.copy()
+            # EquityCalculator expects gains in percentage format (e.g., 15 for 15%)
+            kelly_df["_offset_adj_gains_pct"] = adjusted_returns_pct.values
+
+            equity_calculator = EquityCalculator()
+            kelly_result = equity_calculator.calculate_kelly_metrics(
+                kelly_df,
+                "_offset_adj_gains_pct",
+                start_capital,
+                fractional_kelly_pct,
+                full_kelly,  # Use the stop-adjusted full Kelly for this level
+                date_col=date_col,
+            )
+            kelly_pnl = kelly_result.get("pnl")
+            max_dd_pct = kelly_result.get("max_dd_pct")
+        except Exception as e:
+            logger.warning(
+                "Failed to calculate Kelly metrics for offset level %d: %s",
+                offset,
+                str(e),
+            )
 
     return {
         "Offset %": offset,
@@ -774,6 +821,8 @@ def _calculate_offset_level_row(
         "EG %": eg_pct,
         "Max Loss %": max_loss_pct,
         "Total Gain %": total_gain_pct,
+        "Max DD %": max_dd_pct,
+        "Total Kelly $": kelly_pnl,
     }
 
 
