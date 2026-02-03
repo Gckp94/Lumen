@@ -291,7 +291,7 @@ class ParameterSensitivityTab(QWidget):
         step_section.addWidget(step_label)
 
         self._step_spin = NoScrollDoubleSpinBox()
-        self._step_spin.setRange(0.01, 10000)
+        self._step_spin.setRange(0.01, 1000000000)  # Allow up to 1 billion
         self._step_spin.setValue(1.0)
         self._step_spin.setDecimals(2)
         self._step_spin.setStyleSheet(f"""
@@ -651,17 +651,38 @@ class ParameterSensitivityTab(QWidget):
         self._progress.setValue(0)
         self._run_btn.setEnabled(False)
 
-        # Use filtered_df as baseline to respect date/time range filters from Feature Explorer
-        # filtered_df already has: date range + time range + feature filters + first trigger applied
-        # This ensures the baseline row matches Feature Explorer's metrics exactly
-        source_df = (
-            self._app_state.filtered_df
-            if self._app_state.filtered_df is not None
-            else self._app_state.baseline_df
-        )
+        # Start with baseline_df and apply date/time filters (but NOT feature filters)
+        # This allows Parameter Sensitivity to vary feature filter thresholds
+        from src.core.filter_engine import FilterEngine
 
-        # Start worker
-        # Note: first_trigger_enabled=False since filtered_df already has first trigger applied
+        engine = FilterEngine()
+        source_df = self._app_state.baseline_df
+
+        # Apply date range filter if set
+        if not self._app_state.all_dates and self._app_state.column_mapping:
+            source_df = engine.apply_date_range(
+                source_df,
+                date_col=self._app_state.column_mapping.date,
+                start=self._app_state.date_start,
+                end=self._app_state.date_end,
+                all_dates=self._app_state.all_dates,
+            )
+
+        # Apply time range filter if set
+        if (
+            not self._app_state.all_times
+            and self._app_state.column_mapping
+            and self._app_state.column_mapping.time
+        ):
+            source_df = FilterEngine.apply_time_range(
+                source_df,
+                self._app_state.column_mapping.time,
+                self._app_state.time_start,
+                self._app_state.time_end,
+            )
+
+        # Start worker - it will apply feature filters with varied thresholds
+        # first_trigger_enabled tells engine to apply first trigger AFTER feature filters
         self._worker = ThresholdAnalysisWorker(
             baseline_df=source_df,
             column_mapping=self._app_state.column_mapping,
@@ -670,7 +691,7 @@ class ParameterSensitivityTab(QWidget):
             filter_index=self._current_filter_index,
             vary_bound=vary_bound,
             step_size=step_size,
-            first_trigger_enabled=False,
+            first_trigger_enabled=self._app_state.first_trigger_enabled,
         )
         self._worker.progress.connect(self._on_progress)
         self._worker.completed.connect(self._on_completed)
