@@ -56,6 +56,7 @@ from src.ui.components.tabbed_chart_container import TabbedChartContainer
 from src.ui.components.time_range_filter import TimeRangeFilter
 from src.ui.components.toast import Toast
 from src.ui.components.toggle_switch import ToggleSwitch
+from src.ui.components.trade_browser import TradeBrowser
 from src.ui.components.user_inputs_panel import UserInputsPanel
 from src.ui.components.vertical_bar_chart import VerticalBarChart
 from src.ui.components.year_selector_tabs import YearSelectorTabs
@@ -109,6 +110,7 @@ __all__ = [
     "TabbedChartContainer",
     "Toast",
     "ToggleSwitch",
+    "TradeBrowser",
     "UserInputsPanel",
     "VerticalBarChart",
     "YearSelectorTabs",
