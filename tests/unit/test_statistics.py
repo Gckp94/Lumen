@@ -5,6 +5,7 @@ import pytest
 
 from src.core.models import AdjustmentParams, ColumnMapping
 from src.core.statistics import (
+    _calculate_offset_level_row,
     _calculate_stop_level_row,
     calculate_loss_chance_table,
     calculate_mae_before_win,
@@ -2225,3 +2226,72 @@ def test_calculate_stop_loss_table_default_kelly_params():
     assert "Max DD %" in result.columns
     assert "Total Kelly $" in result.columns
     assert len(result) == 10
+
+
+# =============================================================================
+# Tests for Offset Table Kelly Metrics
+# =============================================================================
+
+
+def test_calculate_offset_level_row_with_kelly_metrics():
+    """Test that offset level row includes Max DD % and Total Kelly $."""
+    df = pd.DataFrame({
+        "gain_pct": [0.10, 0.15, -0.05, 0.20, -0.08] * 20,  # 100 trades
+        "mae_pct": [5, 8, 12, 6, 15] * 20,
+        "mfe_pct": [15, 20, 8, 25, 10] * 20,
+    })
+
+    params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+
+    result = _calculate_offset_level_row(
+        df,
+        gain_col="gain_pct",
+        mae_col="mae_pct",
+        mfe_col="mfe_pct",
+        offset=0,  # 0% offset includes all trades
+        adjustment_params=params,
+        start_capital=100000.0,
+        fractional_kelly_pct=25.0,
+        date_col=None,
+    )
+
+    # Verify new columns exist
+    assert "Max DD %" in result
+    assert "Total Kelly $" in result
+
+    # Verify values are calculated when we have trades
+    assert result["# of Trades"] > 0
+
+
+def test_calculate_offset_table_with_kelly_params():
+    """Test that offset table accepts and uses Kelly parameters."""
+    df = pd.DataFrame({
+        "gain_pct": [0.10, 0.15, -0.05, 0.20, -0.08] * 20,
+        "mae_pct": [5, 8, 12, 6, 15] * 20,
+        "mfe_pct": [15, 20, 8, 25, 10] * 20,
+    })
+
+    mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
+    )
+    params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+
+    result = calculate_offset_table(
+        df,
+        mapping,
+        params,
+        start_capital=100000.0,
+        fractional_kelly_pct=25.0,
+    )
+
+    # Verify new columns exist in result DataFrame
+    assert "Max DD %" in result.columns
+    assert "Total Kelly $" in result.columns
+
+    # Verify we have 7 rows (one per offset level: -20, -10, 0, 10, 20, 30, 40)
+    assert len(result) == 7
