@@ -68,6 +68,8 @@ class AppState(QObject):
     sensitivity_progress = pyqtSignal(int, int)  # current, total
     sensitivity_completed = pyqtSignal(object)  # NeighborhoodResult list or SweepResult
     sensitivity_error = pyqtSignal(str)
+    # Chart viewer signal
+    view_chart_requested = pyqtSignal(dict)  # trade data dict
 
     def __init__(self) -> None:
         """Initialize AppState with default empty values."""

@@ -333,6 +333,7 @@ class ChartViewerTab(QWidget):
         # App state signals
         self._app_state.filtered_data_updated.connect(self._on_filtered_data_updated)
         self._app_state.baseline_calculated.connect(self._on_baseline_calculated)
+        self._app_state.view_chart_requested.connect(self._on_view_chart_requested)
 
         # Trade browser signals
         self._trade_browser.trade_selected.connect(self._on_trade_selected)
@@ -440,6 +441,19 @@ class ChartViewerTab(QWidget):
         Args:
             trade_data: Dictionary with trade information.
         """
+        self._current_trade = trade_data
+        self._update_trade_info(trade_data)
+        self._load_chart_for_trade(trade_data)
+
+    def _on_view_chart_requested(self, trade_data: dict) -> None:
+        """Handle external request to view chart for a trade.
+
+        Called when another tab (e.g., Statistics) requests to view a trade's chart.
+
+        Args:
+            trade_data: Dictionary with trade information (ticker, entry_time, etc.).
+        """
+        logger.debug("View chart requested for trade: %s", trade_data.get("ticker", "N/A"))
         self._current_trade = trade_data
         self._update_trade_info(trade_data)
         self._load_chart_for_trade(trade_data)
@@ -647,6 +661,7 @@ class ChartViewerTab(QWidget):
             # Disconnect app state signals
             self._app_state.filtered_data_updated.disconnect(self._on_filtered_data_updated)
             self._app_state.baseline_calculated.disconnect(self._on_baseline_calculated)
+            self._app_state.view_chart_requested.disconnect(self._on_view_chart_requested)
 
             # Disconnect trade browser signals
             self._trade_browser.trade_selected.disconnect(self._on_trade_selected)

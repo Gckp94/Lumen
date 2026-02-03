@@ -5,13 +5,14 @@ import math
 from typing import Tuple
 
 import pandas as pd
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QBrush, QColor, QFont
+from PyQt6.QtCore import QPoint, Qt
+from PyQt6.QtGui import QAction, QBrush, QColor, QFont
 from PyQt6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMenu,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -367,7 +368,7 @@ class StatisticsTab(QWidget):
         )
 
     def _create_table(self) -> QTableWidget:
-        """Create a styled table widget."""
+        """Create a styled table widget with context menu support."""
         table = QTableWidget()
         table.setStyleSheet(
             f"""
@@ -389,6 +390,11 @@ class StatisticsTab(QWidget):
                 padding: 8px;
             }}
         """
+        )
+        # Enable custom context menu
+        table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        table.customContextMenuRequested.connect(
+            lambda pos, t=table: self._show_table_context_menu(pos, t)
         )
         return table
 
@@ -1293,3 +1299,96 @@ class StatisticsTab(QWidget):
                 )
             except Exception as e:
                 QMessageBox.critical(self, "Export Error", f"Failed to export:\n{e}")
+
+    def _show_table_context_menu(self, pos: QPoint, table: QTableWidget) -> None:
+        """Show context menu for table at the given position.
+
+        Args:
+            pos: Position where context menu was requested.
+            table: The table widget that triggered the context menu.
+        """
+        # Get the item at the clicked position
+        item = table.itemAt(pos)
+        if item is None:
+            return
+
+        # Store reference to the current table and row for the action handler
+        self._context_menu_table = table
+        self._context_menu_row = item.row()
+
+        # Create context menu
+        menu = QMenu(self)
+        menu.setStyleSheet(
+            f"""
+            QMenu {{
+                background-color: {Colors.BG_SURFACE};
+                color: {Colors.TEXT_PRIMARY};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+                padding: 4px;
+            }}
+            QMenu::item {{
+                padding: 8px 24px;
+                border-radius: 2px;
+            }}
+            QMenu::item:selected {{
+                background-color: {Colors.BG_ELEVATED};
+            }}
+            QMenu::item:disabled {{
+                color: {Colors.TEXT_SECONDARY};
+            }}
+        """
+        )
+
+        # Add "View Chart" action
+        view_chart_action = QAction("View Chart", self)
+        view_chart_action.triggered.connect(self._on_view_chart)
+        menu.addAction(view_chart_action)
+
+        # Show the menu at the cursor position
+        menu.exec(table.viewport().mapToGlobal(pos))
+
+    def _on_view_chart(self) -> None:
+        """Handle View Chart action from context menu.
+
+        Retrieves trade data from the selected row and emits signal to view chart.
+        Note: Statistics tables contain aggregated data, not individual trades.
+        This method is designed to work with future trade-level data additions
+        or can be used when the table contains row-level trade identifiers.
+        """
+        if not hasattr(self, "_context_menu_table") or not hasattr(self, "_context_menu_row"):
+            return
+
+        table = self._context_menu_table
+        row = self._context_menu_row
+
+        if row < 0 or row >= table.rowCount():
+            return
+
+        # Get the current DataFrame to find underlying trade data
+        df = self._get_current_df()
+        if df is None or df.empty:
+            QMessageBox.information(
+                self,
+                "View Chart",
+                "No trade data available to view chart."
+            )
+            return
+
+        # For now, show info message since statistics tables have aggregated data
+        # In the future, this could be enhanced to:
+        # 1. Filter trades matching the selected row criteria
+        # 2. Navigate to Chart Viewer with the first matching trade
+        # 3. Or show a trade list popup for selection
+
+        # Get the first column value (usually the bucket/level identifier)
+        first_col_item = table.item(row, 0)
+        row_label = first_col_item.text() if first_col_item else "Unknown"
+
+        QMessageBox.information(
+            self,
+            "View Chart",
+            f"Selected row: {row_label}\n\n"
+            "Chart viewing for aggregated statistics rows is not yet implemented.\n"
+            "Use the Chart Viewer tab to browse individual trades."
+        )
