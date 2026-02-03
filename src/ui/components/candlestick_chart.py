@@ -178,12 +178,17 @@ class CandlestickChart(QWidget):
     - Exit points (green markers)
     - Stop level (red dashed horizontal line)
     - Profit target (orange dashed horizontal line)
+    - VWAP line (purple)
 
     Attributes:
         _plot_widget: The underlying PyQtGraph PlotWidget.
         _candle_item: The CandlestickItem for rendering candles.
         _marker_items: List of marker graphics items.
+        _vwap_item: PlotDataItem for the VWAP line.
     """
+
+    # VWAP line color (purple)
+    VWAP_COLOR = "#BB86FC"
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the CandlestickChart.
@@ -194,6 +199,7 @@ class CandlestickChart(QWidget):
         super().__init__(parent)
         self._marker_items: list[pg.GraphicsObject] = []
         self._datetime_to_idx: dict[datetime, int] = {}
+        self._vwap_item: pg.PlotDataItem | None = None
 
         self._setup_ui()
         self._setup_pyqtgraph()
@@ -247,13 +253,48 @@ class CandlestickChart(QWidget):
         self._candle_item = CandlestickItem()
         self._plot_widget.addItem(self._candle_item)
 
+    @staticmethod
+    def _calculate_vwap(df: pd.DataFrame) -> NDArray[np.float64]:
+        """Calculate Volume Weighted Average Price (VWAP).
+
+        VWAP = cumsum(typical_price * volume) / cumsum(volume)
+        where typical_price = (high + low + close) / 3
+
+        Args:
+            df: DataFrame with high, low, close, and volume columns.
+
+        Returns:
+            Numpy array of VWAP values for each bar.
+        """
+        high = df["high"].to_numpy()
+        low = df["low"].to_numpy()
+        close = df["close"].to_numpy()
+        volume = df["volume"].to_numpy()
+
+        typical_price = (high + low + close) / 3
+        cumulative_tp_volume = np.cumsum(typical_price * volume)
+        cumulative_volume = np.cumsum(volume)
+
+        # Avoid division by zero
+        with np.errstate(divide="ignore", invalid="ignore"):
+            vwap = cumulative_tp_volume / cumulative_volume
+            # Replace any inf/nan with 0
+            vwap = np.nan_to_num(vwap, nan=0.0, posinf=0.0, neginf=0.0)
+
+        return vwap
+
     def set_data(self, df: pd.DataFrame | None) -> None:
         """Set the OHLCV bar data for the chart.
 
         Args:
             df: DataFrame with columns datetime, open, high, low, close.
-                Optional volume column is ignored.
+                Optional volume column for VWAP calculation.
         """
+        # Remove existing VWAP line if present
+        if self._vwap_item is not None:
+            self._plot_widget.removeItem(self._vwap_item)
+            self._vwap_item = None
+
         if df is None or df.empty:
             self._candle_item.set_data(None)
             self._datetime_to_idx.clear()
@@ -280,6 +321,18 @@ class CandlestickChart(QWidget):
             data[:, 4] = df["close"].to_numpy()
 
             self._candle_item.set_data(data)
+
+            # Calculate and plot VWAP if volume data is available
+            if "volume" in df.columns and df["volume"].sum() > 0:
+                vwap = self._calculate_vwap(df)
+                x_indices = np.arange(n)
+                self._vwap_item = self._plot_widget.plot(
+                    x_indices,
+                    vwap,
+                    pen=pg.mkPen(color=self.VWAP_COLOR, width=2),
+                    name="VWAP",
+                )
+
             self._plot_widget.autoRange()
 
             logger.debug("CandlestickChart updated: %d bars", n)
@@ -382,6 +435,12 @@ class CandlestickChart(QWidget):
         self._candle_item.set_data(None)
         self._clear_markers()
         self._datetime_to_idx.clear()
+
+        # Remove VWAP line
+        if self._vwap_item is not None:
+            self._plot_widget.removeItem(self._vwap_item)
+            self._vwap_item = None
+
         logger.debug("CandlestickChart cleared")
 
     def auto_range(self) -> None:

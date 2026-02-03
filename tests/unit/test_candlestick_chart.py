@@ -438,3 +438,167 @@ class TestCandlestickChartColors:
         # Verify candle item has data and can render
         assert chart._candle_item._data is not None
         assert len(chart._candle_item._data) == 1
+
+
+class TestCandlestickChartVWAP:
+    """Tests for VWAP indicator."""
+
+    def test_set_data_creates_vwap_line(self, qtbot):
+        """set_data() creates VWAP line when volume data is present."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:32",
+                "2024-01-15 09:33",
+                "2024-01-15 09:34",
+            ]),
+            "open": [100.0, 103.0, 106.0],
+            "high": [105.0, 108.0, 107.0],
+            "low": [98.0, 101.0, 100.0],
+            "close": [103.0, 106.0, 101.0],
+            "volume": [1000, 1200, 800],
+        })
+        chart.set_data(df)
+
+        # VWAP item should be created
+        assert chart._vwap_item is not None
+
+    def test_vwap_calculation_correct(self, qtbot):
+        """VWAP calculation is mathematically correct."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        # Simple test case for VWAP calculation
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:32",
+                "2024-01-15 09:33",
+            ]),
+            "open": [100.0, 105.0],
+            "high": [110.0, 115.0],
+            "low": [90.0, 95.0],
+            "close": [105.0, 110.0],
+            "volume": [100, 200],
+        })
+
+        # Calculate expected VWAP
+        # Bar 1: typical_price = (110 + 90 + 105) / 3 = 101.666...
+        # Bar 2: typical_price = (115 + 95 + 110) / 3 = 106.666...
+        # VWAP[0] = (101.666... * 100) / 100 = 101.666...
+        # VWAP[1] = (101.666... * 100 + 106.666... * 200) / (100 + 200)
+        #         = (10166.666... + 21333.333...) / 300 = 105.0
+
+        tp1 = (110.0 + 90.0 + 105.0) / 3  # 101.666...
+        tp2 = (115.0 + 95.0 + 110.0) / 3  # 106.666...
+        expected_vwap_0 = tp1  # 101.666...
+        expected_vwap_1 = (tp1 * 100 + tp2 * 200) / 300  # 105.0
+
+        vwap = chart._calculate_vwap(df)
+
+        assert len(vwap) == 2
+        np.testing.assert_almost_equal(vwap[0], expected_vwap_0, decimal=5)
+        np.testing.assert_almost_equal(vwap[1], expected_vwap_1, decimal=5)
+
+    def test_clear_removes_vwap(self, qtbot):
+        """clear() removes VWAP line."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:32",
+                "2024-01-15 09:33",
+            ]),
+            "open": [100.0, 103.0],
+            "high": [105.0, 108.0],
+            "low": [98.0, 101.0],
+            "close": [103.0, 106.0],
+            "volume": [1000, 1200],
+        })
+        chart.set_data(df)
+
+        # VWAP should be present
+        assert chart._vwap_item is not None
+
+        # Clear chart
+        chart.clear()
+
+        # VWAP should be removed
+        assert chart._vwap_item is None
+
+    def test_no_vwap_without_volume(self, qtbot):
+        """VWAP is not created when volume column is missing."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:32",
+                "2024-01-15 09:33",
+            ]),
+            "open": [100.0, 103.0],
+            "high": [105.0, 108.0],
+            "low": [98.0, 101.0],
+            "close": [103.0, 106.0],
+            # No volume column
+        })
+        chart.set_data(df)
+
+        # VWAP should not be created
+        assert chart._vwap_item is None
+
+    def test_no_vwap_with_zero_volume(self, qtbot):
+        """VWAP is not created when all volume is zero."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:32",
+                "2024-01-15 09:33",
+            ]),
+            "open": [100.0, 103.0],
+            "high": [105.0, 108.0],
+            "low": [98.0, 101.0],
+            "close": [103.0, 106.0],
+            "volume": [0, 0],  # Zero volume
+        })
+        chart.set_data(df)
+
+        # VWAP should not be created
+        assert chart._vwap_item is None
+
+    def test_set_data_replaces_vwap(self, qtbot):
+        """set_data() replaces existing VWAP line with new data."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df1 = pd.DataFrame({
+            "datetime": pd.to_datetime(["2024-01-15 09:32"]),
+            "open": [100.0],
+            "high": [105.0],
+            "low": [98.0],
+            "close": [103.0],
+            "volume": [1000],
+        })
+        chart.set_data(df1)
+
+        first_vwap_item = chart._vwap_item
+        assert first_vwap_item is not None
+
+        # Set new data
+        df2 = pd.DataFrame({
+            "datetime": pd.to_datetime(["2024-01-15 10:00"]),
+            "open": [200.0],
+            "high": [210.0],
+            "low": [195.0],
+            "close": [205.0],
+            "volume": [2000],
+        })
+        chart.set_data(df2)
+
+        # VWAP should be a new item
+        assert chart._vwap_item is not None
+        assert chart._vwap_item is not first_vwap_item
