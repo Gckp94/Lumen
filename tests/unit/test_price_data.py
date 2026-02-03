@@ -1,6 +1,5 @@
 """Unit tests for PriceDataLoader class."""
 
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd

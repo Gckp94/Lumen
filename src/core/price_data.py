@@ -5,6 +5,7 @@ from enum import Enum
 from pathlib import Path
 
 import pandas as pd
+import pyarrow
 
 logger = logging.getLogger(__name__)
 
@@ -151,14 +152,29 @@ class PriceDataLoader:
             # Aggregate if needed
             df = self._aggregate_if_needed(df, resolution)
 
+            # Validate all required columns exist before returning
+            required_columns = ["datetime", "open", "high", "low", "close", "volume"]
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                logger.warning("Missing required columns after normalization: %s", missing_columns)
+                return None
+
             # Select and order final columns
-            output_columns = ["datetime", "open", "high", "low", "close", "volume"]
-            df = df[output_columns].reset_index(drop=True)
+            df = df[required_columns].reset_index(drop=True)
 
             logger.info("Loaded %d bars for %s on %s at %s resolution", len(df), ticker, date,
                         resolution.label)
             return df
 
+        except FileNotFoundError as e:
+            logger.error("Price data file not found: %s", e)
+            return None
+        except (pyarrow.ArrowInvalid, pyarrow.ArrowException) as e:
+            logger.error("Failed to read parquet file: %s", e)
+            return None
+        except KeyError as e:
+            logger.error("Missing required column in price data: %s", e)
+            return None
         except Exception as e:
             logger.error("Failed to load price data: %s", e)
             return None
