@@ -456,11 +456,10 @@ class ChartViewerTab(QWidget):
         entry_price = trade_data.get("entry_price", 0)
 
         time_str = ""
-        if entry_time:
-            if hasattr(entry_time, "strftime"):
-                time_str = entry_time.strftime("%Y-%m-%d %H:%M")
-            else:
-                time_str = str(entry_time)
+        if entry_time is not None and hasattr(entry_time, "strftime"):
+            time_str = entry_time.strftime("%Y-%m-%d %H:%M")
+        elif entry_time is not None:
+            time_str = str(entry_time)
 
         # Format PnL with color indication in text
         pnl_sign = "+" if pnl_pct >= 0 else ""
@@ -488,14 +487,18 @@ class ChartViewerTab(QWidget):
             return
 
         # Get date string
-        if hasattr(entry_time, "date"):
-            date_str = entry_time.date().isoformat()
-        else:
-            date = trade_data.get("date")
-            if hasattr(date, "isoformat"):
-                date_str = date.isoformat()
+        try:
+            if hasattr(entry_time, "date"):
+                date_str = entry_time.date().isoformat()
             else:
-                date_str = str(date)
+                date = trade_data.get("date")
+                if hasattr(date, "isoformat"):
+                    date_str = date.isoformat()
+                else:
+                    date_str = str(date)
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.warning("Failed to parse date for chart loading: %s", e)
+            return
 
         # Get resolution
         resolution_label = self._resolution_combo.currentText()
@@ -587,6 +590,10 @@ class ChartViewerTab(QWidget):
         start_time = entry_dt - timedelta(minutes=minutes)
         end_time = entry_dt + timedelta(minutes=minutes)
 
+        # Validate datetime column exists
+        if "datetime" not in df.columns:
+            return df
+
         # Filter by datetime
         mask = (df["datetime"] >= start_time) & (df["datetime"] <= end_time)
         return df[mask].reset_index(drop=True)
@@ -611,7 +618,46 @@ class ChartViewerTab(QWidget):
         Returns:
             ScalingConfig with current spinbox values.
         """
+        # Get values with validation and fallback to defaults
+        scale_pct = self._scale_pct_spin.value()
+        profit_target_pct = self._profit_target_spin.value()
+
+        # Validate scale_pct is in valid range (1-100)
+        if not 1 <= scale_pct <= 100:
+            logger.warning("Invalid scale_pct %d, using default 50", scale_pct)
+            scale_pct = 50
+
+        # Validate profit_target_pct is in valid range (1-200)
+        if not 1 <= profit_target_pct <= 200:
+            logger.warning("Invalid profit_target_pct %d, using default 35", profit_target_pct)
+            profit_target_pct = 35
+
         return ScalingConfig(
-            scale_pct=float(self._scale_pct_spin.value()),
-            profit_target_pct=float(self._profit_target_spin.value()),
+            scale_pct=float(scale_pct),
+            profit_target_pct=float(profit_target_pct),
         )
+
+    def closeEvent(self, event) -> None:
+        """Handle widget close - disconnect signals to prevent memory leaks.
+
+        Args:
+            event: Close event.
+        """
+        try:
+            # Disconnect app state signals
+            self._app_state.filtered_data_updated.disconnect(self._on_filtered_data_updated)
+            self._app_state.baseline_calculated.disconnect(self._on_baseline_calculated)
+
+            # Disconnect trade browser signals
+            self._trade_browser.trade_selected.disconnect(self._on_trade_selected)
+
+            # Disconnect control signals
+            self._resolution_combo.currentTextChanged.disconnect(self._on_settings_changed)
+            self._zoom_combo.currentTextChanged.disconnect(self._on_settings_changed)
+            self._scale_pct_spin.valueChanged.disconnect(self._on_settings_changed)
+            self._profit_target_spin.valueChanged.disconnect(self._on_settings_changed)
+        except (TypeError, RuntimeError) as e:
+            # Signals may already be disconnected
+            logger.debug("Signal disconnect during close: %s", e)
+
+        super().closeEvent(event)
