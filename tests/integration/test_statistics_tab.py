@@ -649,3 +649,85 @@ class TestStatisticsTabIntegration:
             f"Scaling table should update when efficiency changes. "
             f"Initial: {initial_value}, After 5% efficiency: {updated_value}"
         )
+
+    def test_stop_loss_table_displays_kelly_metrics_columns(
+        self, app, qtbot, app_state_with_statistics_data: AppState
+    ) -> None:
+        """Test that Stop Loss table shows Max DD % and Total Kelly $ columns."""
+        tab = StatisticsTab(app_state_with_statistics_data)
+        qtbot.addWidget(tab)
+
+        # Trigger data population
+        dummy_metrics = TradingMetrics(
+            num_trades=20,
+            win_rate=70.0,
+            avg_winner=25.0,
+            avg_loser=-6.0,
+            rr_ratio=4.17,
+            ev=15.0,
+            kelly=20.0,
+            winner_count=14,
+            loser_count=6,
+        )
+        app_state_with_statistics_data.baseline_calculated.emit(dummy_metrics)
+
+        # Get column headers from Stop Loss table
+        headers = []
+        for col in range(tab._stop_loss_table.columnCount()):
+            header_item = tab._stop_loss_table.horizontalHeaderItem(col)
+            if header_item:
+                headers.append(header_item.text())
+
+        # Verify Kelly metrics columns are present
+        assert "Max DD %" in headers, f"'Max DD %' column not found. Headers: {headers}"
+        assert "Total Kelly $" in headers, f"'Total Kelly $' column not found. Headers: {headers}"
+
+    def test_stop_loss_table_kelly_metrics_have_values(
+        self, app, qtbot, app_state_with_statistics_data: AppState
+    ) -> None:
+        """Test that Kelly metrics columns contain calculated values (not empty)."""
+        tab = StatisticsTab(app_state_with_statistics_data)
+        qtbot.addWidget(tab)
+
+        # Trigger data population
+        dummy_metrics = TradingMetrics(
+            num_trades=20,
+            win_rate=70.0,
+            avg_winner=25.0,
+            avg_loser=-6.0,
+            rr_ratio=4.17,
+            ev=15.0,
+            kelly=20.0,
+            winner_count=14,
+            loser_count=6,
+        )
+        app_state_with_statistics_data.baseline_calculated.emit(dummy_metrics)
+
+        # Find column indices for Kelly metrics
+        max_dd_col = None
+        total_kelly_col = None
+        for col in range(tab._stop_loss_table.columnCount()):
+            header_item = tab._stop_loss_table.horizontalHeaderItem(col)
+            if header_item:
+                if header_item.text() == "Max DD %":
+                    max_dd_col = col
+                elif header_item.text() == "Total Kelly $":
+                    total_kelly_col = col
+
+        assert max_dd_col is not None, "Max DD % column not found"
+        assert total_kelly_col is not None, "Total Kelly $ column not found"
+
+        # Verify at least one row has values in these columns
+        row_count = tab._stop_loss_table.rowCount()
+        assert row_count > 0, "Stop Loss table should have rows"
+
+        # Check that at least the first row has non-empty values
+        max_dd_item = tab._stop_loss_table.item(0, max_dd_col)
+        total_kelly_item = tab._stop_loss_table.item(0, total_kelly_col)
+
+        assert max_dd_item is not None, "Max DD % cell should exist"
+        assert total_kelly_item is not None, "Total Kelly $ cell should exist"
+
+        # Values should be non-empty strings
+        assert max_dd_item.text().strip() != "", "Max DD % should have a value"
+        assert total_kelly_item.text().strip() != "", "Total Kelly $ should have a value"
