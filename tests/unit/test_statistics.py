@@ -5,6 +5,7 @@ import pytest
 
 from src.core.models import AdjustmentParams, ColumnMapping
 from src.core.statistics import (
+    _calculate_stop_level_row,
     calculate_loss_chance_table,
     calculate_mae_before_win,
     calculate_mfe_before_loss,
@@ -2071,3 +2072,156 @@ def test_scaling_row_no_timing_columns_uses_original_logic():
     result = calculate_scaling_table(df, mapping, 0.5, params)
     row_10 = result[result["Partial Target %"] == 10].iloc[0]
     assert row_10["% of Trades"] == 100.0  # Original logic: MFE >= 10, captured
+
+
+# =============================================================================
+# Tests for Kelly Metrics in Stop Loss Table
+# =============================================================================
+
+
+def test_calculate_stop_level_row_with_kelly_metrics():
+    """Test that stop level row includes Max DD % and Total Kelly $."""
+    # Create test data with known values
+    df = pd.DataFrame({
+        "gain_pct": [0.10, 0.15, -0.05, 0.20, -0.08],  # 60% win rate
+        "mae_pct": [5, 8, 12, 6, 15],  # Some would hit 10% stop
+    })
+
+    # Pre-compute adjusted gains (simulating 8% stop, 5% efficiency)
+    adjusted_gains = pd.Series([0.05, 0.10, -0.10, 0.15, -0.13])
+
+    result = _calculate_stop_level_row(
+        df,
+        adjusted_gains,
+        mae_col="mae_pct",
+        stop_level=10,
+        efficiency=5.0,
+        start_capital=100000.0,
+        fractional_kelly_pct=25.0,
+        date_col=None,
+    )
+
+    # Verify new columns exist
+    assert "Max DD %" in result
+    assert "Total Kelly $" in result
+
+    # Verify values are calculated (not None) when Kelly is positive
+    if result["Full Kelly (Stop Adj)"] is not None and result["Full Kelly (Stop Adj)"] > 0:
+        assert result["Max DD %"] is not None
+        assert result["Total Kelly $"] is not None
+
+
+def test_calculate_stop_level_row_kelly_metrics_none_without_capital():
+    """Test that Kelly metrics are None when start_capital is not provided."""
+    df = pd.DataFrame({
+        "gain_pct": [0.10, 0.15, -0.05, 0.20, -0.08],
+        "mae_pct": [5, 8, 12, 6, 15],
+    })
+
+    adjusted_gains = pd.Series([0.05, 0.10, -0.10, 0.15, -0.13])
+
+    result = _calculate_stop_level_row(
+        df,
+        adjusted_gains,
+        mae_col="mae_pct",
+        stop_level=10,
+        efficiency=5.0,
+        start_capital=None,  # No capital provided
+        fractional_kelly_pct=25.0,
+        date_col=None,
+    )
+
+    # Verify Kelly metrics are None when no capital is provided
+    assert result["Max DD %"] is None
+    assert result["Total Kelly $"] is None
+
+
+def test_calculate_stop_loss_table_with_kelly_params():
+    """Test that stop loss table accepts and uses Kelly parameters."""
+    df = pd.DataFrame({
+        "gain_pct": [0.10, 0.15, -0.05, 0.20, -0.08] * 20,  # 100 trades
+        "mae_pct": [5, 8, 12, 6, 15] * 20,
+    })
+
+    mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
+    )
+    params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+
+    result = calculate_stop_loss_table(
+        df,
+        mapping,
+        params,
+        start_capital=100000.0,
+        fractional_kelly_pct=25.0,
+    )
+
+    # Verify new columns exist in result DataFrame
+    assert "Max DD %" in result.columns
+    assert "Total Kelly $" in result.columns
+
+    # Verify we have 10 rows (one per stop level)
+    assert len(result) == 10
+
+
+def test_calculate_stop_loss_table_kelly_columns_none_without_capital():
+    """Test that Kelly columns are all None when start_capital is not provided."""
+    df = pd.DataFrame({
+        "gain_pct": [0.10, 0.15, -0.05, 0.20, -0.08] * 20,
+        "mae_pct": [5, 8, 12, 6, 15] * 20,
+    })
+
+    mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
+    )
+    params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+
+    result = calculate_stop_loss_table(
+        df,
+        mapping,
+        params,
+        start_capital=None,  # No capital
+        fractional_kelly_pct=25.0,
+    )
+
+    # Verify columns exist but all values are None
+    assert "Max DD %" in result.columns
+    assert "Total Kelly $" in result.columns
+    assert result["Max DD %"].isna().all()
+    assert result["Total Kelly $"].isna().all()
+
+
+def test_calculate_stop_loss_table_default_kelly_params():
+    """Test that stop loss table works with default Kelly parameters."""
+    df = pd.DataFrame({
+        "gain_pct": [0.10, 0.15, -0.05, 0.20, -0.08] * 20,
+        "mae_pct": [5, 8, 12, 6, 15] * 20,
+    })
+
+    mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
+    )
+    params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+
+    # Call without Kelly params - should use defaults
+    result = calculate_stop_loss_table(df, mapping, params)
+
+    # Verify columns exist (values will be None since no capital provided)
+    assert "Max DD %" in result.columns
+    assert "Total Kelly $" in result.columns
+    assert len(result) == 10
