@@ -208,7 +208,7 @@ class PortfolioMetricsTab(QWidget):
         return header
 
     def _create_period_section(self) -> QWidget:
-        """Create the period metrics section."""
+        """Create the period metrics section with baseline and combined rows."""
         section = QFrame()
         section.setObjectName("periodSection")
         section.setStyleSheet(f"""
@@ -221,11 +221,36 @@ class PortfolioMetricsTab(QWidget):
 
         layout = QVBoxLayout(section)
         layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        layout.setSpacing(Spacing.LG)
+
+        # Baseline section
+        baseline_section = self._create_period_row("BASELINE PERIOD PERFORMANCE", is_baseline=True)
+        layout.addWidget(baseline_section)
+
+        # Combined section
+        combined_section = self._create_period_row("COMBINED PERIOD PERFORMANCE", is_baseline=False)
+        layout.addWidget(combined_section)
+
+        return section
+
+    def _create_period_row(self, title: str, is_baseline: bool) -> QWidget:
+        """Create a row of period metric cards with a title.
+
+        Args:
+            title: Section title (e.g., "BASELINE PERIOD PERFORMANCE").
+            is_baseline: If True, stores cards in baseline attrs; else combined.
+
+        Returns:
+            Widget containing title and three period cards.
+        """
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(Spacing.MD)
 
         # Title
-        title = QLabel("PERIOD PERFORMANCE")
-        title.setStyleSheet(f"""
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
                 font-family: '{Fonts.UI}';
@@ -235,24 +260,33 @@ class PortfolioMetricsTab(QWidget):
                 letter-spacing: 1px;
             }}
         """)
-        layout.addWidget(title)
+        layout.addWidget(title_label)
 
         # Period cards row
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(Spacing.MD)
 
-        self._daily_card = PeriodMetricsCard("Daily")
-        cards_layout.addWidget(self._daily_card)
+        daily_card = PeriodMetricsCard("Daily")
+        cards_layout.addWidget(daily_card)
 
-        self._weekly_card = PeriodMetricsCard("Weekly")
-        cards_layout.addWidget(self._weekly_card)
+        weekly_card = PeriodMetricsCard("Weekly")
+        cards_layout.addWidget(weekly_card)
 
-        self._monthly_card = PeriodMetricsCard("Monthly")
-        cards_layout.addWidget(self._monthly_card)
+        monthly_card = PeriodMetricsCard("Monthly")
+        cards_layout.addWidget(monthly_card)
+
+        # Store references based on type
+        if is_baseline:
+            self._baseline_daily_card = daily_card
+            self._baseline_weekly_card = weekly_card
+            self._baseline_monthly_card = monthly_card
+        else:
+            self._combined_daily_card = daily_card
+            self._combined_weekly_card = weekly_card
+            self._combined_monthly_card = monthly_card
 
         layout.addLayout(cards_layout)
-
-        return section
+        return container
 
     def _infer_starting_capital(self) -> float:
         """Infer starting capital from equity curve data."""
@@ -344,9 +378,15 @@ class PortfolioMetricsTab(QWidget):
         combined_weekly = self._combined_metrics.weekly if self._combined_metrics else None
         combined_monthly = self._combined_metrics.monthly if self._combined_metrics else None
 
-        self._daily_card.update_metrics(baseline_daily, combined_daily)
-        self._weekly_card.update_metrics(baseline_weekly, combined_weekly)
-        self._monthly_card.update_metrics(baseline_monthly, combined_monthly)
+        # Update baseline cards (pass None for combined to show only baseline)
+        self._baseline_daily_card.update_metrics(baseline_daily, None)
+        self._baseline_weekly_card.update_metrics(baseline_weekly, None)
+        self._baseline_monthly_card.update_metrics(baseline_monthly, None)
+
+        # Update combined cards (pass None for baseline to show only combined)
+        self._combined_daily_card.update_metrics(None, combined_daily)
+        self._combined_weekly_card.update_metrics(None, combined_weekly)
+        self._combined_monthly_card.update_metrics(None, combined_monthly)
 
     def _update_advanced_metrics(self) -> None:
         """Update correlation, contribution, edge decay, and overlap metrics."""
