@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -136,35 +137,62 @@ class PortfolioMetricsTab(QWidget):
         left_col.addStretch()
         panels_layout.addLayout(left_col, 1)
 
-        # Center column: Correlation + Contribution panels
+        # Center column: Correlation + Contribution + Baseline Period
         center_col = QVBoxLayout()
         center_col.setSpacing(Spacing.LG)
 
         self._correlation_panel = CorrelationPanel()
+        # Make correlation expand to match Performance Metrics height
+        self._correlation_panel.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
+        )
         center_col.addWidget(self._correlation_panel)
 
         self._contribution_panel = ContributionPanel()
+        # Make contribution expand to match Risk Metrics height
+        self._contribution_panel.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
+        )
         center_col.addWidget(self._contribution_panel)
+
+        # Baseline period section
+        baseline_period = self._create_baseline_period_section()
+        center_col.addWidget(baseline_period)
 
         center_col.addStretch()
         panels_layout.addLayout(center_col, 1)
 
-        # Right column: Statistical + Edge decay + Ticker overlap + Period metrics
+        # Right column: Statistical + Edge decay (grouped) + Ticker overlap + Combined Period
         right_col = QVBoxLayout()
         right_col.setSpacing(Spacing.LG)
 
+        # Group Statistical Analysis and Edge Decay to align with Performance Metrics
+        stat_edge_container = QWidget()
+        stat_edge_layout = QVBoxLayout(stat_edge_container)
+        stat_edge_layout.setContentsMargins(0, 0, 0, 0)
+        stat_edge_layout.setSpacing(Spacing.LG)
+
         self._stat_panel = ComparisonPanel("Statistical Analysis", self.STAT_METRICS)
-        right_col.addWidget(self._stat_panel)
+        stat_edge_layout.addWidget(self._stat_panel)
 
         self._edge_decay_card = EdgeDecayCard()
-        right_col.addWidget(self._edge_decay_card)
+        stat_edge_layout.addWidget(self._edge_decay_card)
+
+        stat_edge_container.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
+        )
+        right_col.addWidget(stat_edge_container)
 
         self._ticker_overlap_card = TickerOverlapCard()
+        # Make ticker overlap expand to match Risk Metrics height
+        self._ticker_overlap_card.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
+        )
         right_col.addWidget(self._ticker_overlap_card)
 
-        # Period metrics section
-        period_section = self._create_period_section()
-        right_col.addWidget(period_section)
+        # Combined period section
+        combined_period = self._create_combined_period_section()
+        right_col.addWidget(combined_period)
 
         right_col.addStretch()
         panels_layout.addLayout(right_col, 1)
@@ -207,12 +235,12 @@ class PortfolioMetricsTab(QWidget):
 
         return header
 
-    def _create_period_section(self) -> QWidget:
-        """Create the period metrics section with baseline and combined rows."""
+    def _create_baseline_period_section(self) -> QWidget:
+        """Create the baseline period metrics section."""
         section = QFrame()
-        section.setObjectName("periodSection")
+        section.setObjectName("baselinePeriodSection")
         section.setStyleSheet(f"""
-            QFrame#periodSection {{
+            QFrame#baselinePeriodSection {{
                 background-color: {Colors.BG_SURFACE};
                 border: 1px solid {Colors.BG_BORDER};
                 border-radius: 12px;
@@ -221,15 +249,31 @@ class PortfolioMetricsTab(QWidget):
 
         layout = QVBoxLayout(section)
         layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
-        layout.setSpacing(Spacing.LG)
+        layout.setSpacing(Spacing.MD)
 
-        # Baseline section
-        baseline_section = self._create_period_row("BASELINE PERIOD PERFORMANCE", is_baseline=True)
-        layout.addWidget(baseline_section)
+        baseline_row = self._create_period_row("BASELINE PERIOD PERFORMANCE", is_baseline=True)
+        layout.addWidget(baseline_row)
 
-        # Combined section
-        combined_section = self._create_period_row("COMBINED PERIOD PERFORMANCE", is_baseline=False)
-        layout.addWidget(combined_section)
+        return section
+
+    def _create_combined_period_section(self) -> QWidget:
+        """Create the combined period metrics section."""
+        section = QFrame()
+        section.setObjectName("combinedPeriodSection")
+        section.setStyleSheet(f"""
+            QFrame#combinedPeriodSection {{
+                background-color: {Colors.BG_SURFACE};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 12px;
+            }}
+        """)
+
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        layout.setSpacing(Spacing.MD)
+
+        combined_row = self._create_period_row("COMBINED PERIOD PERFORMANCE", is_baseline=False)
+        layout.addWidget(combined_row)
 
         return section
 
