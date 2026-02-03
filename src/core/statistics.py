@@ -578,6 +578,8 @@ def calculate_offset_table(
     df: pd.DataFrame,
     mapping: ColumnMapping,
     adjustment_params: AdjustmentParams,
+    start_capital: float | None = None,
+    fractional_kelly_pct: float = 25.0,
 ) -> pd.DataFrame:
     """Simulate entry offsets with recalculated MAE/MFE and returns.
 
@@ -589,18 +591,26 @@ def calculate_offset_table(
         df: Trade data with gain_pct, mae_pct, and mfe_pct columns.
         mapping: Column mapping configuration.
         adjustment_params: Adjustment parameters (stop_loss, efficiency).
+        start_capital: Starting capital for Kelly calculations (e.g., 100000.0).
+            If None, Kelly PnL and Max DD columns will be None.
+        fractional_kelly_pct: Fractional Kelly percentage (e.g., 25 = 25%).
 
     Returns:
         DataFrame with rows for each offset level and performance metrics.
+        Includes Max DD % and Total Kelly $ columns.
     """
     rows = []
     gain_col = mapping.gain_pct
     mae_col = mapping.mae_pct
     mfe_col = mapping.mfe_pct
+    date_col = mapping.date if hasattr(mapping, 'date') else None
 
     for offset in OFFSET_LEVELS:
         row = _calculate_offset_level_row(
-            df, gain_col, mae_col, mfe_col, offset, adjustment_params
+            df, gain_col, mae_col, mfe_col, offset, adjustment_params,
+            start_capital=start_capital,
+            fractional_kelly_pct=fractional_kelly_pct,
+            date_col=date_col,
         )
         rows.append(row)
 
