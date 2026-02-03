@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import QMainWindow
 
 from src.core.app_state import AppState
 from src.tabs.breakdown import BreakdownTab
+from src.tabs.chart_viewer import ChartViewerTab
 from src.tabs.data_binning import DataBinningTab
 from src.tabs.data_input import DataInputTab
 from src.tabs.feature_explorer import FeatureExplorerTab
@@ -82,6 +83,7 @@ class MainWindow(QMainWindow):
             ("Portfolio Overview", portfolio_overview),
             ("Portfolio Breakdown", portfolio_breakdown),
             ("Portfolio Metrics", portfolio_metrics),
+            ("Chart Viewer", ChartViewerTab(self._app_state)),
             ("Statistics", StatisticsTab(self._app_state)),
         ]
 
