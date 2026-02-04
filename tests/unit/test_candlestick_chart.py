@@ -815,3 +815,68 @@ class TestCandlestickChartInfoBox:
         chart._update_info_box(0)
 
         assert chart._info_text.toPlainText() == ""
+
+
+class TestCandlestickChartRuler:
+    """Tests for the ruler measurement tool."""
+
+    def test_ruler_items_exist(self, qtbot):
+        """Chart should have ruler line and label items."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        assert hasattr(chart, "_ruler_line")
+        assert hasattr(chart, "_ruler_label")
+        assert isinstance(chart._ruler_label, pg.TextItem)
+
+    def test_ruler_initially_hidden(self, qtbot):
+        """Ruler should be hidden initially."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        assert not chart._ruler_line.isVisible()
+        assert not chart._ruler_label.isVisible()
+
+    def test_format_ruler_label_positive(self, qtbot):
+        """_format_ruler_label returns correct text for upward movement."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        text = chart._format_ruler_label(
+            start_price=100.0,
+            end_price=110.0,
+            start_idx=0,
+            end_idx=10,
+        )
+        assert "+10.00" in text
+        assert "+10.00%" in text
+        assert "10 bars" in text
+
+    def test_format_ruler_label_negative(self, qtbot):
+        """_format_ruler_label returns correct text for downward movement."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        text = chart._format_ruler_label(
+            start_price=100.0,
+            end_price=90.0,
+            start_idx=0,
+            end_idx=5,
+        )
+        assert "-10.00" in text
+        assert "-10.00%" in text
+        assert "5 bars" in text
+
+    def test_format_ruler_label_zero_start(self, qtbot):
+        """_format_ruler_label handles zero start price without crash."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        text = chart._format_ruler_label(
+            start_price=0.0,
+            end_price=10.0,
+            start_idx=0,
+            end_idx=1,
+        )
+        # Should not crash, percentage might be N/A or inf
+        assert "10.00" in text

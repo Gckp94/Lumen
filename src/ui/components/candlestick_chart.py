@@ -350,6 +350,10 @@ class CandlestickChart(QWidget):
         self._volume_plot: pg.PlotItem | None = None
         self._ohlcv_df: pd.DataFrame | None = None
 
+        # Ruler measurement state
+        self._ruler_active: bool = False
+        self._ruler_start: tuple[float, float] | None = None  # (x, y) in plot coords
+
         self._setup_ui()
         self._setup_pyqtgraph()
         self._setup_candle_item()
@@ -464,6 +468,33 @@ class CandlestickChart(QWidget):
             rateLimit=60,
             slot=self._on_mouse_moved,
         )
+
+        # Connect mouse click for ruler tool
+        self._plot_widget.scene().sigMouseClicked.connect(
+            self._on_mouse_clicked
+        )
+
+        # Ruler measurement tool (Shift+click to measure)
+        self._ruler_line = pg.PlotDataItem(
+            pen=pg.mkPen(
+                Colors.SIGNAL_AMBER,
+                width=2,
+                style=Qt.PenStyle.DashDotLine,
+            ),
+        )
+        self._ruler_line.setVisible(False)
+        self._plot_widget.addItem(self._ruler_line, ignoreBounds=True)
+
+        self._ruler_label = pg.TextItem(
+            text="",
+            color=Colors.SIGNAL_AMBER,
+            anchor=(0.5, 1),
+            fill=pg.mkBrush(Colors.BG_ELEVATED + "CC"),
+        )
+        self._ruler_label.setFont(QFont(Fonts.DATA, 10))
+        self._ruler_label.setZValue(1001)
+        self._ruler_label.setVisible(False)
+        self._plot_widget.addItem(self._ruler_label, ignoreBounds=True)
 
         self._layout.addWidget(self._graphics_layout)
 
@@ -865,6 +896,43 @@ class CandlestickChart(QWidget):
         
         return 0.0
 
+    def _on_mouse_clicked(self, evt) -> None:
+        """Handle mouse clicks for ruler measurement (Shift+click).
+
+        Args:
+            evt: pyqtgraph MouseClickEvent.
+        """
+        if evt.button() != Qt.MouseButton.LeftButton:
+            return
+        if not (evt.modifiers() & Qt.KeyboardModifier.ShiftModifier):
+            return
+
+        pos = evt.scenePos()
+        if not self._plot_widget.sceneBoundingRect().contains(pos):
+            return
+
+        mouse_point = self._plot_widget.getViewBox().mapSceneToView(pos)
+
+        if not self._ruler_active:
+            # Start ruler
+            self._ruler_active = True
+            self._ruler_start = (mouse_point.x(), mouse_point.y())
+            self._ruler_line.setData(
+                [mouse_point.x(), mouse_point.x()],
+                [mouse_point.y(), mouse_point.y()],
+            )
+            self._ruler_line.setVisible(True)
+            self._ruler_label.setVisible(True)
+            evt.accept()
+        else:
+            # End ruler -- clear it
+            self._ruler_active = False
+            self._ruler_start = None
+            self._ruler_line.setVisible(False)
+            self._ruler_label.setVisible(False)
+            self._ruler_label.setText("")
+            evt.accept()
+
     def _on_mouse_moved(self, evt: tuple) -> None:
         """Handle mouse movement over the price plot to update info box and crosshair.
 
@@ -887,6 +955,17 @@ class CandlestickChart(QWidget):
         self._crosshair_h.setVisible(True)
 
         self._update_info_box(bar_idx)
+
+        # Update ruler if active
+        if self._ruler_active and self._ruler_start is not None:
+            sx, sy = self._ruler_start
+            ex, ey = mouse_point.x(), mouse_point.y()
+            self._ruler_line.setData([sx, ex], [sy, ey])
+            label_text = self._format_ruler_label(
+                sy, ey, int(round(sx)), int(round(ex))
+            )
+            self._ruler_label.setText(label_text)
+            self._ruler_label.setPos((sx + ex) / 2, (sy + ey) / 2)
 
     def _update_info_box(self, bar_idx: int) -> None:
         """Update the OHLCV info text for the given bar index.
@@ -926,6 +1005,36 @@ class CandlestickChart(QWidget):
         view_range = self._plot_widget.viewRange()
         self._info_text.setPos(view_range[0][0], view_range[1][1])
 
+    def _format_ruler_label(
+        self,
+        start_price: float,
+        end_price: float,
+        start_idx: int,
+        end_idx: int,
+    ) -> str:
+        """Format the ruler measurement label text.
+
+        Args:
+            start_price: Price at ruler start.
+            end_price: Price at ruler end.
+            start_idx: Bar index at ruler start.
+            end_idx: Bar index at ruler end.
+
+        Returns:
+            Formatted string with price delta, percentage, and bar count.
+        """
+        delta = end_price - start_price
+        sign = "+" if delta >= 0 else ""
+        bars = abs(end_idx - start_idx)
+
+        if abs(start_price) > 1e-9:
+            pct = (delta / start_price) * 100
+            pct_str = f"{sign}{pct:.2f}%"
+        else:
+            pct_str = "N/A"
+
+        return f"{sign}{delta:.2f} ({pct_str})  {bars} bars"
+
     def clear(self) -> None:
         """Clear all data and markers from the chart."""
         self._candle_item.set_data(None)
@@ -938,6 +1047,13 @@ class CandlestickChart(QWidget):
         self._ohlcv_df = None
         self._crosshair_v.setVisible(False)
         self._crosshair_h.setVisible(False)
+
+        # Clear ruler
+        self._ruler_active = False
+        self._ruler_start = None
+        self._ruler_line.setVisible(False)
+        self._ruler_label.setVisible(False)
+        self._ruler_label.setText("")
 
         # Remove VWAP line
         if self._vwap_item is not None:
