@@ -351,6 +351,144 @@ class TestCandlestickChartSetMarkers:
         assert len(chart._marker_items) >= 4
 
 
+
+class TestCandlestickChartGrid:
+    """Tests for dynamic grid lines."""
+
+    def test_price_plot_has_grid_enabled(self, qtbot):
+        """Price plot should have both X and Y grid lines enabled."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        plot_item = chart._plot_widget
+        # pyqtgraph stores grid state on the PlotItem's ctrl
+        assert plot_item.ctrl.xGridCheck.isChecked()
+        assert plot_item.ctrl.yGridCheck.isChecked()
+
+    def test_volume_plot_has_grid_enabled(self, qtbot):
+        """Volume plot should have both X and Y grid lines enabled."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        plot_item = chart._volume_plot
+        assert plot_item.ctrl.xGridCheck.isChecked()
+        assert plot_item.ctrl.yGridCheck.isChecked()
+
+
+class TestCandlestickChartFindClosestBar:
+    """Tests for CandlestickChart._find_closest_bar_idx() method."""
+
+    def test_exact_match_returns_index(self, qtbot):
+        """_find_closest_bar_idx returns exact match index."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        # Set data first
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:30",
+                "2024-01-15 09:31",
+                "2024-01-15 09:32",
+            ]),
+            "open": [100.0, 101.0, 102.0],
+            "high": [105.0, 106.0, 107.0],
+            "low": [98.0, 99.0, 100.0],
+            "close": [101.0, 102.0, 103.0],
+        })
+        chart.set_data(df)
+
+        # Exact match at index 1
+        target_time = datetime(2024, 1, 15, 9, 31)
+        idx = chart._find_closest_bar_idx(target_time)
+        assert idx == 1
+
+    def test_closest_match_returns_nearest_index(self, qtbot):
+        """_find_closest_bar_idx returns appropriate bar based on prefer_before."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        # Set data first
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:30",
+                "2024-01-15 09:31",
+                "2024-01-15 09:32",
+            ]),
+            "open": [100.0, 101.0, 102.0],
+            "high": [105.0, 106.0, 107.0],
+            "low": [98.0, 99.0, 100.0],
+            "close": [101.0, 102.0, 103.0],
+        })
+        chart.set_data(df)
+
+        # Time between bars 0 and 1
+        target_time = datetime(2024, 1, 15, 9, 30, 45)
+        
+        # Default (prefer_before=True) returns bar at/before target time
+        idx = chart._find_closest_bar_idx(target_time, prefer_before=True)
+        assert idx == 0  # Bar 0 is at 9:30, before 9:30:45
+        
+        # prefer_before=False returns bar at/after target time
+        idx = chart._find_closest_bar_idx(target_time, prefer_before=False)
+        assert idx == 1  # Bar 1 is at 9:31, after 9:30:45
+
+        # Time between bars 1 and 2
+        target_time = datetime(2024, 1, 15, 9, 31, 15)
+        idx = chart._find_closest_bar_idx(target_time, prefer_before=True)
+        assert idx == 1  # Bar 1 is at 9:31, before 9:31:15
+
+    def test_empty_datetimes_returns_zero(self, qtbot):
+        """_find_closest_bar_idx returns 0 when no data."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        target_time = datetime(2024, 1, 15, 9, 30)
+        idx = chart._find_closest_bar_idx(target_time)
+        assert idx == 0
+
+    def test_time_before_first_bar_returns_first(self, qtbot):
+        """_find_closest_bar_idx returns first bar for earlier time."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:30",
+                "2024-01-15 09:31",
+            ]),
+            "open": [100.0, 101.0],
+            "high": [105.0, 106.0],
+            "low": [98.0, 99.0],
+            "close": [101.0, 102.0],
+        })
+        chart.set_data(df)
+
+        target_time = datetime(2024, 1, 15, 9, 25)
+        idx = chart._find_closest_bar_idx(target_time)
+        assert idx == 0
+
+    def test_time_after_last_bar_returns_last(self, qtbot):
+        """_find_closest_bar_idx returns last bar for later time."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:30",
+                "2024-01-15 09:31",
+            ]),
+            "open": [100.0, 101.0],
+            "high": [105.0, 106.0],
+            "low": [98.0, 99.0],
+            "close": [101.0, 102.0],
+        })
+        chart.set_data(df)
+
+        target_time = datetime(2024, 1, 15, 9, 45)
+        idx = chart._find_closest_bar_idx(target_time)
+        assert idx == 1
+
+
 class TestCandlestickChartClear:
     """Tests for CandlestickChart.clear() method."""
 
