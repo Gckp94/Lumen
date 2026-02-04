@@ -880,3 +880,60 @@ class TestCandlestickChartRuler:
         )
         # Should not crash, percentage might be N/A or inf
         assert "10.00" in text
+
+
+class TestCandlestickChartInteractiveFeatures:
+    """Integration tests for grid + info box + ruler coexistence."""
+
+    def test_all_features_coexist_after_set_data(self, qtbot):
+        """All interactive features should work after loading data."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:32",
+                "2024-01-15 09:33",
+                "2024-01-15 09:34",
+            ]),
+            "open": [100.0, 103.0, 106.0],
+            "high": [105.0, 108.0, 107.0],
+            "low": [98.0, 101.0, 100.0],
+            "close": [103.0, 106.0, 101.0],
+            "volume": [1000, 1200, 800],
+        })
+        chart.set_data(df)
+
+        # Grid is on
+        assert chart._plot_widget.ctrl.yGridCheck.isChecked()
+
+        # Info box updates
+        chart._update_info_box(1)
+        assert "O 103" in chart._info_text.toPlainText()
+
+        # Ruler label formats
+        text = chart._format_ruler_label(100.0, 110.0, 0, 5)
+        assert "+10.00" in text
+
+    def test_clear_resets_all_features(self, qtbot):
+        """clear() should reset info box, crosshair, and ruler."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime(["2024-01-15 09:32"]),
+            "open": [100.0],
+            "high": [105.0],
+            "low": [98.0],
+            "close": [103.0],
+            "volume": [1000],
+        })
+        chart.set_data(df)
+        chart._update_info_box(0)
+        assert chart._info_text.toPlainText() != ""
+
+        chart.clear()
+
+        assert chart._info_text.toPlainText() == ""
+        assert not chart._ruler_line.isVisible()
+        assert not chart._crosshair_v.isVisible()
