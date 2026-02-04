@@ -4,6 +4,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import pyqtgraph as pg  # type: ignore[import-untyped]
 import pytest
 from PyQt6.QtCore import Qt
 
@@ -740,3 +741,77 @@ class TestCandlestickChartVWAP:
         # VWAP should be a new item
         assert chart._vwap_item is not None
         assert chart._vwap_item is not first_vwap_item
+
+
+class TestCandlestickChartInfoBox:
+    """Tests for OHLCV info box overlay."""
+
+    def test_info_text_item_exists(self, qtbot):
+        """Chart should have a TextItem for OHLCV info overlay."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        assert hasattr(chart, "_info_text")
+        assert isinstance(chart._info_text, pg.TextItem)
+
+    def test_info_text_initially_empty(self, qtbot):
+        """Info text should be empty before any mouse movement."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        assert chart._info_text.toPlainText() == ""
+
+    def test_update_info_box_shows_ohlcv(self, qtbot):
+        """_update_info_box with a valid bar index should display OHLCV."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:32",
+                "2024-01-15 09:33",
+            ]),
+            "open": [100.0, 103.0],
+            "high": [105.0, 108.0],
+            "low": [98.0, 101.0],
+            "close": [103.0, 106.0],
+            "volume": [1000, 1200],
+        })
+        chart.set_data(df)
+
+        chart._update_info_box(0)
+
+        text = chart._info_text.toPlainText()
+        assert "O 100" in text
+        assert "H 105" in text
+        assert "L 98" in text
+        assert "C 103" in text
+        assert "V 1000" in text or "V 1,000" in text
+
+    def test_update_info_box_out_of_range(self, qtbot):
+        """_update_info_box with out-of-range index should clear text."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime(["2024-01-15 09:32"]),
+            "open": [100.0],
+            "high": [105.0],
+            "low": [98.0],
+            "close": [103.0],
+            "volume": [1000],
+        })
+        chart.set_data(df)
+
+        chart._update_info_box(5)  # out of range
+
+        assert chart._info_text.toPlainText() == ""
+
+    def test_update_info_box_no_data(self, qtbot):
+        """_update_info_box with no data loaded should not crash."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+
+        chart._update_info_box(0)
+
+        assert chart._info_text.toPlainText() == ""

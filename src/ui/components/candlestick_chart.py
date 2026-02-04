@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pyqtgraph as pg  # type: ignore[import-untyped]
 from PyQt6.QtCore import QPointF, QRectF, Qt
-from PyQt6.QtGui import QPainter, QPicture
+from PyQt6.QtGui import QFont, QPainter, QPicture
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from src.ui.constants import Colors, Fonts
@@ -348,6 +348,7 @@ class CandlestickChart(QWidget):
         self._time_axis: TimeAxisItem | None = None
         self._volume_bars: pg.BarGraphItem | None = None
         self._volume_plot: pg.PlotItem | None = None
+        self._ohlcv_df: pd.DataFrame | None = None
 
         self._setup_ui()
         self._setup_pyqtgraph()
@@ -429,6 +430,41 @@ class CandlestickChart(QWidget):
         vol_viewbox.setMouseEnabled(x=True, y=True)
         vol_viewbox.setMouseMode(pg.ViewBox.PanMode)
 
+        # OHLCV info box overlay (top-left of price plot)
+        self._info_text = pg.TextItem(
+            text="",
+            color=Colors.TEXT_PRIMARY,
+            anchor=(0, 0),
+        )
+        self._info_text.setFont(QFont(Fonts.DATA, 9))
+        self._info_text.setZValue(1000)  # Always on top
+        self._plot_widget.addItem(self._info_text, ignoreBounds=True)
+
+        # Crosshair lines (vertical + horizontal)
+        self._crosshair_v = pg.InfiniteLine(
+            angle=90,
+            pen=pg.mkPen(
+                Colors.TEXT_DISABLED, width=1, style=Qt.PenStyle.DashLine
+            ),
+        )
+        self._crosshair_h = pg.InfiniteLine(
+            angle=0,
+            pen=pg.mkPen(
+                Colors.TEXT_DISABLED, width=1, style=Qt.PenStyle.DashLine
+            ),
+        )
+        self._crosshair_v.setVisible(False)
+        self._crosshair_h.setVisible(False)
+        self._plot_widget.addItem(self._crosshair_v, ignoreBounds=True)
+        self._plot_widget.addItem(self._crosshair_h, ignoreBounds=True)
+
+        # Connect mouse move signal
+        self._mouse_proxy = pg.SignalProxy(
+            self._plot_widget.scene().sigMouseMoved,
+            rateLimit=60,
+            slot=self._on_mouse_moved,
+        )
+
         self._layout.addWidget(self._graphics_layout)
 
     def _setup_candle_item(self) -> None:
@@ -491,6 +527,7 @@ class CandlestickChart(QWidget):
             self._candle_item.set_data(None)
             self._datetime_to_idx.clear()
             self._datetimes.clear()
+            self._ohlcv_df = None
             if self._time_axis is not None:
                 self._time_axis.set_datetimes([])
             logger.debug("CandlestickChart cleared")
@@ -537,7 +574,8 @@ class CandlestickChart(QWidget):
                                i, data[i, 0], data[i, 1], data[i, 2], data[i, 3], data[i, 4])
 
             self._candle_item.set_data(data)
-            
+            self._ohlcv_df = df
+
             # Draw session background regions if session column exists
             if "session" in df.columns:
                 self._draw_session_regions(df)
@@ -827,12 +865,79 @@ class CandlestickChart(QWidget):
         
         return 0.0
 
+    def _on_mouse_moved(self, evt: tuple) -> None:
+        """Handle mouse movement over the price plot to update info box and crosshair.
+
+        Args:
+            evt: Tuple containing the mouse position (QPointF).
+        """
+        pos = evt[0]
+        if not self._plot_widget.sceneBoundingRect().contains(pos):
+            self._crosshair_v.setVisible(False)
+            self._crosshair_h.setVisible(False)
+            return
+
+        mouse_point = self._plot_widget.getViewBox().mapSceneToView(pos)
+        bar_idx = int(round(mouse_point.x()))
+
+        # Update crosshair position
+        self._crosshair_v.setPos(mouse_point.x())
+        self._crosshair_h.setPos(mouse_point.y())
+        self._crosshair_v.setVisible(True)
+        self._crosshair_h.setVisible(True)
+
+        self._update_info_box(bar_idx)
+
+    def _update_info_box(self, bar_idx: int) -> None:
+        """Update the OHLCV info text for the given bar index.
+
+        Args:
+            bar_idx: Integer index of the bar to display info for.
+        """
+        if (
+            self._candle_item._data is None
+            or len(self._candle_item._data) == 0
+            or bar_idx < 0
+            or bar_idx >= len(self._candle_item._data)
+        ):
+            self._info_text.setText("")
+            return
+
+        row = self._candle_item._data[bar_idx]
+        _, o, h, l, c = row
+
+        # Get time string
+        time_str = ""
+        if 0 <= bar_idx < len(self._datetimes):
+            time_str = self._datetimes[bar_idx].strftime("%Y-%m-%d %H:%M")
+
+        # Get volume if available
+        vol_str = ""
+        if self._ohlcv_df is not None and "volume" in self._ohlcv_df.columns:
+            if 0 <= bar_idx < len(self._ohlcv_df):
+                vol = self._ohlcv_df.iloc[bar_idx]["volume"]
+                vol_str = f"  V {vol:,.0f}"
+
+        self._info_text.setText(
+            f"{time_str}  O {o:.2f}  H {h:.2f}  L {l:.2f}  C {c:.2f}{vol_str}"
+        )
+
+        # Anchor text to top-left of visible area
+        view_range = self._plot_widget.viewRange()
+        self._info_text.setPos(view_range[0][0], view_range[1][1])
+
     def clear(self) -> None:
         """Clear all data and markers from the chart."""
         self._candle_item.set_data(None)
         self._clear_markers()
         self._clear_session_regions()
         self._datetime_to_idx.clear()
+
+        # Clear info box and crosshair
+        self._info_text.setText("")
+        self._ohlcv_df = None
+        self._crosshair_v.setVisible(False)
+        self._crosshair_h.setVisible(False)
 
         # Remove VWAP line
         if self._vwap_item is not None:
