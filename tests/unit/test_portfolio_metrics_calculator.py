@@ -460,6 +460,55 @@ class TestPortfolioMetricsCalculator:
         assert corr is not None
         assert 0.5 < corr < 1.0  # Should be positively correlated
 
+    def test_pearson_correlation_with_different_trade_counts(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Correlation must align by date, not by index position."""
+        np.random.seed(42)
+
+        # Baseline: 1 trade per day for 60 days
+        dates_base = [date(2024, 1, 2) + timedelta(days=i) for i in range(60)]
+        base_returns = np.random.normal(0.001, 0.02, 60)
+        base_eq = [100_000]
+        for r in base_returns:
+            base_eq.append(base_eq[-1] * (1 + r))
+        baseline_df = pd.DataFrame({
+            "date": pd.to_datetime(dates_base),
+            "equity": base_eq[1:],
+            "pnl": np.diff(base_eq),
+            "peak": np.maximum.accumulate(base_eq[1:]),
+            "drawdown": [0] * 60,
+            "win": [True] * 60,
+        })
+
+        # Combined: 2 trades per day for 60 days (120 total trades)
+        combined_dates = []
+        for d in dates_base:
+            combined_dates.extend([d, d])
+        comb_returns_per_trade = np.random.normal(0.0005, 0.01, 120)
+        # Inject correlation: on each day, the combined daily return tracks baseline
+        for i in range(60):
+            day_target = base_returns[i] * 0.8 + np.random.normal(0, 0.005)
+            comb_returns_per_trade[2*i] = day_target * 0.6
+            comb_returns_per_trade[2*i + 1] = day_target * 0.4
+        comb_eq = [100_000]
+        for r in comb_returns_per_trade:
+            comb_eq.append(comb_eq[-1] * (1 + r))
+        combined_df = pd.DataFrame({
+            "date": pd.to_datetime(combined_dates),
+            "equity": comb_eq[1:],
+            "pnl": np.diff(comb_eq),
+            "peak": np.maximum.accumulate(comb_eq[1:]),
+            "drawdown": [0] * 120,
+            "win": [True] * 120,
+        })
+
+        corr = calculator.calculate_pearson_correlation(baseline_df, combined_df)
+
+        assert corr is not None
+        # Should show positive correlation since combined tracks baseline
+        assert corr > 0.3
+
     def test_calculate_rolling_correlation(
         self, calculator: PortfolioMetricsCalculator
     ) -> None:

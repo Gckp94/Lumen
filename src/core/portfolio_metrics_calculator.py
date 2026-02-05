@@ -573,25 +573,27 @@ class PortfolioMetricsCalculator:
     ) -> float | None:
         """Calculate Pearson correlation between daily returns.
 
+        Aggregates equity curves to true daily returns (one per calendar day)
+        and aligns by date before computing correlation.
+
         Args:
-            baseline_df: Baseline equity curve with 'equity' column.
-            combined_df: Combined equity curve with 'equity' column.
+            baseline_df: Baseline equity curve with 'equity' and 'date' columns.
+            combined_df: Combined equity curve with 'equity' and 'date' columns.
 
         Returns:
             Correlation coefficient (-1 to 1), or None if insufficient data.
         """
-        baseline_returns = self._calculate_daily_returns(baseline_df)
-        combined_returns = self._calculate_daily_returns(combined_df)
+        baseline_returns = self._get_daily_returns_by_date(baseline_df)
+        combined_returns = self._get_daily_returns_by_date(combined_df)
 
-        if len(baseline_returns) < 10 or len(combined_returns) < 10:
+        aligned_base, aligned_comb = self._align_returns_by_date(
+            baseline_returns, combined_returns
+        )
+
+        if len(aligned_base) < 10:
             return None
 
-        # Align lengths
-        min_len = min(len(baseline_returns), len(combined_returns))
-        baseline_returns = baseline_returns.iloc[:min_len]
-        combined_returns = combined_returns.iloc[:min_len]
-
-        return float(baseline_returns.corr(combined_returns))
+        return float(aligned_base.corr(aligned_comb))
 
     def calculate_rolling_correlation(
         self,
