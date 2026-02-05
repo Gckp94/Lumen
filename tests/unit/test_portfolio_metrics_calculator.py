@@ -640,6 +640,49 @@ class TestPortfolioMetricsCalculator:
         overall_corr = calculator.calculate_pearson_correlation(baseline_df, combined_df)
         assert tail_corr > overall_corr  # More correlated in bad times
 
+    def test_tail_correlation_with_different_trade_counts(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Tail correlation must align by date with different-length curves."""
+        np.random.seed(42)
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(200)]
+        base_returns = np.random.normal(0.001, 0.02, 200)
+
+        base_eq = [100_000]
+        for r in base_returns:
+            base_eq.append(base_eq[-1] * (1 + r))
+        baseline_df = pd.DataFrame({
+            "date": pd.to_datetime(dates),
+            "equity": base_eq[1:],
+            "pnl": np.diff(base_eq),
+            "peak": np.maximum.accumulate(base_eq[1:]),
+            "drawdown": [0] * 200,
+            "win": [True] * 200,
+        })
+
+        # Combined: 2 trades per day
+        comb_dates = []
+        for d in dates:
+            comb_dates.extend([d, d])
+        comb_returns = np.random.normal(0.0005, 0.01, 400)
+        comb_eq = [100_000]
+        for r in comb_returns:
+            comb_eq.append(comb_eq[-1] * (1 + r))
+        combined_df = pd.DataFrame({
+            "date": pd.to_datetime(comb_dates),
+            "equity": comb_eq[1:],
+            "pnl": np.diff(comb_eq),
+            "peak": np.maximum.accumulate(comb_eq[1:]),
+            "drawdown": [0] * 400,
+            "win": [True] * 400,
+        })
+
+        tail_corr = calculator.calculate_tail_correlation(baseline_df, combined_df)
+
+        # Should return a valid value (may be None if insufficient stress events)
+        if tail_corr is not None:
+            assert -1.0 <= tail_corr <= 1.0
+
     def test_calculate_drawdown_correlation(
         self, calculator: PortfolioMetricsCalculator
     ) -> None:

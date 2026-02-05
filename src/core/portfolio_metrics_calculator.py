@@ -656,24 +656,24 @@ class PortfolioMetricsCalculator:
         Returns:
             Tail correlation coefficient, or None if insufficient data.
         """
-        baseline_returns = self._calculate_daily_returns(baseline_df)
-        combined_returns = self._calculate_daily_returns(combined_df)
+        baseline_returns = self._get_daily_returns_by_date(baseline_df)
+        combined_returns = self._get_daily_returns_by_date(combined_df)
 
-        min_len = min(len(baseline_returns), len(combined_returns))
-        if min_len < 20:
+        aligned_base, aligned_comb = self._align_returns_by_date(
+            baseline_returns, combined_returns
+        )
+
+        if len(aligned_base) < 20:
             return None
 
-        baseline_returns = baseline_returns.iloc[:min_len].reset_index(drop=True)
-        combined_returns = combined_returns.iloc[:min_len].reset_index(drop=True)
-
         # Define threshold for "bad days"
-        threshold = baseline_returns.mean() - threshold_std * baseline_returns.std()
-        bad_days = baseline_returns < threshold
+        threshold = aligned_base.mean() - threshold_std * aligned_base.std()
+        bad_days = aligned_base < threshold
 
         if bad_days.sum() < 10:
             return None  # Insufficient stress events
 
-        return float(baseline_returns[bad_days].corr(combined_returns[bad_days]))
+        return float(aligned_base[bad_days].corr(aligned_comb[bad_days]))
 
     def _calculate_drawdown_series(self, equity_curve: pd.DataFrame) -> pd.Series:
         """Calculate drawdown series from equity curve.
