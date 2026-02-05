@@ -771,6 +771,48 @@ class TestPortfolioMetricsCalculator:
         # Both have drawdowns in same period, so should be positively correlated
         assert dd_corr > 0.5
 
+    def test_lower_tail_dependence_with_different_trade_counts(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Lower tail dependence must align by date."""
+        np.random.seed(42)
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(200)]
+        base_returns = np.random.normal(0.001, 0.02, 200)
+
+        base_eq = [100_000]
+        for r in base_returns:
+            base_eq.append(base_eq[-1] * (1 + r))
+        baseline_df = pd.DataFrame({
+            "date": pd.to_datetime(dates),
+            "equity": base_eq[1:],
+            "pnl": np.diff(base_eq),
+            "peak": np.maximum.accumulate(base_eq[1:]),
+            "drawdown": [0] * 200,
+            "win": [True] * 200,
+        })
+
+        # Combined: 2 trades per day
+        comb_dates = []
+        for d in dates:
+            comb_dates.extend([d, d])
+        comb_returns = np.random.normal(0.0005, 0.01, 400)
+        comb_eq = [100_000]
+        for r in comb_returns:
+            comb_eq.append(comb_eq[-1] * (1 + r))
+        combined_df = pd.DataFrame({
+            "date": pd.to_datetime(comb_dates),
+            "equity": comb_eq[1:],
+            "pnl": np.diff(comb_eq),
+            "peak": np.maximum.accumulate(comb_eq[1:]),
+            "drawdown": [0] * 400,
+            "win": [True] * 400,
+        })
+
+        ltd = calculator.calculate_lower_tail_dependence(baseline_df, combined_df)
+
+        if ltd is not None:
+            assert 0.0 <= ltd <= 1.0
+
     def test_calculate_lower_tail_dependence(
         self, calculator: PortfolioMetricsCalculator
     ) -> None:

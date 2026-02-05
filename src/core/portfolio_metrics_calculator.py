@@ -737,21 +737,21 @@ class PortfolioMetricsCalculator:
         Returns:
             Tail dependence coefficient (0-1), or None if insufficient data.
         """
-        baseline_returns = self._calculate_daily_returns(baseline_df)
-        combined_returns = self._calculate_daily_returns(combined_df)
+        baseline_returns = self._get_daily_returns_by_date(baseline_df)
+        combined_returns = self._get_daily_returns_by_date(combined_df)
 
-        min_len = min(len(baseline_returns), len(combined_returns))
-        if min_len < 50:
+        aligned_base, aligned_comb = self._align_returns_by_date(
+            baseline_returns, combined_returns
+        )
+
+        if len(aligned_base) < 50:
             return None
 
-        baseline_returns = baseline_returns.iloc[:min_len].reset_index(drop=True)
-        combined_returns = combined_returns.iloc[:min_len].reset_index(drop=True)
+        threshold_baseline = aligned_base.quantile(quantile)
+        threshold_combined = aligned_comb.quantile(quantile)
 
-        threshold_baseline = baseline_returns.quantile(quantile)
-        threshold_combined = combined_returns.quantile(quantile)
-
-        baseline_below = baseline_returns < threshold_baseline
-        combined_below = combined_returns < threshold_combined
+        baseline_below = aligned_base < threshold_baseline
+        combined_below = aligned_comb < threshold_combined
         both_below = (baseline_below & combined_below).sum()
         baseline_below_count = baseline_below.sum()
 
