@@ -879,3 +879,34 @@ class TestPortfolioMetricsCalculator:
         assert result is not None
         assert result["concurrent_count"] == 1  # AAPL on Jan 2
         assert result["concurrent_pct"] > 0
+
+    def test_get_daily_returns_by_date_aggregates_multiple_trades_per_day(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Daily returns should aggregate multiple trades per day into one return."""
+        # 3 trades on day 1, 2 trades on day 2, 1 trade on day 3
+        df = pd.DataFrame({
+            "date": pd.to_datetime([
+                "2024-01-02", "2024-01-02", "2024-01-02",
+                "2024-01-03", "2024-01-03",
+                "2024-01-04",
+            ]),
+            "equity": [100_500, 101_000, 101_500, 102_000, 102_500, 103_000],
+            "pnl": [500, 500, 500, 500, 500, 500],
+            "peak": [100_500, 101_000, 101_500, 102_000, 102_500, 103_000],
+            "drawdown": [0] * 6,
+            "win": [True] * 6,
+        })
+
+        returns = calculator._get_daily_returns_by_date(df)
+
+        # Should have exactly 3 returns (one per day)
+        assert len(returns) == 3
+        # Returns should be indexed by date
+        assert hasattr(returns.index, 'date') or returns.index.dtype == 'datetime64[ns]'
+        # Day 1 return: 101_500 / 100_000 - 1 = 0.015
+        assert returns.iloc[0] == pytest.approx(0.015, rel=0.01)
+        # Day 2 return: 102_500 / 101_500 - 1 ≈ 0.00985
+        assert returns.iloc[1] == pytest.approx(102_500 / 101_500 - 1, rel=0.01)
+        # Day 3 return: 103_000 / 102_500 - 1 ≈ 0.00488
+        assert returns.iloc[2] == pytest.approx(103_000 / 102_500 - 1, rel=0.01)

@@ -154,6 +154,34 @@ class PortfolioMetricsCalculator:
         returns = with_start.pct_change().dropna()
         return returns.reset_index(drop=True)
 
+    def _get_daily_returns_by_date(self, equity_curve: pd.DataFrame) -> pd.Series:
+        """Calculate true daily returns from equity curve, aggregated by date.
+
+        Groups the equity curve by calendar date, takes the end-of-day equity
+        value, and computes percentage returns. Returns a Series indexed by
+        date for proper temporal alignment in correlation calculations.
+
+        Args:
+            equity_curve: DataFrame with 'equity' and 'date' columns.
+
+        Returns:
+            Series of daily returns (as decimals) indexed by date.
+        """
+        df = equity_curve.copy()
+        df["_date"] = pd.to_datetime(df["date"]).dt.normalize()
+
+        # Take end-of-day equity (last trade of each day)
+        daily_equity = df.groupby("_date")["equity"].last()
+
+        # Prepend starting capital for first return calculation
+        start = pd.Series(
+            [self.starting_capital],
+            index=pd.DatetimeIndex([daily_equity.index[0] - pd.Timedelta(days=1)]),
+        )
+        with_start = pd.concat([start, daily_equity])
+        returns = with_start.pct_change().dropna()
+        return returns
+
     def calculate_sharpe_ratio(
         self, equity_curve: pd.DataFrame, rf_rate: float = 0.0
     ) -> float | None:
