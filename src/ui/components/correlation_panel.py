@@ -174,25 +174,25 @@ class CorrelationPanel(QFrame):
         # Correlation cards
         self._pearson_card = CorrelationCard(
             "Pearson Correlation",
-            "Standard linear correlation between daily returns"
+            "Pearson correlation between baseline and combined portfolio daily returns. High values indicate the combined portfolio closely tracks the baseline."
         )
         layout.addWidget(self._pearson_card)
 
         self._tail_card = CorrelationCard(
             "Tail Correlation (Crisis)",
-            "Correlation during stress periods"
+            "Correlation during stress periods — days when baseline had losses beyond 1 std dev. High values mean the combined portfolio also suffers on the baseline's worst days."
         )
         layout.addWidget(self._tail_card)
 
         self._drawdown_card = CorrelationCard(
             "Drawdown Correlation",
-            "Correlation of drawdown series"
+            "Correlation between baseline and combined drawdown series. High values indicate synchronized drawdown periods."
         )
         layout.addWidget(self._drawdown_card)
 
         self._ltd_card = CorrelationCard(
             "Lower Tail Dependence",
-            "Joint extreme loss probability"
+            "Probability that the combined portfolio is in its worst 10% given the baseline is in its worst 10%. Higher = more co-movement in extremes."
         )
         layout.addWidget(self._ltd_card)
 
