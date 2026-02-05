@@ -723,6 +723,54 @@ class TestPortfolioMetricsCalculator:
         assert dd_corr is not None
         assert dd_corr > 0.5  # Should be positively correlated drawdowns
 
+    def test_drawdown_correlation_with_different_trade_counts(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Drawdown correlation must align by date."""
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(100)]
+
+        # Baseline: 1 trade per day, with some drawdowns
+        base_eq_vals = [100_000]
+        for i in range(100):
+            if 20 <= i <= 40:  # Drawdown period
+                base_eq_vals.append(base_eq_vals[-1] * 0.995)
+            else:
+                base_eq_vals.append(base_eq_vals[-1] * 1.002)
+        baseline_df = pd.DataFrame({
+            "date": pd.to_datetime(dates),
+            "equity": base_eq_vals[1:],
+            "pnl": np.diff(base_eq_vals),
+            "peak": np.maximum.accumulate(base_eq_vals[1:]),
+            "drawdown": [0] * 100,
+            "win": [True] * 100,
+        })
+
+        # Combined: 2 trades per day, similar drawdown pattern
+        comb_dates = []
+        for d in dates:
+            comb_dates.extend([d, d])
+        comb_eq_vals = [100_000]
+        for i in range(200):
+            day_idx = i // 2
+            if 20 <= day_idx <= 40:
+                comb_eq_vals.append(comb_eq_vals[-1] * 0.998)
+            else:
+                comb_eq_vals.append(comb_eq_vals[-1] * 1.001)
+        combined_df = pd.DataFrame({
+            "date": pd.to_datetime(comb_dates),
+            "equity": comb_eq_vals[1:],
+            "pnl": np.diff(comb_eq_vals),
+            "peak": np.maximum.accumulate(comb_eq_vals[1:]),
+            "drawdown": [0] * 200,
+            "win": [True] * 200,
+        })
+
+        dd_corr = calculator.calculate_drawdown_correlation(baseline_df, combined_df)
+
+        assert dd_corr is not None
+        # Both have drawdowns in same period, so should be positively correlated
+        assert dd_corr > 0.5
+
     def test_calculate_lower_tail_dependence(
         self, calculator: PortfolioMetricsCalculator
     ) -> None:

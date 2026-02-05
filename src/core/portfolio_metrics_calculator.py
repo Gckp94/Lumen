@@ -676,17 +676,22 @@ class PortfolioMetricsCalculator:
         return float(aligned_base[bad_days].corr(aligned_comb[bad_days]))
 
     def _calculate_drawdown_series(self, equity_curve: pd.DataFrame) -> pd.Series:
-        """Calculate drawdown series from equity curve.
+        """Calculate drawdown series from equity curve, aggregated by date.
 
         Args:
-            equity_curve: DataFrame with 'equity' column.
+            equity_curve: DataFrame with 'equity' and 'date' columns.
 
         Returns:
-            Series of drawdown percentages (negative values).
+            Series of drawdown percentages (negative values) indexed by date.
         """
-        equities = equity_curve["equity"].astype(float)
-        running_max = equities.cummax()
-        drawdown = (equities - running_max) / running_max
+        df = equity_curve.copy()
+        df["_date"] = pd.to_datetime(df["date"]).dt.normalize()
+
+        # Take end-of-day equity
+        daily_equity = df.groupby("_date")["equity"].last()
+
+        running_max = daily_equity.cummax()
+        drawdown = (daily_equity - running_max) / running_max
         return drawdown
 
     def calculate_drawdown_correlation(
@@ -706,14 +711,12 @@ class PortfolioMetricsCalculator:
         baseline_dd = self._calculate_drawdown_series(baseline_df)
         combined_dd = self._calculate_drawdown_series(combined_df)
 
-        min_len = min(len(baseline_dd), len(combined_dd))
-        if min_len < 10:
+        aligned = pd.DataFrame({"a": baseline_dd, "b": combined_dd}).dropna()
+
+        if len(aligned) < 10:
             return None
 
-        baseline_dd = baseline_dd.iloc[:min_len].reset_index(drop=True)
-        combined_dd = combined_dd.iloc[:min_len].reset_index(drop=True)
-
-        return float(baseline_dd.corr(combined_dd))
+        return float(aligned["a"].corr(aligned["b"]))
 
     def calculate_lower_tail_dependence(
         self,
