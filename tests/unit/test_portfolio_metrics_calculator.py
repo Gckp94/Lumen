@@ -910,3 +910,25 @@ class TestPortfolioMetricsCalculator:
         assert returns.iloc[1] == pytest.approx(102_500 / 101_500 - 1, rel=0.01)
         # Day 3 return: 103_000 / 102_500 - 1 ≈ 0.00488
         assert returns.iloc[2] == pytest.approx(103_000 / 102_500 - 1, rel=0.01)
+
+    def test_align_returns_by_date_joins_on_matching_dates(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Alignment should join on date, dropping non-overlapping days."""
+        # Series A has dates 1-5, Series B has dates 3-7
+        dates_a = pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03",
+                                  "2024-01-04", "2024-01-05"])
+        dates_b = pd.to_datetime(["2024-01-03", "2024-01-04", "2024-01-05",
+                                  "2024-01-06", "2024-01-07"])
+        returns_a = pd.Series([0.01, 0.02, 0.03, 0.04, 0.05], index=dates_a)
+        returns_b = pd.Series([0.10, 0.20, 0.30, 0.40, 0.50], index=dates_b)
+
+        aligned_a, aligned_b = calculator._align_returns_by_date(returns_a, returns_b)
+
+        # Only dates 3, 4, 5 overlap
+        assert len(aligned_a) == 3
+        assert len(aligned_b) == 3
+        assert aligned_a.iloc[0] == pytest.approx(0.03)  # Jan 3
+        assert aligned_b.iloc[0] == pytest.approx(0.10)  # Jan 3
+        assert aligned_a.iloc[2] == pytest.approx(0.05)  # Jan 5
+        assert aligned_b.iloc[2] == pytest.approx(0.30)  # Jan 5

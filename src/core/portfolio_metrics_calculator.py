@@ -182,6 +182,21 @@ class PortfolioMetricsCalculator:
         returns = with_start.pct_change().dropna()
         return returns
 
+    def _align_returns_by_date(
+        self, returns_a: pd.Series, returns_b: pd.Series
+    ) -> tuple[pd.Series, pd.Series]:
+        """Align two date-indexed return Series by inner join on date.
+
+        Args:
+            returns_a: Daily returns indexed by date.
+            returns_b: Daily returns indexed by date.
+
+        Returns:
+            Tuple of aligned (returns_a, returns_b) with matching dates only.
+        """
+        aligned = pd.DataFrame({"a": returns_a, "b": returns_b}).dropna()
+        return aligned["a"], aligned["b"]
+
     def calculate_sharpe_ratio(
         self, equity_curve: pd.DataFrame, rf_rate: float = 0.0
     ) -> float | None:
