@@ -551,6 +551,54 @@ class TestPortfolioMetricsCalculator:
         assert len(series) > 0
         assert min_val < max_val  # Should vary over time
 
+    def test_rolling_correlation_with_different_trade_counts(
+        self, calculator: PortfolioMetricsCalculator
+    ) -> None:
+        """Rolling correlation must work with different-length equity curves."""
+        np.random.seed(42)
+        dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(120)]
+        base_returns = np.random.normal(0.001, 0.02, 120)
+
+        # Baseline: 1 trade per day
+        base_eq = [100_000]
+        for r in base_returns:
+            base_eq.append(base_eq[-1] * (1 + r))
+        baseline_df = pd.DataFrame({
+            "date": pd.to_datetime(dates),
+            "equity": base_eq[1:],
+            "pnl": np.diff(base_eq),
+            "peak": np.maximum.accumulate(base_eq[1:]),
+            "drawdown": [0] * 120,
+            "win": [True] * 120,
+        })
+
+        # Combined: 3 trades per day (360 total)
+        comb_dates = []
+        for d in dates:
+            comb_dates.extend([d, d, d])
+        comb_returns = np.random.normal(0.0003, 0.007, 360)
+        comb_eq = [100_000]
+        for r in comb_returns:
+            comb_eq.append(comb_eq[-1] * (1 + r))
+        combined_df = pd.DataFrame({
+            "date": pd.to_datetime(comb_dates),
+            "equity": comb_eq[1:],
+            "pnl": np.diff(comb_eq),
+            "peak": np.maximum.accumulate(comb_eq[1:]),
+            "drawdown": [0] * 360,
+            "win": [True] * 360,
+        })
+
+        current, min_val, max_val, series = calculator.calculate_rolling_correlation(
+            baseline_df, combined_df, window=60
+        )
+
+        assert current is not None
+        assert min_val is not None
+        assert max_val is not None
+        assert series is not None
+        assert -1.0 <= current <= 1.0
+
     def test_calculate_tail_correlation(
         self, calculator: PortfolioMetricsCalculator
     ) -> None:

@@ -611,17 +611,20 @@ class PortfolioMetricsCalculator:
         Returns:
             Tuple of (current, min, max, full_series) or (None, None, None, None).
         """
-        baseline_returns = self._calculate_daily_returns(baseline_df)
-        combined_returns = self._calculate_daily_returns(combined_df)
+        baseline_returns = self._get_daily_returns_by_date(baseline_df)
+        combined_returns = self._get_daily_returns_by_date(combined_df)
 
-        min_len = min(len(baseline_returns), len(combined_returns))
-        if min_len < window:
+        aligned_base, aligned_comb = self._align_returns_by_date(
+            baseline_returns, combined_returns
+        )
+
+        if len(aligned_base) < window:
             return None, None, None, None
 
-        baseline_returns = baseline_returns.iloc[:min_len].reset_index(drop=True)
-        combined_returns = combined_returns.iloc[:min_len].reset_index(drop=True)
+        aligned_base = aligned_base.reset_index(drop=True)
+        aligned_comb = aligned_comb.reset_index(drop=True)
 
-        rolling_corr = baseline_returns.rolling(window).corr(combined_returns)
+        rolling_corr = aligned_base.rolling(window).corr(aligned_comb)
         rolling_corr = rolling_corr.dropna()
 
         if len(rolling_corr) == 0:
