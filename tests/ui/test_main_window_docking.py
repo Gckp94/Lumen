@@ -34,6 +34,7 @@ class TestMainWindowDocking:
             "Portfolio Overview",
             "Portfolio Breakdown",
             "Portfolio Metrics",
+            "Chart Viewer",
             "Statistics",
         ]
 
