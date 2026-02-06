@@ -2,6 +2,7 @@
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
+    QApplication,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -370,8 +371,16 @@ class FilterPanel(QWidget):
             self._filter_chips.append(chip)
             self._chips_layout.addWidget(chip)
 
-        # Trigger geometry update so scroll area recalculates content size
+        # Force complete layout recalculation
+        # processEvents() is required here because:
+        # 1. deleteLater() defers widget destruction until event loop runs
+        # 2. New widget size hints aren't calculated until events are processed
+        # 3. FlowLayout needs accurate sizes to position chips without overlap
+        self._chips_layout.invalidate()
+        QApplication.processEvents()
+        self._chips_frame.adjustSize()
         self._chips_frame.updateGeometry()
+        self._chips_layout.activate()
 
     def _on_chip_removed(self, criteria: FilterCriteria) -> None:
         """Handle chip removal.
