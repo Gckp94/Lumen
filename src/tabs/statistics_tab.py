@@ -29,7 +29,7 @@ from PyQt6.QtWidgets import (
 from src.core.app_state import AppState
 from src.core.exceptions import ExportError
 from src.core.export_manager import ExportManager
-from src.core.models import AdjustmentParams, TradingMetrics
+from src.core.models import AdjustmentParams, ComputedMetrics, TradingMetrics
 from src.core.statistics import (
     SCALING_TARGET_LEVELS,
     calculate_loss_chance_table,
@@ -734,6 +734,9 @@ class StatisticsTab(QWidget):
         self._scale_out_spin.valueChanged.connect(self._on_scale_out_changed)
         self._cover_spin.valueChanged.connect(self._on_cover_changed)
 
+        # Connect to unified metrics signal (golden statistics)
+        self._app_state.all_metrics_ready.connect(self._on_all_metrics_ready)
+
     def _initialize_from_state(self) -> None:
         """Populate tables if data already exists in state.
 
@@ -814,6 +817,78 @@ class StatisticsTab(QWidget):
             inputs: New metrics user inputs (starting capital, fractional kelly, etc.).
         """
         self._refresh_all_tables()
+
+    def _on_all_metrics_ready(self, computed: ComputedMetrics) -> None:
+        """Handle unified metrics update from golden statistics.
+
+        Populates Stop Loss and Offset tables from pre-computed scenarios,
+        avoiding duplicate calculations.
+
+        Args:
+            computed: Pre-computed metrics including scenarios.
+        """
+        if not self._app_state.column_mapping:
+            return
+
+        # Hide empty state and show tables
+        self._show_empty_state(False)
+
+        # Populate Stop Loss table from pre-computed scenarios
+        if computed.stop_scenarios:
+            stop_df = self._scenarios_to_stop_dataframe(computed.stop_scenarios)
+            self._populate_table(self._stop_loss_table, stop_df)
+
+        # Populate Offset table from pre-computed scenarios
+        if computed.offset_scenarios:
+            offset_df = self._scenarios_to_offset_dataframe(computed.offset_scenarios)
+            self._populate_table(self._offset_table, offset_df)
+
+    def _scenarios_to_stop_dataframe(self, scenarios: list) -> pd.DataFrame:
+        """Convert StopScenario list to DataFrame for table display.
+
+        Args:
+            scenarios: List of StopScenario objects from pre-computed metrics.
+
+        Returns:
+            DataFrame formatted for the Stop Loss table display.
+        """
+        rows = []
+        for s in scenarios:
+            rows.append({
+                "Stop Loss %": s.stop_pct,
+                "Win %": s.win_pct,
+                "EV %": s.ev_pct,
+                "Avg. Gain %": s.avg_gain_pct,
+                "Median Gain %": s.median_gain_pct,
+                "Edge %": s.edge_pct,
+                "Max Loss %": s.max_loss_pct,
+                "Full Kelly (Stop Adj)": s.stop_adjusted_kelly_pct,
+                "Half Kelly (Stop Adj)": s.stop_adjusted_kelly_pct / 2 if s.stop_adjusted_kelly_pct else None,
+                "Quarter Kelly (Stop Adj)": s.stop_adjusted_kelly_pct / 4 if s.stop_adjusted_kelly_pct else None,
+                "Max DD %": s.max_dd_pct,
+                "Total Kelly $": s.kelly_pnl,
+            })
+        return pd.DataFrame(rows)
+
+    def _scenarios_to_offset_dataframe(self, scenarios: list) -> pd.DataFrame:
+        """Convert OffsetScenario list to DataFrame for table display.
+
+        Args:
+            scenarios: List of OffsetScenario objects from pre-computed metrics.
+
+        Returns:
+            DataFrame formatted for the Offset table display.
+        """
+        rows = []
+        for s in scenarios:
+            rows.append({
+                "Offset %": s.offset_pct,
+                "# of Trades": s.num_trades,
+                "Win %": s.win_pct,
+                "Total Return %": s.total_return_pct,
+                "EG %": s.eg_pct,
+            })
+        return pd.DataFrame(rows)
 
     def _on_scale_out_changed(self, value: int) -> None:
         """Handle scale out spinbox value change.

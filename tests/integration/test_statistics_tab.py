@@ -766,3 +766,104 @@ class TestStatisticsTabIntegration:
         # Verify new columns are present
         assert "Max DD %" in headers, f"Max DD % not found in headers: {headers}"
         assert "Total Kelly $" in headers, f"Total Kelly $ not found in headers: {headers}"
+
+    def test_statistics_tab_uses_precomputed_scenarios(
+        self, app, qtbot, app_state_with_statistics_data: AppState
+    ) -> None:
+        """Test Statistics tab reads from AppState instead of recalculating."""
+        from src.core.models import ComputedMetrics, StopScenario, OffsetScenario
+        from unittest.mock import patch
+
+        app_state = app_state_with_statistics_data
+
+        # Pre-populate scenarios in AppState
+        app_state.stop_scenarios = [
+            StopScenario(
+                stop_pct=20,
+                num_trades=100,
+                win_pct=55.0,
+                ev_pct=2.5,
+                avg_gain_pct=3.0,
+                median_gain_pct=2.8,
+                edge_pct=12.0,
+                kelly_pct=15.0,
+                stop_adjusted_kelly_pct=75.0,
+                max_loss_pct=10.0,
+                max_dd_pct=25.0,
+                kelly_pnl=50000.0,
+            ),
+        ]
+
+        app_state.offset_scenarios = [
+            OffsetScenario(
+                offset_pct=5.0,
+                num_trades=80,
+                win_pct=60.0,
+                total_return_pct=15.0,
+                eg_pct=1.2,
+            ),
+        ]
+
+        tab = StatisticsTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Patch the calculate functions to verify they're NOT called
+        with patch('src.tabs.statistics_tab.calculate_stop_loss_table') as mock_stop_calc, \
+             patch('src.tabs.statistics_tab.calculate_offset_table') as mock_offset_calc:
+
+            # Trigger all_metrics_ready instead of filtered_data_updated
+            computed = ComputedMetrics(
+                trading_metrics=TradingMetrics.empty(),
+                stop_scenarios=app_state.stop_scenarios,
+                offset_scenarios=app_state.offset_scenarios,
+                computation_time_ms=100.0,
+            )
+            app_state.all_metrics_ready.emit(computed)
+
+            # Process events
+            qtbot.wait(50)
+
+            # Verify calculate_stop_loss_table was NOT called
+            mock_stop_calc.assert_not_called()
+            # Verify calculate_offset_table was NOT called
+            mock_offset_calc.assert_not_called()
+
+        # Verify the tables are populated with the pre-computed data
+        # Stop Loss table should have 1 row (from our 1 pre-computed scenario)
+        assert tab._stop_loss_table.rowCount() == 1, (
+            f"Expected 1 row from pre-computed scenario, got {tab._stop_loss_table.rowCount()}"
+        )
+
+        # Offset table should have 1 row
+        assert tab._offset_table.rowCount() == 1, (
+            f"Expected 1 row from pre-computed scenario, got {tab._offset_table.rowCount()}"
+        )
+
+    def test_stop_loss_offset_tables_still_work_with_legacy_signal(
+        self, app, qtbot, app_state_with_statistics_data: AppState
+    ) -> None:
+        """Test that Stop Loss/Offset tables still populate via filtered_data_updated.
+
+        This ensures backward compatibility - the tables can be populated either by
+        the new all_metrics_ready signal (pre-computed) or the legacy filtered_data_updated.
+        """
+        app_state = app_state_with_statistics_data
+
+        tab = StatisticsTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Trigger via filtered_data_updated (legacy path)
+        app_state.filtered_data_updated.emit(app_state.baseline_df)
+
+        # Process events
+        qtbot.wait(50)
+
+        # Verify Stop Loss table is populated (legacy calculates 10 rows: 10% to 100%)
+        assert tab._stop_loss_table.rowCount() == 10, (
+            f"Expected 10 rows from legacy calculation, got {tab._stop_loss_table.rowCount()}"
+        )
+
+        # Verify Offset table is populated (legacy calculates 7 rows: -20% to +40%)
+        assert tab._offset_table.rowCount() == 7, (
+            f"Expected 7 rows from legacy calculation, got {tab._offset_table.rowCount()}"
+        )
