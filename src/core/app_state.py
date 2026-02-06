@@ -46,6 +46,7 @@ class AppState(QObject):
     filters_changed = pyqtSignal(list)  # list[FilterCriteria]
     filtered_data_updated = pyqtSignal(object)  # pd.DataFrame
     metrics_updated = pyqtSignal(object, object)  # baseline, filtered TradingMetrics
+    date_time_range_changed = pyqtSignal()  # Emitted when date/time range changes
     first_trigger_toggled = pyqtSignal(bool)
     request_tab_change = pyqtSignal(int)
     state_corrupted = pyqtSignal(str)
@@ -76,12 +77,21 @@ class AppState(QObject):
     def __init__(self) -> None:
         """Initialize AppState with default empty values."""
         super().__init__()
+        self.source_file_path: str = ""
+        self.source_sheet: str = ""
         self.raw_df: pd.DataFrame | None = None
         self.baseline_df: pd.DataFrame | None = None
         self.filtered_df: pd.DataFrame | None = None
         self.column_mapping: ColumnMapping | None = None
         self.filters: list[FilterCriteria] = []
         self.first_trigger_enabled: bool = True
+        # Date/time range filter state (for Parameter Sensitivity)
+        self.date_start: str | None = None
+        self.date_end: str | None = None
+        self.all_dates: bool = True
+        self.time_start: str | None = None
+        self.time_end: str | None = None
+        self.all_times: bool = True
         self.baseline_metrics: TradingMetrics | None = None
         self.filtered_metrics: TradingMetrics | None = None
         self.adjustment_params: AdjustmentParams = AdjustmentParams()
