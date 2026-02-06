@@ -832,6 +832,9 @@ SCALING_TARGET_LEVELS = [5, 10, 15, 20, 25, 30, 35, 40]
 # Profit/Loss chance bucket levels (fixed)
 PROFIT_LOSS_BUCKETS = [5, 10, 15, 20, 25, 30, 35, 40]
 
+# Time stop intervals in minutes
+TIME_STOP_INTERVALS = [10, 20, 30, 60, 90, 120, 150, 180, 240]
+
 
 def calculate_scaling_table(
     df: pd.DataFrame,

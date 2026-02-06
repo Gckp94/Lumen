@@ -2295,3 +2295,9 @@ def test_calculate_offset_table_with_kelly_params():
 
     # Verify we have 7 rows (one per offset level: -20, -10, 0, 10, 20, 30, 40)
     assert len(result) == 7
+
+
+def test_time_stop_intervals_constant():
+    """Test TIME_STOP_INTERVALS constant exists with expected values."""
+    from src.core.statistics import TIME_STOP_INTERVALS
+    assert TIME_STOP_INTERVALS == [10, 20, 30, 60, 90, 120, 150, 180, 240]
