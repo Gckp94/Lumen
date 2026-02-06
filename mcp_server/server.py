@@ -384,21 +384,13 @@ class GetPortfolioStatsInput(BaseModel):
         default=False,
         description="If True, keep only trigger_number == 1 rows.",
     )
-    risk_free_rate: float = Field(
-        default=0.0,
-        description="Annual risk-free rate as decimal (e.g., 0.05 for 5%).",
-    )
-    trading_days_per_year: int = Field(
-        default=252,
-        description="Number of trading days per year for annualization.",
-    )
     stake: float = Field(
         default=1000.0,
         description="Fixed stake amount for equity curve calculation.",
     )
     start_capital: float = Field(
         default=10000.0,
-        description="Starting capital for equity curve calculation.",
+        description="Starting capital for equity curve and portfolio metrics calculation.",
     )
 
 
@@ -904,10 +896,8 @@ async def lumen_get_portfolio_stats(params: GetPortfolioStatsInput) -> str:
             - alias (str): Dataset alias
             - filters (Optional[list]): Filter dicts to narrow the data
             - first_trigger_only (bool): Keep only trigger_number == 1
-            - risk_free_rate (float): Annual risk-free rate
-            - trading_days_per_year (int): Trading days for annualization
             - stake (float): Fixed stake for equity curve
-            - start_capital (float): Starting capital for equity curve
+            - start_capital (float): Starting capital for equity curve and metrics
 
     Returns:
         str: JSON with portfolio metrics.
@@ -976,8 +966,7 @@ async def lumen_get_portfolio_stats(params: GetPortfolioStatsInput) -> str:
 
     # Create calculator
     calc = PortfolioMetricsCalculator(
-        risk_free_rate=params.risk_free_rate,
-        trading_days_per_year=params.trading_days_per_year,
+        starting_capital=params.start_capital,
     )
 
     try:
