@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumen - Time Stop Tab Design</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;500;600&family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================
+           LUMEN OBSERVATORY THEME - Time Stop Tab Design
+           ============================================================ */
+
+        :root {
+            /* Backgrounds */
+            --bg-base: #0C0C12;
+            --bg-surface: #141420;
+            --bg-elevated: #1E1E2C;
+            --bg-border: #2A2A3A;
+
+            /* Signal Colors */
+            --signal-cyan: #00FFD4;
+            --signal-coral: #FF4757;
+            --signal-amber: #FFAA00;
+            --signal-blue: #4A9EFF;
+
+            /* Text */
+            --text-primary: #F4F4F8;
+            --text-secondary: #9898A8;
+            --text-disabled: #5C5C6C;
+
+            /* Gradient Colors */
+            --gradient-low: rgba(255, 71, 87, 0.18);
+            --gradient-mid: rgba(148, 148, 168, 0.10);
+            --gradient-high: rgba(0, 255, 180, 0.18);
+            --text-low: #FF6B7A;
+            --text-mid: #B8B8C8;
+            --text-high: #4FFFB0;
+
+            /* Optimal row highlight */
+            --optimal-bg: rgba(255, 170, 0, 0.12);
+            --optimal-border: #FFAA00;
+
+            /* Fonts */
+            --font-data: 'Azeret Mono', monospace;
+            --font-ui: 'Geist', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        /* ============================================================
+           TAB CONTAINER
+           ============================================================ */
+
+        .tab-container {
+            background: var(--bg-surface);
+            border-radius: 8px;
+            border: 1px solid var(--bg-border);
+            overflow: hidden;
+        }
+
+        .tab-header {
+            display: flex;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--bg-border);
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            font-family: var(--font-ui);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-button:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-button.active {
+            color: var(--signal-cyan);
+            border-bottom-color: var(--signal-cyan);
+        }
+
+        .tab-content {
+            padding: 20px;
+        }
+
+        /* ============================================================
+           CONTROL BAR
+           ============================================================ */
+
+        .control-bar {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 20px;
+            padding: 12px 16px;
+            background: var(--bg-elevated);
+            border-radius: 6px;
+            border: 1px solid var(--bg-border);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-label {
+            font-family: var(--font-ui);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .spinbox {
+            display: flex;
+            align-items: center;
+            background: var(--bg-surface);
+            border: 1px solid var(--bg-border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .spinbox-value {
+            font-family: var(--font-data);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            padding: 6px 12px;
+            min-width: 60px;
+            text-align: center;
+            background: transparent;
+            border: none;
+        }
+
+        .spinbox-buttons {
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--bg-border);
+        }
+
+        .spinbox-btn {
+            width: 24px;
+            height: 14px;
+            background: var(--bg-elevated);
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            transition: all 0.15s ease;
+        }
+
+        .spinbox-btn:hover {
+            background: var(--bg-border);
+            color: var(--text-primary);
+        }
+
+        .spinbox-btn:first-child {
+            border-bottom: 1px solid var(--bg-border);
+        }
+
+        .export-btn {
+            margin-left: auto;
+            padding: 8px 16px;
+            font-family: var(--font-ui);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+            background: var(--bg-surface);
+            border: 1px solid var(--bg-border);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .export-btn:hover {
+            background: var(--bg-border);
+            border-color: var(--text-secondary);
+        }
+
+        .export-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* ============================================================
+           TABLE SECTION
+           ============================================================ */
+
+        .table-section {
+            margin-bottom: 24px;
+        }
+
+        .table-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .table-title {
+            font-family: var(--font-ui);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-title::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--signal-cyan);
+            transform: rotate(45deg);
+        }
+
+        /* ============================================================
+           DATA TABLES
+           ============================================================ */
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-data);
+            font-size: 12px;
+            background: var(--bg-surface);
+            border: 1px solid var(--bg-border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .data-table thead {
+            background: var(--bg-elevated);
+        }
+
+        .data-table th {
+            padding: 10px 12px;
+            font-family: var(--font-ui);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-align: right;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid var(--bg-border);
+            white-space: nowrap;
+        }
+
+        .data-table th:first-child {
+            text-align: left;
+        }
+
+        .data-table td {
+            padding: 8px 12px;
+            text-align: right;
+            border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+            transition: background 0.15s ease;
+        }
+
+        .data-table td:first-child {
+            text-align: left;
+            font-family: var(--font-ui);
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Gradient cell backgrounds and text */
+        .cell-low {
+            background: var(--gradient-low);
+            color: var(--text-low);
+        }
+
+        .cell-mid-low {
+            background: linear-gradient(90deg, var(--gradient-low), var(--gradient-mid));
+            color: #D8A090;
+        }
+
+        .cell-mid {
+            background: var(--gradient-mid);
+            color: var(--text-mid);
+        }
+
+        .cell-mid-high {
+            background: linear-gradient(90deg, var(--gradient-mid), var(--gradient-high));
+            color: #90D8C0;
+        }
+
+        .cell-high {
+            background: var(--gradient-high);
+            color: var(--text-high);
+        }
+
+        /* Optimal row highlight */
+        .row-optimal {
+            background: var(--optimal-bg) !important;
+            box-shadow: inset 0 0 0 1px var(--optimal-border);
+        }
+
+        .row-optimal td {
+            border-bottom-color: var(--optimal-border) !important;
+        }
+
+        .row-optimal td:first-child {
+            position: relative;
+        }
+
+        .row-optimal td:first-child::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--optimal-border);
+        }
+
+        /* Column group separators */
+        .col-separator {
+            border-left: 1px solid var(--bg-border);
+        }
+
+        /* ============================================================
+           RESPONSIVE SCROLL
+           ============================================================ */
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 6px;
+        }
+
+        .table-wrapper::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track {
+            background: var(--bg-surface);
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: var(--bg-border);
+            border-radius: 4px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: var(--text-disabled);
+        }
+
+        /* ============================================================
+           HEADER GROUPS (for Time Stop table)
+           ============================================================ */
+
+        .header-group {
+            text-align: center !important;
+            background: rgba(0, 255, 212, 0.05);
+            border-bottom: 2px solid var(--signal-cyan) !important;
+        }
+
+        .header-group.blended {
+            background: rgba(74, 158, 255, 0.08);
+            border-bottom-color: var(--signal-blue) !important;
+        }
+
+        .header-group.full-hold {
+            background: rgba(148, 148, 168, 0.08);
+            border-bottom-color: var(--text-secondary) !important;
+        }
+
+        /* ============================================================
+           LEGEND
+           ============================================================ */
+
+        .legend {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: var(--bg-elevated);
+            border-radius: 6px;
+            border: 1px solid var(--bg-border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-ui);
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .legend-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+
+        .legend-swatch.low {
+            background: var(--gradient-low);
+            border: 1px solid var(--text-low);
+        }
+
+        .legend-swatch.mid {
+            background: var(--gradient-mid);
+            border: 1px solid var(--text-mid);
+        }
+
+        .legend-swatch.high {
+            background: var(--gradient-high);
+            border: 1px solid var(--text-high);
+        }
+
+        .legend-swatch.optimal {
+            background: var(--optimal-bg);
+            border: 2px solid var(--optimal-border);
+        }
+    </style>
+</head>
+<body>
+    <div class="tab-container">
+        <!-- Tab Header -->
+        <div class="tab-header">
+            <button class="tab-button">MAE/MFE</button>
+            <button class="tab-button">Stop Loss/Offset</button>
+            <button class="tab-button">Scaling</button>
+            <button class="tab-button active">Time Stop</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Control Bar -->
+            <div class="control-bar">
+                <div class="control-group">
+                    <span class="control-label">Scale Out:</span>
+                    <div class="spinbox">
+                        <input type="text" class="spinbox-value" value="50%" readonly>
+                        <div class="spinbox-buttons">
+                            <button class="spinbox-btn">&#9650;</button>
+                            <button class="spinbox-btn">&#9660;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="export-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export CSV
+                </button>
+            </div>
+
+            <!-- Time Statistics Table -->
+            <div class="table-section">
+                <h3 class="table-title">Time Statistics</h3>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Minutes After Entry</th>
+                                <th>Avg. Gain %</th>
+                                <th>Median Gain %</th>
+                                <th>Avg. Loss %</th>
+                                <th>Median Loss %</th>
+                                <th>Prob. of Profit (Red) %</th>
+                                <th>Prob. of Profit (Green) %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>10 Mins</td>
+                                <td class="cell-mid">2.45%</td>
+                                <td class="cell-mid">1.82%</td>
+                                <td class="cell-low">-1.85%</td>
+                                <td class="cell-low">-1.24%</td>
+                                <td class="cell-mid-high">42.30%</td>
+                                <td class="cell-high">78.50%</td>
+                            </tr>
+                            <tr>
+                                <td>20 Mins</td>
+                                <td class="cell-mid-high">3.12%</td>
+                                <td class="cell-mid">2.15%</td>
+                                <td class="cell-mid-low">-2.10%</td>
+                                <td class="cell-low">-1.58%</td>
+                                <td class="cell-mid-high">48.60%</td>
+                                <td class="cell-high">82.40%</td>
+                            </tr>
+                            <tr>
+                                <td>30 Mins</td>
+                                <td class="cell-mid-high">3.85%</td>
+                                <td class="cell-mid-high">2.90%</td>
+                                <td class="cell-mid-low">-2.45%</td>
+                                <td class="cell-mid-low">-1.92%</td>
+                                <td class="cell-mid-high">52.10%</td>
+                                <td class="cell-high">85.20%</td>
+                            </tr>
+                            <tr class="row-optimal">
+                                <td>60 Mins</td>
+                                <td class="cell-high">4.52%</td>
+                                <td class="cell-high">3.45%</td>
+                                <td class="cell-mid">-2.85%</td>
+                                <td class="cell-mid-low">-2.18%</td>
+                                <td class="cell-high">58.40%</td>
+                                <td class="cell-high">88.60%</td>
+                            </tr>
+                            <tr>
+                                <td>90 Mins</td>
+                                <td class="cell-high">4.68%</td>
+                                <td class="cell-high">3.62%</td>
+                                <td class="cell-mid">-3.12%</td>
+                                <td class="cell-mid">-2.45%</td>
+                                <td class="cell-high">56.80%</td>
+                                <td class="cell-high">87.90%</td>
+                            </tr>
+                            <tr>
+                                <td>120 Mins</td>
+                                <td class="cell-high">4.75%</td>
+                                <td class="cell-high">3.70%</td>
+                                <td class="cell-mid-low">-3.45%</td>
+                                <td class="cell-mid">-2.68%</td>
+                                <td class="cell-mid-high">54.20%</td>
+                                <td class="cell-high">86.50%</td>
+                            </tr>
+                            <tr>
+                                <td>150 Mins</td>
+                                <td class="cell-high">4.82%</td>
+                                <td class="cell-high">3.78%</td>
+                                <td class="cell-low">-3.72%</td>
+                                <td class="cell-mid">-2.85%</td>
+                                <td class="cell-mid-high">52.80%</td>
+                                <td class="cell-high">85.80%</td>
+                            </tr>
+                            <tr>
+                                <td>180 Mins</td>
+                                <td class="cell-high">4.85%</td>
+                                <td class="cell-high">3.80%</td>
+                                <td class="cell-low">-3.95%</td>
+                                <td class="cell-mid-low">-3.02%</td>
+                                <td class="cell-mid-high">51.40%</td>
+                                <td class="cell-high">85.20%</td>
+                            </tr>
+                            <tr>
+                                <td>240 Mins</td>
+                                <td class="cell-high">4.88%</td>
+                                <td class="cell-high">3.82%</td>
+                                <td class="cell-low">-4.15%</td>
+                                <td class="cell-mid-low">-3.18%</td>
+                                <td class="cell-mid-high">50.20%</td>
+                                <td class="cell-high">84.80%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Time Stop Table -->
+            <div class="table-section">
+                <h3 class="table-title">Time Stop</h3>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" style="vertical-align: bottom;">Minutes After Entry</th>
+                                <th colspan="2" class="header-group blended">Win %</th>
+                                <th colspan="2" class="header-group blended">EV %</th>
+                                <th colspan="2" class="header-group blended">Profit Ratio</th>
+                                <th colspan="2" class="header-group blended">Edge %</th>
+                                <th colspan="2" class="header-group blended">EG %</th>
+                                <th colspan="2" class="header-group blended">Kelly Stake %</th>
+                            </tr>
+                            <tr>
+                                <th>Blended</th>
+                                <th class="col-separator">Full Hold</th>
+                                <th>Blended</th>
+                                <th class="col-separator">Full Hold</th>
+                                <th>Blended</th>
+                                <th class="col-separator">Full Hold</th>
+                                <th>Blended</th>
+                                <th class="col-separator">Full Hold</th>
+                                <th>Blended</th>
+                                <th class="col-separator">Full Hold</th>
+                                <th>Blended</th>
+                                <th class="col-separator">Full Hold</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>10 Mins</td>
+                                <td class="cell-mid-high">68.50%</td>
+                                <td class="cell-mid-high col-separator">66.20%</td>
+                                <td class="cell-mid-high">2.85%</td>
+                                <td class="cell-mid col-separator">2.42%</td>
+                                <td class="cell-mid-high">1.82</td>
+                                <td class="cell-mid col-separator">1.65</td>
+                                <td class="cell-mid-high">25.40%</td>
+                                <td class="cell-mid col-separator">21.80%</td>
+                                <td class="cell-mid-high">4.25%</td>
+                                <td class="cell-mid col-separator">3.62%</td>
+                                <td class="cell-mid-high">13.95%</td>
+                                <td class="cell-mid col-separator">13.21%</td>
+                            </tr>
+                            <tr>
+                                <td>20 Mins</td>
+                                <td class="cell-high">70.20%</td>
+                                <td class="cell-mid-high col-separator">66.20%</td>
+                                <td class="cell-high">3.15%</td>
+                                <td class="cell-mid col-separator">2.42%</td>
+                                <td class="cell-high">1.95</td>
+                                <td class="cell-mid col-separator">1.65</td>
+                                <td class="cell-high">28.60%</td>
+                                <td class="cell-mid col-separator">21.80%</td>
+                                <td class="cell-high">4.85%</td>
+                                <td class="cell-mid col-separator">3.62%</td>
+                                <td class="cell-high">14.67%</td>
+                                <td class="cell-mid col-separator">13.21%</td>
+                            </tr>
+                            <tr class="row-optimal">
+                                <td>30 Mins</td>
+                                <td class="cell-high">72.40%</td>
+                                <td class="cell-mid-high col-separator">66.20%</td>
+                                <td class="cell-high">3.48%</td>
+                                <td class="cell-mid col-separator">2.42%</td>
+                                <td class="cell-high">2.12</td>
+                                <td class="cell-mid col-separator">1.65</td>
+                                <td class="cell-high">32.15%</td>
+                                <td class="cell-mid col-separator">21.80%</td>
+                                <td class="cell-high">5.42%</td>
+                                <td class="cell-mid col-separator">3.62%</td>
+                                <td class="cell-high">15.16%</td>
+                                <td class="cell-mid col-separator">13.21%</td>
+                            </tr>
+                            <tr>
+                                <td>60 Mins</td>
+                                <td class="cell-high">71.80%</td>
+                                <td class="cell-mid-high col-separator">66.20%</td>
+                                <td class="cell-high">3.32%</td>
+                                <td class="cell-mid col-separator">2.42%</td>
+                                <td class="cell-high">2.05</td>
+                                <td class="cell-mid col-separator">1.65</td>
+                                <td class="cell-high">30.40%</td>
+                                <td class="cell-mid col-separator">21.80%</td>
+                                <td class="cell-high">5.12%</td>
+                                <td class="cell-mid col-separator">3.62%</td>
+                                <td class="cell-high">14.83%</td>
+                                <td class="cell-mid col-separator">13.21%</td>
+                            </tr>
+                            <tr>
+                                <td>90 Mins</td>
+                                <td class="cell-high">70.90%</td>
+                                <td class="cell-mid-high col-separator">66.20%</td>
+                                <td class="cell-mid-high">3.08%</td>
+                                <td class="cell-mid col-separator">2.42%</td>
+                                <td class="cell-mid-high">1.92</td>
+                                <td class="cell-mid col-separator">1.65</td>
+                                <td class="cell-high">27.85%</td>
+                                <td class="cell-mid col-separator">21.80%</td>
+                                <td class="cell-mid-high">4.68%</td>
+                                <td class="cell-mid col-separator">3.62%</td>
+                                <td class="cell-mid-high">14.51%</td>
+                                <td class="cell-mid col-separator">13.21%</td>
+                            </tr>
+                            <tr>
+                                <td>120 Mins</td>
+                                <td class="cell-mid-high">69.50%</td>
+                                <td class="cell-mid-high col-separator">66.20%</td>
+                                <td class="cell-mid-high">2.92%</td>
+                                <td class="cell-mid col-separator">2.42%</td>
+                                <td class="cell-mid-high">1.85</td>
+                                <td class="cell-mid col-separator">1.65</td>
+                                <td class="cell-mid-high">26.20%</td>
+                                <td class="cell-mid col-separator">21.80%</td>
+                                <td class="cell-mid-high">4.38%</td>
+                                <td class="cell-mid col-separator">3.62%</td>
+                                <td class="cell-mid-high">14.16%</td>
+                                <td class="cell-mid col-separator">13.21%</td>
+                            </tr>
+                            <tr>
+                                <td>150 Mins</td>
+                                <td class="cell-mid-high">68.80%</td>
+                                <td class="cell-mid-high col-separator">66.20%</td>
+                                <td class="cell-mid-high">2.78%</td>
+                                <td class="cell-mid col-separator">2.42%</td>
+                                <td class="cell-mid-high">1.78</td>
+                                <td class="cell-mid col-separator">1.65</td>
+                                <td class="cell-mid-high">24.80%</td>
+                                <td class="cell-mid col-separator">21.80%</td>
+                                <td class="cell-mid-high">4.12%</td>
+                                <td class="cell-mid col-separator">3.62%</td>
+                                <td class="cell-mid-high">13.93%</td>
+                                <td class="cell-mid col-separator">13.21%</td>
+                            </tr>
+                            <tr>
+                                <td>180 Mins</td>
+                                <td class="cell-mid-high">68.20%</td>
+                                <td class="cell-mid-high col-separator">66.20%</td>
+                                <td class="cell-mid">2.65%</td>
+                                <td class="cell-mid col-separator">2.42%</td>
+                                <td class="cell-mid">1.72</td>
+                                <td class="cell-mid col-separator">1.65</td>
+                                <td class="cell-mid-high">23.60%</td>
+                                <td class="cell-mid col-separator">21.80%</td>
+                                <td class="cell-mid">3.92%</td>
+                                <td class="cell-mid col-separator">3.62%</td>
+                                <td class="cell-mid">13.72%</td>
+                                <td class="cell-mid col-separator">13.21%</td>
+                            </tr>
+                            <tr>
+                                <td>240 Mins</td>
+                                <td class="cell-mid">67.40%</td>
+                                <td class="cell-mid-high col-separator">66.20%</td>
+                                <td class="cell-mid">2.52%</td>
+                                <td class="cell-mid col-separator">2.42%</td>
+                                <td class="cell-mid">1.68</td>
+                                <td class="cell-mid col-separator">1.65</td>
+                                <td class="cell-mid">22.45%</td>
+                                <td class="cell-mid col-separator">21.80%</td>
+                                <td class="cell-mid">3.72%</td>
+                                <td class="cell-mid col-separator">3.62%</td>
+                                <td class="cell-mid">13.36%</td>
+                                <td class="cell-mid col-separator">13.21%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-swatch low"></div>
+                    <span>Low values</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-swatch mid"></div>
+                    <span>Mid values</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-swatch high"></div>
+                    <span>High values</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-swatch optimal"></div>
+                    <span>Optimal row (best EG%)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
