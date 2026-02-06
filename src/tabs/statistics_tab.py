@@ -284,6 +284,8 @@ class StatisticsTab(QWidget):
         # Scaling export state
         self._selected_scaling_target: int = SCALING_TARGET_LEVELS[0]
         self._scaling_radio_group: QButtonGroup | None = None
+        # Flag to skip duplicate Stop/Offset calculations when golden metrics fire
+        self._stop_offset_from_golden: bool = False
         self._setup_ui()
         self._connect_signals()
         self._initialize_from_state()
@@ -837,11 +839,15 @@ class StatisticsTab(QWidget):
         if computed.stop_scenarios:
             stop_df = self._scenarios_to_stop_dataframe(computed.stop_scenarios)
             self._populate_table(self._stop_loss_table, stop_df)
+            # Set flag to skip duplicate calculation in _update_all_tables
+            self._stop_offset_from_golden = True
 
         # Populate Offset table from pre-computed scenarios
         if computed.offset_scenarios:
             offset_df = self._scenarios_to_offset_dataframe(computed.offset_scenarios)
             self._populate_table(self._offset_table, offset_df)
+            # Set flag to skip duplicate calculation in _update_all_tables
+            self._stop_offset_from_golden = True
 
     def _scenarios_to_stop_dataframe(self, scenarios: list) -> pd.DataFrame:
         """Convert StopScenario list to DataFrame for table display.
@@ -855,7 +861,7 @@ class StatisticsTab(QWidget):
         rows = []
         for s in scenarios:
             rows.append({
-                "Stop Loss %": s.stop_pct,
+                "Stop %": s.stop_pct,
                 "Win %": s.win_pct,
                 "EV %": s.ev_pct,
                 "Avg. Gain %": s.avg_gain_pct,
@@ -1038,40 +1044,46 @@ class StatisticsTab(QWidget):
             logger.warning(f"Error calculating MFE table: {e}")
             self._mfe_table.setRowCount(0)
 
-        # Calculate and populate Stop Loss table
-        # Pass AdjustmentParams directly - function will compute adjusted gains fresh
-        try:
-            # Get Kelly parameters from app state
-            metrics_inputs = self._app_state.metrics_user_inputs
-            start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
-            fractional_kelly_pct = metrics_inputs.fractional_kelly if metrics_inputs else 25.0
+        # Skip Stop Loss and Offset calculations if already populated from golden metrics
+        # This prevents duplicate work when all_metrics_ready fires before filtered_data_changed
+        if not self._stop_offset_from_golden:
+            # Calculate and populate Stop Loss table
+            # Pass AdjustmentParams directly - function will compute adjusted gains fresh
+            try:
+                # Get Kelly parameters from app state
+                metrics_inputs = self._app_state.metrics_user_inputs
+                start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
+                fractional_kelly_pct = metrics_inputs.fractional_kelly if metrics_inputs else 25.0
 
-            stop_loss_df = calculate_stop_loss_table(
-                df,
-                mapping,
-                params,
-                start_capital=start_capital,
-                fractional_kelly_pct=fractional_kelly_pct,
-            )
-            self._populate_table(self._stop_loss_table, stop_loss_df)
-        except Exception as e:
-            logger.warning(f"Error calculating Stop Loss table: {e}")
-            self._stop_loss_table.setRowCount(0)
+                stop_loss_df = calculate_stop_loss_table(
+                    df,
+                    mapping,
+                    params,
+                    start_capital=start_capital,
+                    fractional_kelly_pct=fractional_kelly_pct,
+                )
+                self._populate_table(self._stop_loss_table, stop_loss_df)
+            except Exception as e:
+                logger.warning(f"Error calculating Stop Loss table: {e}")
+                self._stop_loss_table.setRowCount(0)
 
-        # Calculate and populate Offset table
-        # Pass AdjustmentParams directly - function will compute adjusted gains fresh
-        try:
-            offset_df = calculate_offset_table(
-                df,
-                mapping,
-                params,
-                start_capital=start_capital,
-                fractional_kelly_pct=fractional_kelly_pct,
-            )
-            self._populate_table(self._offset_table, offset_df)
-        except Exception as e:
-            logger.warning(f"Error calculating Offset table: {e}")
-            self._offset_table.setRowCount(0)
+            # Calculate and populate Offset table
+            # Pass AdjustmentParams directly - function will compute adjusted gains fresh
+            try:
+                offset_df = calculate_offset_table(
+                    df,
+                    mapping,
+                    params,
+                    start_capital=start_capital,
+                    fractional_kelly_pct=fractional_kelly_pct,
+                )
+                self._populate_table(self._offset_table, offset_df)
+            except Exception as e:
+                logger.warning(f"Error calculating Offset table: {e}")
+                self._offset_table.setRowCount(0)
+        else:
+            # Reset flag after skipping - next update should calculate fresh
+            self._stop_offset_from_golden = False
 
         # Check if timing columns are available for Scaling/Cover tables
         has_timing = self._has_timing_columns(df)
