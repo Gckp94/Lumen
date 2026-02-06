@@ -59,3 +59,20 @@ class TestFeatureImpactTabGradients:
         bg, text = get_gradient_color(0.0, -1.0, 1.0)  # Neutral
         # Should be close to BG_ELEVATED
         assert abs(bg.red() - 0x1E) < 20  # Within range of #1E1E2C
+
+
+class TestFeatureImpactTabDualColumns:
+    """Tests for baseline vs filtered column display."""
+
+    def test_table_has_dual_columns(self, app):
+        """Test that table has baseline and filtered sub-columns."""
+        app_state = AppState()
+        tab = FeatureImpactTab(app_state)
+        # Should have columns for both baseline and filtered
+        headers = [
+            tab._table.horizontalHeaderItem(i).text()
+            for i in range(tab._table.columnCount())
+        ]
+        # Check for paired columns
+        assert "Corr (B)" in headers or "Correlation" in headers
+        assert tab._table.columnCount() >= 9  # Feature + pairs + trades

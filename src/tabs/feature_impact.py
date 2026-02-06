@@ -94,8 +94,11 @@ class FeatureImpactTab(QWidget):
         super().__init__(parent)
         self._app_state = app_state
         self._calculator = FeatureImpactCalculator()
-        self._results: list[FeatureImpactResult] = []
-        self._impact_scores: dict[str, float] = {}
+        self._baseline_results: list[FeatureImpactResult] = []
+        self._filtered_results: list[FeatureImpactResult] = []
+        self._baseline_scores: dict[str, float] = {}
+        self._filtered_scores: dict[str, float] = {}
+        self._filtered_by_name: dict[str, FeatureImpactResult] = {}
 
         self._setup_ui()
         self._connect_signals()
@@ -168,17 +171,21 @@ class FeatureImpactTab(QWidget):
         return header
 
     def _create_table(self) -> QTableWidget:
-        """Create the main scorecard table."""
+        """Create the main scorecard table with baseline/filtered columns."""
         table = QTableWidget()
-        table.setColumnCount(7)
+        table.setColumnCount(11)
         table.setHorizontalHeaderLabels([
             "Feature",
-            "Impact Score",
-            "Correlation",
-            "WR Lift",
-            "EV Lift",
+            "Impact",
+            "Corr (B)",
+            "Corr (F)",
+            "WR Lift (B)",
+            "WR Lift (F)",
+            "EV Lift (B)",
+            "EV Lift (F)",
             "Threshold",
-            "Trades",
+            "Trades (B)",
+            "Trades (F)",
         ])
 
         # Style the table
@@ -211,7 +218,7 @@ class FeatureImpactTab(QWidget):
         # Configure header
         header = table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for i in range(1, 7):
+        for i in range(1, 11):
             header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
 
         table.verticalHeader().setVisible(False)
@@ -241,105 +248,127 @@ class FeatureImpactTab(QWidget):
         self._analyze_features()
 
     def _analyze_features(self) -> None:
-        """Analyze all features and populate table."""
-        df = self._app_state.baseline_df
-        if df is None or df.empty:
+        """Analyze features for both baseline and filtered data."""
+        baseline_df = self._app_state.baseline_df
+        filtered_df = self._app_state.filtered_df
+
+        if baseline_df is None or baseline_df.empty:
             return
 
-        # Get gain column from mapping
         gain_col = "gain_pct"
         if self._app_state.column_mapping:
             gain_col = self._app_state.column_mapping.gain_pct
 
-        # Calculate impact for all features
-        self._results = self._calculator.calculate_all_features(
-            df=df,
+        # Calculate for baseline
+        self._baseline_results = self._calculator.calculate_all_features(
+            df=baseline_df,
             gain_col=gain_col,
         )
-        self._impact_scores = self._calculator.calculate_impact_scores(self._results)
+        self._baseline_scores = self._calculator.calculate_impact_scores(
+            self._baseline_results
+        )
 
-        # Sort by impact score (descending)
-        self._results.sort(
-            key=lambda r: self._impact_scores.get(r.feature_name, 0),
+        # Calculate for filtered (if different from baseline)
+        if filtered_df is not None and not filtered_df.empty and len(filtered_df) != len(baseline_df):
+            self._filtered_results = self._calculator.calculate_all_features(
+                df=filtered_df,
+                gain_col=gain_col,
+            )
+            self._filtered_scores = self._calculator.calculate_impact_scores(
+                self._filtered_results
+            )
+        else:
+            self._filtered_results = self._baseline_results
+            self._filtered_scores = self._baseline_scores
+
+        # Create lookup dict for filtered results
+        self._filtered_by_name = {r.feature_name: r for r in self._filtered_results}
+
+        # Sort by baseline impact score
+        self._baseline_results.sort(
+            key=lambda r: self._baseline_scores.get(r.feature_name, 0),
             reverse=True,
         )
 
-        # Update UI
         self._update_summary()
         self._populate_table()
 
     def _update_summary(self) -> None:
         """Update the summary label."""
-        n_features = len(self._results)
-        n_trades = self._results[0].trades_total if self._results else 0
+        n_features = len(self._baseline_results)
+        n_trades = self._baseline_results[0].trades_total if self._baseline_results else 0
         self._summary_label.setText(
             f"Analyzing {n_features} features across {n_trades:,} trades"
         )
 
     def _populate_table(self) -> None:
-        """Populate the table with analysis results."""
-        self._table.setRowCount(len(self._results))
+        """Populate table with baseline and filtered results."""
+        self._table.setRowCount(len(self._baseline_results))
 
-        # Calculate ranges for gradient coloring
-        correlations = [r.correlation for r in self._results]
-        wr_lifts = [r.win_rate_lift for r in self._results]
-        ev_lifts = [r.expectancy_lift for r in self._results]
-        scores = [self._impact_scores.get(r.feature_name, 0) for r in self._results]
+        # Calculate ranges for gradients (using baseline)
+        b_corrs = [r.correlation for r in self._baseline_results]
+        b_wr = [r.win_rate_lift for r in self._baseline_results]
+        b_ev = [r.expectancy_lift for r in self._baseline_results]
 
-        corr_range = (min(correlations), max(correlations)) if correlations else (0, 0)
-        wr_range = (min(wr_lifts), max(wr_lifts)) if wr_lifts else (0, 0)
-        ev_range = (min(ev_lifts), max(ev_lifts)) if ev_lifts else (0, 0)
-        score_range = (min(scores), max(scores)) if scores else (0, 0)
+        f_corrs = [r.correlation for r in self._filtered_results]
+        f_wr = [r.win_rate_lift for r in self._filtered_results]
+        f_ev = [r.expectancy_lift for r in self._filtered_results]
 
-        for row, result in enumerate(self._results):
-            score = self._impact_scores.get(result.feature_name, 0)
+        corr_range = (min(b_corrs + f_corrs), max(b_corrs + f_corrs)) if b_corrs else (0, 0)
+        wr_range = (min(b_wr + f_wr), max(b_wr + f_wr)) if b_wr else (0, 0)
+        ev_range = (min(b_ev + f_ev), max(b_ev + f_ev)) if b_ev else (0, 0)
 
-            # Feature name (no gradient)
-            name_item = QTableWidgetItem(result.feature_name)
-            name_item.setForeground(QBrush(QColor(Colors.TEXT_PRIMARY)))
-            self._table.setItem(row, 0, name_item)
+        for row, b_result in enumerate(self._baseline_results):
+            f_result = self._filtered_by_name.get(b_result.feature_name, b_result)
+            b_score = self._baseline_scores.get(b_result.feature_name, 0)
 
-            # Impact score (cyan gradient only - always positive)
-            score_item = QTableWidgetItem(f"{score:.2f}")
-            score_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            bg, text = get_gradient_color(score, 0, score_range[1])
-            score_item.setBackground(QBrush(bg))
-            score_item.setForeground(QBrush(text))
-            self._table.setItem(row, 1, score_item)
+            # Col 0: Feature name
+            self._set_text_item(row, 0, b_result.feature_name)
 
-            # Correlation (coral to cyan)
-            corr_item = QTableWidgetItem(f"{result.correlation:+.3f}")
-            corr_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            bg, text = get_gradient_color(result.correlation, corr_range[0], corr_range[1])
-            corr_item.setBackground(QBrush(bg))
-            corr_item.setForeground(QBrush(text))
-            self._table.setItem(row, 2, corr_item)
+            # Col 1: Impact score (baseline)
+            self._set_gradient_item(row, 1, f"{b_score:.2f}", b_score, 0, 1)
 
-            # Win rate lift (coral to cyan)
-            wr_item = QTableWidgetItem(f"{result.win_rate_lift:+.1f}%")
-            wr_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            bg, text = get_gradient_color(result.win_rate_lift, wr_range[0], wr_range[1])
-            wr_item.setBackground(QBrush(bg))
-            wr_item.setForeground(QBrush(text))
-            self._table.setItem(row, 3, wr_item)
+            # Col 2-3: Correlation (B/F)
+            self._set_gradient_item(row, 2, f"{b_result.correlation:+.3f}",
+                                   b_result.correlation, *corr_range)
+            self._set_gradient_item(row, 3, f"{f_result.correlation:+.3f}",
+                                   f_result.correlation, *corr_range)
 
-            # Expectancy lift (coral to cyan)
-            ev_item = QTableWidgetItem(f"{result.expectancy_lift:+.4f}")
-            ev_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            bg, text = get_gradient_color(result.expectancy_lift, ev_range[0], ev_range[1])
-            ev_item.setBackground(QBrush(bg))
-            ev_item.setForeground(QBrush(text))
-            self._table.setItem(row, 4, ev_item)
+            # Col 4-5: WR Lift (B/F)
+            self._set_gradient_item(row, 4, f"{b_result.win_rate_lift:+.1f}%",
+                                   b_result.win_rate_lift, *wr_range)
+            self._set_gradient_item(row, 5, f"{f_result.win_rate_lift:+.1f}%",
+                                   f_result.win_rate_lift, *wr_range)
 
-            # Threshold (no gradient)
-            direction = ">" if result.threshold_direction == "above" else "<"
-            thresh_item = QTableWidgetItem(f"{direction} {result.optimal_threshold:.2f}")
-            thresh_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            thresh_item.setForeground(QBrush(QColor(Colors.TEXT_PRIMARY)))
-            self._table.setItem(row, 5, thresh_item)
+            # Col 6-7: EV Lift (B/F)
+            self._set_gradient_item(row, 6, f"{b_result.expectancy_lift:+.4f}",
+                                   b_result.expectancy_lift, *ev_range)
+            self._set_gradient_item(row, 7, f"{f_result.expectancy_lift:+.4f}",
+                                   f_result.expectancy_lift, *ev_range)
 
-            # Trades (no gradient)
-            trades_item = QTableWidgetItem(f"{result.trades_total:,}")
-            trades_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            trades_item.setForeground(QBrush(QColor(Colors.TEXT_PRIMARY)))
-            self._table.setItem(row, 6, trades_item)
+            # Col 8: Threshold
+            direction = ">" if b_result.threshold_direction == "above" else "<"
+            self._set_text_item(row, 8, f"{direction} {b_result.optimal_threshold:.2f}")
+
+            # Col 9-10: Trades (B/F)
+            self._set_text_item(row, 9, f"{b_result.trades_total:,}")
+            self._set_text_item(row, 10, f"{f_result.trades_total:,}")
+
+    def _set_text_item(self, row: int, col: int, text: str) -> None:
+        """Set a plain text table item."""
+        item = QTableWidgetItem(text)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        item.setForeground(QBrush(QColor(Colors.TEXT_PRIMARY)))
+        self._table.setItem(row, col, item)
+
+    def _set_gradient_item(
+        self, row: int, col: int, text: str,
+        value: float, min_val: float, max_val: float
+    ) -> None:
+        """Set a gradient-colored table item."""
+        item = QTableWidgetItem(text)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        bg, text_color = get_gradient_color(value, min_val, max_val)
+        item.setBackground(QBrush(bg))
+        item.setForeground(QBrush(text_color))
+        self._table.setItem(row, col, item)
