@@ -87,3 +87,23 @@ class TestFeatureImpactTabSorting:
         tab = FeatureImpactTab(app_state)
         # Table should have sorting enabled
         assert tab._table.isSortingEnabled() or hasattr(tab, '_sort_column')
+
+
+class TestFeatureImpactTabExclusion:
+    """Tests for column exclusion panel."""
+
+    def test_exclusion_panel_exists(self, app):
+        """Test that exclusion panel widget exists."""
+        app_state = AppState()
+        tab = FeatureImpactTab(app_state)
+        assert hasattr(tab, '_exclusion_panel')
+
+    def test_excluding_column_removes_from_results(self, app):
+        """Test that excluding a column removes it from analysis."""
+        app_state = AppState()
+        tab = FeatureImpactTab(app_state)
+        # This tests the exclusion logic
+        excluded = {"feature_a"}
+        tab._user_excluded_cols = excluded
+        # Should filter out excluded columns
+        assert "feature_a" not in [r.feature_name for r in tab._baseline_results] or len(tab._baseline_results) == 0

@@ -6,12 +6,17 @@ and composite impact score for each numeric feature in the dataset.
 
 import logging
 
+import numpy as np
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
+    QCheckBox,
+    QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -103,6 +108,9 @@ class FeatureImpactTab(QWidget):
         self._sort_column = 1  # Default sort by Impact Score
         self._sort_ascending = False
 
+        self._user_excluded_cols: set[str] = set()
+        self._column_checkboxes: dict[str, QCheckBox] = {}
+
         self._setup_ui()
         self._connect_signals()
         self._show_empty_state(True)
@@ -113,9 +121,16 @@ class FeatureImpactTab(QWidget):
         layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
         layout.setSpacing(Spacing.MD)
 
-        # Header section
+        # Top row: Header + Exclusion panel
+        top_row = QHBoxLayout()
+
         header = self._create_header()
-        layout.addWidget(header)
+        top_row.addWidget(header, stretch=1)
+
+        self._exclusion_panel = self._create_exclusion_panel()
+        top_row.addWidget(self._exclusion_panel)
+
+        layout.addLayout(top_row)
 
         # Empty state label
         self._empty_label = QLabel("Load trade data to view feature impact analysis")
@@ -235,6 +250,100 @@ class FeatureImpactTab(QWidget):
 
         return table
 
+    def _create_exclusion_panel(self) -> QWidget:
+        """Create collapsible column exclusion panel."""
+        group = QGroupBox("Exclude Columns")
+        group.setCheckable(True)
+        group.setChecked(False)  # Collapsed by default
+        group.setStyleSheet(f"""
+            QGroupBox {{
+                background-color: {Colors.BG_SURFACE};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+                margin-top: 8px;
+                padding-top: 16px;
+                font-family: '{Fonts.UI}';
+                font-size: 12px;
+                color: {Colors.TEXT_SECONDARY};
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 8px;
+                padding: 0 4px;
+            }}
+            QGroupBox::indicator {{
+                width: 12px;
+                height: 12px;
+            }}
+        """)
+        group.setMaximumWidth(200)
+        group.setMaximumHeight(300)
+
+        # Scroll area for checkboxes
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(f"""
+            QScrollArea {{
+                border: none;
+                background-color: transparent;
+            }}
+        """)
+
+        self._checkbox_container = QWidget()
+        self._checkbox_layout = QVBoxLayout(self._checkbox_container)
+        self._checkbox_layout.setContentsMargins(4, 4, 4, 4)
+        self._checkbox_layout.setSpacing(2)
+
+        scroll.setWidget(self._checkbox_container)
+
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.addWidget(scroll)
+
+        return group
+
+    def _update_exclusion_checkboxes(self, columns: list[str]) -> None:
+        """Update checkboxes to match available columns."""
+        # Clear existing
+        for checkbox in self._column_checkboxes.values():
+            checkbox.deleteLater()
+        self._column_checkboxes.clear()
+
+        # Clear the layout
+        while self._checkbox_layout.count():
+            item = self._checkbox_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Create checkbox for each column
+        for col in sorted(columns):
+            checkbox = QCheckBox(col)
+            checkbox.setChecked(col not in self._user_excluded_cols)
+            checkbox.setStyleSheet(f"""
+                QCheckBox {{
+                    color: {Colors.TEXT_PRIMARY};
+                    font-family: '{Fonts.DATA}';
+                    font-size: 11px;
+                }}
+            """)
+            checkbox.stateChanged.connect(
+                lambda state, c=col: self._on_exclusion_changed(c, state)
+            )
+            self._checkbox_layout.addWidget(checkbox)
+            self._column_checkboxes[col] = checkbox
+
+        self._checkbox_layout.addStretch()
+
+    def _on_exclusion_changed(self, column: str, state: int) -> None:
+        """Handle column exclusion checkbox change."""
+        if state == Qt.CheckState.Checked.value:
+            self._user_excluded_cols.discard(column)
+        else:
+            self._user_excluded_cols.add(column)
+
+        # Re-analyze with updated exclusions
+        self._analyze_features()
+
     def _connect_signals(self) -> None:
         """Connect to app state signals."""
         self._app_state.baseline_calculated.connect(self._on_data_updated)
@@ -266,10 +375,14 @@ class FeatureImpactTab(QWidget):
         if self._app_state.column_mapping:
             gain_col = self._app_state.column_mapping.gain_pct
 
+        # Build full exclusion list
+        excluded = list(self._user_excluded_cols)
+
         # Calculate for baseline
         self._baseline_results = self._calculator.calculate_all_features(
             df=baseline_df,
             gain_col=gain_col,
+            excluded_cols=excluded,
         )
         self._baseline_scores = self._calculator.calculate_impact_scores(
             self._baseline_results
@@ -280,6 +393,7 @@ class FeatureImpactTab(QWidget):
             self._filtered_results = self._calculator.calculate_all_features(
                 df=filtered_df,
                 gain_col=gain_col,
+                excluded_cols=excluded,
             )
             self._filtered_scores = self._calculator.calculate_impact_scores(
                 self._filtered_results
@@ -296,6 +410,11 @@ class FeatureImpactTab(QWidget):
             key=lambda r: self._baseline_scores.get(r.feature_name, 0),
             reverse=True,
         )
+
+        # Update checkbox panel with available columns
+        numeric_cols = baseline_df.select_dtypes(include=[np.number]).columns.tolist()
+        analyzable = [c for c in numeric_cols if c != gain_col]
+        self._update_exclusion_checkboxes(analyzable)
 
         self._update_summary()
         self._populate_table()
