@@ -7,7 +7,7 @@ from typing import cast
 import pandas as pd
 
 from src.core.equity import EquityCalculator
-from src.core.models import AdjustmentParams, ColumnMapping, StopScenario, TradingMetrics
+from src.core.models import AdjustmentParams, ColumnMapping, OffsetScenario, StopScenario, TradingMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -543,6 +543,63 @@ class MetricsCalculator:
                 max_loss_pct=row.get("Max Loss %", 0.0),
                 max_dd_pct=row.get("Max DD %"),
                 kelly_pnl=row.get("Total Kelly $"),
+            )
+            scenarios.append(scenario)
+
+        return scenarios
+
+    def calculate_offset_scenarios(
+        self,
+        df: pd.DataFrame,
+        mapping: "ColumnMapping",
+        adjustment_params: "AdjustmentParams",
+        offsets: list[float] | None = None,
+        start_capital: float | None = None,
+        fractional_kelly_pct: float = 25.0,
+    ) -> list["OffsetScenario"]:
+        """Calculate metrics at each entry price offset.
+
+        Args:
+            df: DataFrame with trade data.
+            mapping: Column mapping configuration.
+            adjustment_params: Current adjustment parameters.
+            offsets: List of offset percentages. Defaults to [-20,-10,0,10,20,30,40].
+            start_capital: Starting capital for Kelly calculations.
+            fractional_kelly_pct: Fractional Kelly percentage.
+
+        Returns:
+            List of OffsetScenario dataclasses, one per offset level.
+        """
+        from src.core.statistics import OFFSET_LEVELS, _calculate_offset_level_row
+
+        if offsets is None:
+            offsets = list(OFFSET_LEVELS)
+
+        scenarios = []
+        gain_col = mapping.gain_pct
+        mae_col = mapping.mae_pct
+        mfe_col = mapping.mfe_pct
+        date_col = mapping.date if hasattr(mapping, 'date') else None
+
+        for offset in offsets:
+            row = _calculate_offset_level_row(
+                df=df,
+                gain_col=gain_col,
+                mae_col=mae_col,
+                mfe_col=mfe_col,
+                offset=offset,
+                adjustment_params=adjustment_params,
+                start_capital=start_capital,
+                fractional_kelly_pct=fractional_kelly_pct,
+                date_col=date_col,
+            )
+
+            scenario = OffsetScenario(
+                offset_pct=offset,
+                num_trades=row.get("# of Trades", 0),
+                win_pct=row.get("Win %", 0.0),
+                total_return_pct=row.get("Total Gain %"),
+                eg_pct=row.get("EG %"),
             )
             scenarios.append(scenario)
 

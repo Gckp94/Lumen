@@ -1576,6 +1576,145 @@ class TestCalculateStopScenarios:
         assert scenario.win_pct == 50.0
 
 
+class TestCalculateOffsetScenarios:
+    """Tests for calculate_offset_scenarios method."""
+
+    def test_calculate_offset_scenarios_returns_list(self):
+        """Test calculate_offset_scenarios returns list of OffsetScenario."""
+        import pandas as pd
+        from src.core.metrics import MetricsCalculator
+        from src.core.models import OffsetScenario, ColumnMapping, AdjustmentParams
+
+        # Create test data with MAE and MFE columns
+        df = pd.DataFrame({
+            "gain_pct": [0.10, -0.05, 0.08, -0.03, 0.12],
+            "mae_pct": [5, 15, 8, 25, 3],
+            "mfe_pct": [12, 3, 10, 2, 15],
+        })
+
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+        params = AdjustmentParams(stop_loss=20, efficiency=5)
+
+        calc = MetricsCalculator()
+        scenarios = calc.calculate_offset_scenarios(
+            df=df,
+            mapping=mapping,
+            adjustment_params=params,
+            offsets=[-10, 0, 10, 20],
+        )
+
+        assert isinstance(scenarios, list)
+        assert len(scenarios) == 4
+        assert all(isinstance(s, OffsetScenario) for s in scenarios)
+        assert scenarios[0].offset_pct == -10
+        assert scenarios[1].offset_pct == 0
+
+    def test_calculate_offset_scenarios_empty_df(self):
+        """Test calculate_offset_scenarios handles empty DataFrame."""
+        import pandas as pd
+        from src.core.metrics import MetricsCalculator
+        from src.core.models import ColumnMapping, AdjustmentParams
+
+        df = pd.DataFrame({"gain_pct": [], "mae_pct": [], "mfe_pct": []})
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+        params = AdjustmentParams(stop_loss=20, efficiency=5)
+
+        calc = MetricsCalculator()
+        scenarios = calc.calculate_offset_scenarios(
+            df=df,
+            mapping=mapping,
+            adjustment_params=params,
+        )
+
+        assert isinstance(scenarios, list)
+        assert len(scenarios) > 0  # Still returns scenarios, just with 0 trades
+        assert all(s.num_trades == 0 for s in scenarios)
+
+    def test_calculate_offset_scenarios_default_levels(self):
+        """Test calculate_offset_scenarios uses default levels when not specified."""
+        import pandas as pd
+        from src.core.metrics import MetricsCalculator
+        from src.core.models import ColumnMapping, AdjustmentParams
+        from src.core.statistics import OFFSET_LEVELS
+
+        df = pd.DataFrame({
+            "gain_pct": [0.10, -0.05, 0.08],
+            "mae_pct": [5, 15, 8],
+            "mfe_pct": [12, 3, 10],
+        })
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+        params = AdjustmentParams(stop_loss=20, efficiency=5)
+
+        calc = MetricsCalculator()
+        scenarios = calc.calculate_offset_scenarios(
+            df=df,
+            mapping=mapping,
+            adjustment_params=params,
+        )
+
+        assert len(scenarios) == len(OFFSET_LEVELS)
+        for i, offset_level in enumerate(OFFSET_LEVELS):
+            assert scenarios[i].offset_pct == offset_level
+
+    def test_calculate_offset_scenarios_metrics_values(self):
+        """Test calculate_offset_scenarios calculates correct metric values."""
+        import pandas as pd
+        from src.core.metrics import MetricsCalculator
+        from src.core.models import ColumnMapping, AdjustmentParams
+
+        # Create test data where we can verify metrics
+        df = pd.DataFrame({
+            "gain_pct": [0.10, 0.05, -0.03, -0.02],  # 2 wins, 2 losses
+            "mae_pct": [5, 3, 8, 6],  # All below 10% stop
+            "mfe_pct": [12, 8, 5, 4],
+        })
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+        params = AdjustmentParams(stop_loss=100, efficiency=0)  # No stop adjustment
+
+        calc = MetricsCalculator()
+        scenarios = calc.calculate_offset_scenarios(
+            df=df,
+            mapping=mapping,
+            adjustment_params=params,
+            offsets=[0],  # Just test 0% offset
+        )
+
+        assert len(scenarios) == 1
+        scenario = scenarios[0]
+        assert scenario.offset_pct == 0
+        assert scenario.num_trades == 4
+        # Should have some win percentage calculated
+        assert scenario.win_pct is not None
+
+
 class TestCalculateSuggestedBins:
     """Tests for histogram bin size calculation (Story 3.6)."""
 
