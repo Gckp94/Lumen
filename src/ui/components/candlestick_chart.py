@@ -674,9 +674,10 @@ class CandlestickChart(QWidget):
                 if n >= 3:
                     logger.info("VWAP first 3 values: %.4f, %.4f, %.4f", vwap[0], vwap[1], vwap[2])
 
-            self._plot_widget.autoRange()
+            # Auto-range with tight padding to prevent compressed candles
+            self._plot_widget.getViewBox().autoRange(padding=0.02)
             if self._volume_plot is not None:
-                self._volume_plot.autoRange()
+                self._volume_plot.getViewBox().autoRange(padding=0.02)
 
         except Exception as e:
             logger.error("Failed to set candlestick data: %s", e)
@@ -1131,7 +1132,7 @@ class CandlestickChart(QWidget):
         logger.debug("CandlestickChart cleared")
 
     def auto_range(self) -> None:
-        """Reset view to auto-fit all data."""
-        self._plot_widget.autoRange()
+        """Reset view to auto-fit all data with tight padding."""
+        self._plot_widget.getViewBox().autoRange(padding=0.02)
         if self._volume_plot is not None:
-            self._volume_plot.autoRange()
+            self._volume_plot.getViewBox().autoRange(padding=0.02)

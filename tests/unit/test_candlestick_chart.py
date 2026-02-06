@@ -979,6 +979,46 @@ class TestCrosshairLabels:
         assert not chart._time_label.isVisible()
 
 
+class TestAutoRange:
+    """Tests for chart auto-range behavior."""
+
+    @pytest.fixture
+    def chart(self, qtbot):
+        """Create a CandlestickChart instance for testing."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+        return chart
+
+    @pytest.fixture
+    def sample_ohlcv_df(self):
+        """Create a sample OHLCV DataFrame for testing."""
+        return pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:32",
+                "2024-01-15 09:33",
+                "2024-01-15 09:34",
+            ]),
+            "open": [100.0, 103.0, 106.0],
+            "high": [105.0, 108.0, 110.0],
+            "low": [98.0, 101.0, 100.0],
+            "close": [103.0, 106.0, 105.0],
+            "volume": [1000, 1200, 800],
+        })
+
+    def test_auto_range_fits_data_tightly(self, chart, sample_ohlcv_df):
+        """Auto-range should fit data with minimal padding."""
+        chart.set_data(sample_ohlcv_df)
+
+        # Get view range after auto-range
+        view_range = chart._plot_widget.viewRange()
+        x_min, x_max = view_range[0]
+
+        # X range should be close to data range (0 to n-1) with small padding
+        n = len(sample_ohlcv_df)
+        assert x_min >= -1  # Allow small negative padding
+        assert x_max <= n + 1  # Allow small positive padding
+
+
 class TestCandlestickChartInteractiveFeatures:
     """Integration tests for grid + info box + ruler coexistence."""
 
