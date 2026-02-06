@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class BreakdownTab(QWidget):
     """Tab displaying yearly and monthly performance breakdown charts.
 
-    Shows 6 yearly charts in a 2x3 grid and 8 monthly charts (for selected year)
+    Shows 8 yearly charts in a 2x4 grid and 8 monthly charts (for selected year)
     in a 2x4 grid. Charts are updated reactively when filtered data changes.
     """
 
@@ -41,7 +41,7 @@ class BreakdownTab(QWidget):
         self._app_state = app_state
         self._calculator = self._create_calculator()
 
-        # Chart widgets - yearly (6 charts)
+        # Chart widgets - yearly (8 charts)
         self._yearly_charts: dict[str, VerticalBarChart] = {}
 
         # Chart widgets - monthly (8 charts)
@@ -142,7 +142,7 @@ class BreakdownTab(QWidget):
         main_layout.addWidget(scroll_area)
 
     def _create_years_section(self) -> QWidget:
-        """Create the yearly breakdown section with 6 charts in 2x3 grid.
+        """Create the yearly breakdown section with 8 charts in 2x4 grid.
 
         Returns:
             Widget containing the yearly section.
@@ -158,12 +158,12 @@ class BreakdownTab(QWidget):
         header.setStyleSheet(f"color: {Colors.TEXT_PRIMARY};")
         layout.addWidget(header)
 
-        # Charts grid: 2 rows x 3 columns
+        # Charts grid: 2 rows x 4 columns
         grid = QGridLayout()
         grid.setHorizontalSpacing(Spacing.XS)
         grid.setVerticalSpacing(Spacing.SM)
 
-        # Define yearly charts
+        # Define yearly charts (8 charts, matching monthly layout)
         yearly_chart_defs = [
             ("total_gain_pct", "Total Gain (%)"),
             ("total_flat_stake", "Flat Stake ($)"),
@@ -171,13 +171,15 @@ class BreakdownTab(QWidget):
             ("max_dd_dollars", "Max DD ($)"),
             ("count", "Count"),
             ("win_rate", "Win Rate (%)"),
+            ("avg_winner_pct", "Avg Winner (%)"),
+            ("avg_loser_pct", "Avg Loser (%)"),
         ]
 
         for i, (key, title) in enumerate(yearly_chart_defs):
             chart = VerticalBarChart(title=title)
             self._yearly_charts[key] = chart
-            row = i // 3  # 0, 0, 0, 1, 1, 1
-            col = i % 3  # 0, 1, 2, 0, 1, 2
+            row = i // 4  # 0, 0, 0, 0, 1, 1, 1, 1
+            col = i % 4  # 0, 1, 2, 3, 0, 1, 2, 3
             grid.addWidget(chart, row, col)
 
         # Wrap grid in horizontal layout with stretch to prevent spreading
@@ -402,7 +404,7 @@ class BreakdownTab(QWidget):
         gain_col: str,
         win_loss_col: str | None,
     ) -> None:
-        """Update all 6 yearly charts with calculated metrics.
+        """Update all 8 yearly charts with calculated metrics.
 
         Args:
             df: DataFrame with trade data.
@@ -442,6 +444,14 @@ class BreakdownTab(QWidget):
         # win_rate
         data = [(y, yearly_data[y]["win_rate"]) for y in years]
         self._yearly_charts["win_rate"].set_data(data, is_percentage=True)
+
+        # avg_winner_pct
+        data = [(y, yearly_data[y]["avg_winner_pct"]) for y in years]
+        self._yearly_charts["avg_winner_pct"].set_data(data, is_percentage=True)
+
+        # avg_loser_pct
+        data = [(y, yearly_data[y]["avg_loser_pct"]) for y in years]
+        self._yearly_charts["avg_loser_pct"].set_data(data, is_percentage=True)
 
     def _update_monthly_charts(
         self,
