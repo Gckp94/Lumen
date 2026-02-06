@@ -941,6 +941,18 @@ class TestCrosshairLabels:
         assert chart._price_label.isVisible()
         assert "105.00" in chart._price_label.toPlainText()
 
+    def test_time_label_updates_on_mouse_move(self, chart, sample_ohlcv_df):
+        """Time label should show formatted time at cursor X position."""
+        chart.set_data(sample_ohlcv_df)
+
+        # Simulate mouse at bar index 2
+        chart._update_crosshair_labels(bar_idx=2, price=100.0)
+
+        assert chart._time_label.isVisible()
+        # Time label should contain time in HH:MM format
+        text = chart._time_label.toPlainText().strip()
+        assert ":" in text  # Contains time separator
+
 
 class TestCandlestickChartInteractiveFeatures:
     """Integration tests for grid + info box + ruler coexistence."""
