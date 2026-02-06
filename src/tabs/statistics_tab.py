@@ -873,6 +873,9 @@ class StatisticsTab(QWidget):
         self._scale_out_spin.valueChanged.connect(self._on_scale_out_changed)
         self._cover_spin.valueChanged.connect(self._on_cover_changed)
 
+        # Connect time stop scale spinbox to refresh time stop tables
+        self._time_stop_scale_spin.valueChanged.connect(self._on_time_stop_scale_changed)
+
         # Connect to unified metrics signal (golden statistics)
         self._app_state.all_metrics_ready.connect(self._on_all_metrics_ready)
 
@@ -1143,6 +1146,23 @@ class StatisticsTab(QWidget):
 
         return mapping.mae_time in df.columns and mapping.mfe_time in df.columns
 
+    def _has_time_interval_columns(self, df: pd.DataFrame | None = None) -> bool:
+        """Check if any time interval price columns are mapped and computed."""
+        mapping = self._app_state.column_mapping
+        if mapping is None:
+            return False
+
+        if df is None:
+            df = self._get_current_df()
+        if df is None or df.empty:
+            return False
+
+        # Check if any change_X_min columns exist
+        for interval in [10, 20, 30, 60, 90, 120, 150, 180, 240]:
+            if f"change_{interval}_min" in df.columns:
+                return True
+        return False
+
     def _update_all_tables(self, df: pd.DataFrame) -> None:
         """Update all 5 tables with the given DataFrame.
 
@@ -1276,6 +1296,9 @@ class StatisticsTab(QWidget):
         except Exception as e:
             logger.error(f"Failed to calculate loss chance table: {e}")
             self._loss_chance_table.setRowCount(0)
+
+        # Time Stop tables
+        self._refresh_time_stop_tables()
 
     def _refresh_all_tables(self) -> None:
         """Refresh all tables with current data.
@@ -1549,6 +1572,51 @@ class StatisticsTab(QWidget):
         except Exception as e:
             logger.warning(f"Error refreshing Cover table: {e}")
 
+    def _refresh_time_stop_tables(self) -> None:
+        """Refresh Time Statistics and Time Stop tables."""
+        if not self._app_state.column_mapping:
+            return
+
+        df = self._get_current_df()
+        if df is None or df.empty:
+            return
+
+        if not self._has_time_interval_columns(df):
+            self._time_stats_table.hide()
+            self._time_stop_table.hide()
+            self._time_stop_timing_msg.show()
+            return
+
+        self._time_stop_timing_msg.hide()
+        self._time_stats_table.show()
+        self._time_stop_table.show()
+
+        mapping = self._app_state.column_mapping
+
+        try:
+            # Time Statistics table
+            from src.core.statistics import calculate_time_statistics_table
+            stats_df = calculate_time_statistics_table(df, mapping)
+            self._time_stats_table.clear()
+            self._time_stats_table.setRowCount(0)
+            self._time_stats_table.setColumnCount(0)
+            self._populate_table(self._time_stats_table, stats_df)
+
+            # Time Stop table
+            from src.core.statistics import calculate_time_stop_table
+            scale_out_pct = self._time_stop_scale_spin.value() / 100.0
+            stop_df = calculate_time_stop_table(df, mapping, scale_out_pct)
+            self._time_stop_table.clear()
+            self._time_stop_table.setRowCount(0)
+            self._time_stop_table.setColumnCount(0)
+            self._populate_table(self._time_stop_table, stop_df)
+        except Exception as e:
+            logger.warning(f"Error refreshing Time Stop tables: {e}")
+
+    def _on_time_stop_scale_changed(self) -> None:
+        """Handle Time Stop scale out spinbox change."""
+        self._refresh_time_stop_tables()
+
     def _clear_all_tables(self) -> None:
         """Clear all table contents."""
         self._mae_table.setRowCount(0)
@@ -1567,11 +1635,19 @@ class StatisticsTab(QWidget):
         self._profit_chance_table.setColumnCount(0)
         self._loss_chance_table.setRowCount(0)
         self._loss_chance_table.setColumnCount(0)
+        self._time_stats_table.setRowCount(0)
+        self._time_stats_table.setColumnCount(0)
+        self._time_stop_table.setRowCount(0)
+        self._time_stop_table.setColumnCount(0)
         # Reset scaling/cover visibility
         self._scaling_timing_msg.hide()
         self._scaling_table.show()
         self._cover_timing_msg.hide()
         self._cover_table.show()
+        # Reset time stop visibility
+        self._time_stop_timing_msg.hide()
+        self._time_stats_table.show()
+        self._time_stop_table.show()
 
     def _populate_table(self, table: QTableWidget, df: pd.DataFrame) -> None:
         """Populate a QTableWidget from a DataFrame.
