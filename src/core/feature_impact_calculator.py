@@ -64,6 +64,103 @@ class FeatureImpactCalculator:
 
     NUM_PERCENTILE_BINS = 20
 
+    # Default columns to exclude from analysis
+    DEFAULT_EXCLUDED_COLS = {
+        "date", "time", "ticker", "symbol", "gain_pct", "gain", "return",
+        "trigger_number", "trade_id", "id", "index",
+    }
+
+    def calculate_all_features(
+        self,
+        df: pd.DataFrame,
+        gain_col: str = "gain_pct",
+        excluded_cols: list[str] | None = None,
+    ) -> list[FeatureImpactResult]:
+        """Calculate impact metrics for all numeric features.
+
+        Args:
+            df: DataFrame with trade data.
+            gain_col: Name of the gain/return column.
+            excluded_cols: Additional columns to exclude from analysis.
+
+        Returns:
+            List of FeatureImpactResult for each analyzed feature.
+        """
+        # Build exclusion set
+        exclude_set = set(self.DEFAULT_EXCLUDED_COLS)
+        if excluded_cols:
+            exclude_set.update(col.lower() for col in excluded_cols)
+        exclude_set.add(gain_col.lower())
+
+        # Find numeric columns
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+        # Filter to analyzable features
+        feature_cols = [
+            col for col in numeric_cols
+            if col.lower() not in exclude_set and col != gain_col
+        ]
+
+        logger.info(f"Analyzing {len(feature_cols)} features for impact")
+
+        results = []
+        for col in feature_cols:
+            try:
+                result = self.calculate_single_feature(df, col, gain_col)
+                results.append(result)
+            except Exception as e:
+                logger.warning(f"Failed to analyze feature '{col}': {e}")
+
+        return results
+
+    def calculate_impact_scores(
+        self,
+        results: list[FeatureImpactResult],
+    ) -> dict[str, float]:
+        """Calculate composite impact scores for all results.
+
+        Score formula: 50% EV lift + 25% WR lift + 25% |correlation|
+        All components normalized to 0-1 range.
+
+        Args:
+            results: List of FeatureImpactResult from calculate_all_features.
+
+        Returns:
+            Dict mapping feature_name to impact score (0-1).
+        """
+        if not results:
+            return {}
+
+        # Extract metrics for normalization
+        correlations = [abs(r.correlation) for r in results]
+        wr_lifts = [r.win_rate_lift for r in results]
+        ev_lifts = [r.expectancy_lift for r in results]
+
+        # Normalize each metric to 0-1 range
+        def normalize(values: list[float]) -> list[float]:
+            if not values:
+                return []
+            min_val, max_val = min(values), max(values)
+            if max_val == min_val:
+                return [0.5] * len(values)
+            return [(v - min_val) / (max_val - min_val) for v in values]
+
+        norm_corr = normalize(correlations)
+        norm_wr = normalize(wr_lifts)
+        norm_ev = normalize(ev_lifts)
+
+        # Calculate composite scores
+        scores = {}
+        for i, result in enumerate(results):
+            score = (
+                0.50 * norm_ev[i] +
+                0.25 * norm_wr[i] +
+                0.25 * norm_corr[i]
+            )
+            scores[result.feature_name] = score
+
+        return scores
+
     def calculate_single_feature(
         self,
         df: pd.DataFrame,

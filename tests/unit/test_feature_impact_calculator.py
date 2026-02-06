@@ -98,3 +98,66 @@ class TestFeatureImpactCalculator:
         )
         assert result.threshold_direction == "below"
         assert result.win_rate_lift > 0
+
+
+class TestFeatureImpactCalculatorMultiFeature:
+    """Tests for multi-feature analysis."""
+
+    @pytest.fixture
+    def multi_feature_df(self) -> pd.DataFrame:
+        """Create sample data with multiple features."""
+        np.random.seed(42)
+        n = 200
+        return pd.DataFrame({
+            "good_feature": np.random.uniform(0, 10, n),
+            "weak_feature": np.random.uniform(0, 10, n),
+            "no_signal": np.random.uniform(0, 10, n),
+            "gain_pct": np.random.choice([0.05, -0.02], n, p=[0.6, 0.4]),
+            "ticker": ["AAPL"] * n,  # Non-numeric, should be excluded
+            "date": pd.date_range("2024-01-01", periods=n),  # Should be excluded
+        })
+
+    def test_calculate_all_features(self, multi_feature_df: pd.DataFrame):
+        """Test analyzing all numeric features at once."""
+        calculator = FeatureImpactCalculator()
+        results = calculator.calculate_all_features(
+            df=multi_feature_df,
+            gain_col="gain_pct",
+            excluded_cols=["ticker", "date", "gain_pct"],
+        )
+        assert len(results) == 3  # good_feature, weak_feature, no_signal
+        assert all(isinstance(r, FeatureImpactResult) for r in results)
+        feature_names = [r.feature_name for r in results]
+        assert "good_feature" in feature_names
+        assert "ticker" not in feature_names
+        assert "date" not in feature_names
+
+    def test_calculate_impact_scores(self, multi_feature_df: pd.DataFrame):
+        """Test composite impact score calculation."""
+        calculator = FeatureImpactCalculator()
+        results = calculator.calculate_all_features(
+            df=multi_feature_df,
+            gain_col="gain_pct",
+            excluded_cols=["ticker", "date", "gain_pct"],
+        )
+        scores = calculator.calculate_impact_scores(results)
+        assert len(scores) == len(results)
+        # Scores should be between 0 and 1
+        assert all(0 <= s <= 1 for s in scores.values())
+
+    def test_results_sorted_by_impact_score(self, multi_feature_df: pd.DataFrame):
+        """Test that results can be sorted by impact score."""
+        calculator = FeatureImpactCalculator()
+        results = calculator.calculate_all_features(
+            df=multi_feature_df,
+            gain_col="gain_pct",
+            excluded_cols=["ticker", "date", "gain_pct"],
+        )
+        scores = calculator.calculate_impact_scores(results)
+        sorted_results = sorted(
+            results, key=lambda r: scores[r.feature_name], reverse=True
+        )
+        # First result should have highest score
+        first_score = scores[sorted_results[0].feature_name]
+        last_score = scores[sorted_results[-1].feature_name]
+        assert first_score >= last_score
