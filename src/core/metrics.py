@@ -7,7 +7,7 @@ from typing import cast
 import pandas as pd
 
 from src.core.equity import EquityCalculator
-from src.core.models import AdjustmentParams, TradingMetrics
+from src.core.models import AdjustmentParams, ColumnMapping, StopScenario, TradingMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -475,6 +475,78 @@ class MetricsCalculator:
             equity_curve,
             kelly_equity_curve,
         )
+
+    def calculate_stop_scenarios(
+        self,
+        df: pd.DataFrame,
+        mapping: ColumnMapping,
+        adjustment_params: AdjustmentParams,
+        stop_levels: list[int] | None = None,
+        start_capital: float | None = None,
+        fractional_kelly_pct: float = 25.0,
+    ) -> list[StopScenario]:
+        """Calculate metrics at each stop loss level.
+
+        Reuses the same core metric formulas as calculate() to ensure consistency.
+
+        Args:
+            df: DataFrame with trade data.
+            mapping: Column mapping configuration.
+            adjustment_params: Current adjustment parameters.
+            stop_levels: List of stop percentages to simulate. Defaults to [10,20,30,40,50,60,70,80,90,100].
+            start_capital: Starting capital for Kelly calculations.
+            fractional_kelly_pct: Fractional Kelly percentage.
+
+        Returns:
+            List of StopScenario dataclasses, one per stop level.
+        """
+        from src.core.statistics import STOP_LOSS_LEVELS, _calculate_stop_level_row
+
+        if stop_levels is None:
+            stop_levels = list(STOP_LOSS_LEVELS)
+
+        scenarios = []
+        gain_col = mapping.gain_pct
+        mae_col = mapping.mae_pct
+        date_col = mapping.date if hasattr(mapping, 'date') else None
+
+        # Compute adjusted gains using same method as calculate()
+        if mae_col and mae_col in df.columns:
+            adjusted_gains = adjustment_params.calculate_adjusted_gains(df, gain_col, mae_col)
+        else:
+            adjusted_gains = df[gain_col].astype(float) if len(df) > 0 else pd.Series(dtype=float)
+
+        for stop_level in stop_levels:
+            # Use existing _calculate_stop_level_row from statistics.py
+            # This ensures formula consistency
+            row = _calculate_stop_level_row(
+                df=df,
+                adjusted_gains=adjusted_gains,
+                mae_col=mae_col,
+                stop_level=stop_level,
+                efficiency=adjustment_params.efficiency,
+                start_capital=start_capital,
+                fractional_kelly_pct=fractional_kelly_pct,
+                date_col=date_col,
+            )
+
+            scenario = StopScenario(
+                stop_pct=stop_level,
+                num_trades=len(df),
+                win_pct=row.get("Win %", 0.0),
+                ev_pct=row.get("EV %"),
+                avg_gain_pct=row.get("Avg Gain %"),
+                median_gain_pct=row.get("Median Gain %"),
+                edge_pct=row.get("Edge %"),
+                kelly_pct=row.get("Full Kelly (Stop Adj)"),
+                stop_adjusted_kelly_pct=row.get("Full Kelly (Stop Adj)"),
+                max_loss_pct=row.get("Max Loss %", 0.0),
+                max_dd_pct=row.get("Max DD %"),
+                kelly_pnl=row.get("Total Kelly $"),
+            )
+            scenarios.append(scenario)
+
+        return scenarios
 
 
 def calculate_suggested_bins(data: list[float], method: str = "freedman_diaconis") -> int:

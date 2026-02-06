@@ -1438,6 +1438,144 @@ class TestMaxLossPctStopHit:
         assert metrics.max_loss_pct is None
 
 
+class TestCalculateStopScenarios:
+    """Tests for calculate_stop_scenarios method."""
+
+    def test_calculate_stop_scenarios_returns_list(self):
+        """Test calculate_stop_scenarios returns list of StopScenario."""
+        import pandas as pd
+        from src.core.metrics import MetricsCalculator
+        from src.core.models import StopScenario, ColumnMapping, AdjustmentParams
+
+        # Create test data with MAE column
+        df = pd.DataFrame({
+            "gain_pct": [0.10, -0.05, 0.08, -0.03, 0.12],
+            "mae_pct": [5, 15, 8, 25, 3],  # percentage points
+        })
+
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+        params = AdjustmentParams(stop_loss=20, efficiency=5)
+
+        calc = MetricsCalculator()
+        scenarios = calc.calculate_stop_scenarios(
+            df=df,
+            mapping=mapping,
+            adjustment_params=params,
+            stop_levels=[10, 20, 50, 100],
+        )
+
+        assert isinstance(scenarios, list)
+        assert len(scenarios) == 4
+        assert all(isinstance(s, StopScenario) for s in scenarios)
+        assert scenarios[0].stop_pct == 10
+        assert scenarios[1].stop_pct == 20
+        assert scenarios[2].stop_pct == 50
+        assert scenarios[3].stop_pct == 100
+
+    def test_calculate_stop_scenarios_empty_df(self):
+        """Test calculate_stop_scenarios handles empty DataFrame."""
+        import pandas as pd
+        from src.core.metrics import MetricsCalculator
+        from src.core.models import ColumnMapping, AdjustmentParams
+
+        df = pd.DataFrame({"gain_pct": [], "mae_pct": []})
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+        params = AdjustmentParams(stop_loss=20, efficiency=5)
+
+        calc = MetricsCalculator()
+        scenarios = calc.calculate_stop_scenarios(
+            df=df,
+            mapping=mapping,
+            adjustment_params=params,
+        )
+
+        assert isinstance(scenarios, list)
+        assert len(scenarios) > 0  # Still returns scenarios, just with 0 trades
+        assert all(s.num_trades == 0 for s in scenarios)
+
+    def test_calculate_stop_scenarios_default_levels(self):
+        """Test calculate_stop_scenarios uses default levels when not specified."""
+        import pandas as pd
+        from src.core.metrics import MetricsCalculator
+        from src.core.models import ColumnMapping, AdjustmentParams
+        from src.core.statistics import STOP_LOSS_LEVELS
+
+        df = pd.DataFrame({
+            "gain_pct": [0.10, -0.05, 0.08],
+            "mae_pct": [5, 15, 8],
+        })
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+        params = AdjustmentParams(stop_loss=20, efficiency=5)
+
+        calc = MetricsCalculator()
+        scenarios = calc.calculate_stop_scenarios(
+            df=df,
+            mapping=mapping,
+            adjustment_params=params,
+        )
+
+        assert len(scenarios) == len(STOP_LOSS_LEVELS)
+        for i, stop_level in enumerate(STOP_LOSS_LEVELS):
+            assert scenarios[i].stop_pct == stop_level
+
+    def test_calculate_stop_scenarios_metrics_values(self):
+        """Test calculate_stop_scenarios calculates correct metric values."""
+        import pandas as pd
+        from src.core.metrics import MetricsCalculator
+        from src.core.models import ColumnMapping, AdjustmentParams
+
+        # Create test data where we can verify metrics
+        df = pd.DataFrame({
+            "gain_pct": [0.10, 0.05, -0.03, -0.02],  # 2 wins, 2 losses
+            "mae_pct": [5, 3, 8, 6],  # All below 10% stop
+        })
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+        )
+        params = AdjustmentParams(stop_loss=10, efficiency=0)
+
+        calc = MetricsCalculator()
+        scenarios = calc.calculate_stop_scenarios(
+            df=df,
+            mapping=mapping,
+            adjustment_params=params,
+            stop_levels=[100],  # No stop adjustment at 100%
+        )
+
+        assert len(scenarios) == 1
+        scenario = scenarios[0]
+        assert scenario.stop_pct == 100
+        assert scenario.num_trades == 4
+        # Win % should be 50% (2 wins, 2 losses)
+        assert scenario.win_pct == 50.0
+
+
 class TestCalculateSuggestedBins:
     """Tests for histogram bin size calculation (Story 3.6)."""
 
