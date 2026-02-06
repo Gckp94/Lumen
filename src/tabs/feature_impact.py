@@ -100,6 +100,9 @@ class FeatureImpactTab(QWidget):
         self._filtered_scores: dict[str, float] = {}
         self._filtered_by_name: dict[str, FeatureImpactResult] = {}
 
+        self._sort_column = 1  # Default sort by Impact Score
+        self._sort_ascending = False
+
         self._setup_ui()
         self._connect_signals()
         self._show_empty_state(True)
@@ -220,6 +223,10 @@ class FeatureImpactTab(QWidget):
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         for i in range(1, 11):
             header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+
+        # Enable sorting via header clicks
+        header.setSortIndicatorShown(True)
+        header.sectionClicked.connect(self._on_header_clicked)
 
         table.verticalHeader().setVisible(False)
         table.setAlternatingRowColors(True)
@@ -372,3 +379,64 @@ class FeatureImpactTab(QWidget):
         item.setBackground(QBrush(bg))
         item.setForeground(QBrush(text_color))
         self._table.setItem(row, col, item)
+
+    def _on_header_clicked(self, col: int) -> None:
+        """Handle column header click for sorting."""
+        if col == self._sort_column:
+            self._sort_ascending = not self._sort_ascending
+        else:
+            self._sort_column = col
+            self._sort_ascending = False  # Default descending for new column
+
+        self._sort_and_repopulate()
+
+    def _sort_and_repopulate(self) -> None:
+        """Sort results and repopulate table."""
+        if not self._baseline_results:
+            return
+
+        # Define sort key based on column
+        def get_sort_key(result: FeatureImpactResult) -> float:
+            f_result = self._filtered_by_name.get(result.feature_name, result)
+            col = self._sort_column
+
+            if col == 0:  # Feature name (alphabetical)
+                return result.feature_name.lower()
+            elif col == 1:  # Impact score
+                return self._baseline_scores.get(result.feature_name, 0)
+            elif col == 2:  # Corr (B)
+                return result.correlation
+            elif col == 3:  # Corr (F)
+                return f_result.correlation
+            elif col == 4:  # WR Lift (B)
+                return result.win_rate_lift
+            elif col == 5:  # WR Lift (F)
+                return f_result.win_rate_lift
+            elif col == 6:  # EV Lift (B)
+                return result.expectancy_lift
+            elif col == 7:  # EV Lift (F)
+                return f_result.expectancy_lift
+            elif col == 9:  # Trades (B)
+                return result.trades_total
+            elif col == 10:  # Trades (F)
+                return f_result.trades_total
+            else:
+                return 0
+
+        # Handle alphabetical vs numeric sorting
+        if self._sort_column == 0:
+            self._baseline_results.sort(
+                key=lambda r: r.feature_name.lower(),
+                reverse=not self._sort_ascending,
+            )
+        else:
+            self._baseline_results.sort(
+                key=get_sort_key,
+                reverse=not self._sort_ascending,
+            )
+
+        # Update sort indicator
+        order = Qt.SortOrder.AscendingOrder if self._sort_ascending else Qt.SortOrder.DescendingOrder
+        self._table.horizontalHeader().setSortIndicator(self._sort_column, order)
+
+        self._populate_table()

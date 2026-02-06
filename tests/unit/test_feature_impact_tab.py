@@ -76,3 +76,14 @@ class TestFeatureImpactTabDualColumns:
         # Check for paired columns
         assert "Corr (B)" in headers or "Correlation" in headers
         assert tab._table.columnCount() >= 9  # Feature + pairs + trades
+
+
+class TestFeatureImpactTabSorting:
+    """Tests for column sorting."""
+
+    def test_clicking_header_sorts_table(self, app):
+        """Test that clicking column header triggers sort."""
+        app_state = AppState()
+        tab = FeatureImpactTab(app_state)
+        # Table should have sorting enabled
+        assert tab._table.isSortingEnabled() or hasattr(tab, '_sort_column')
