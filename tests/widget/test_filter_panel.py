@@ -1,6 +1,7 @@
 """Widget tests for FilterPanel component."""
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
 from pytestqt.qtbot import QtBot
 
 from src.ui.components.filter_panel import FilterPanel
@@ -198,3 +199,52 @@ class TestFilterPanelColumnFilterPanelIntegration:
         assert len(criteria_list) == 2
         columns_filtered = {c.column for c in criteria_list}
         assert columns_filtered == {"gain_pct", "volume"}
+
+
+class TestFilterPanelChipsLayout:
+    """Tests for filter chip layout."""
+
+    def test_multiple_chips_do_not_overlap(self, qtbot: QtBot) -> None:
+        """Multiple filter chips should not overlap each other.
+
+        This test verifies that when multiple filter chips are created,
+        they are properly positioned by the FlowLayout without overlapping.
+        The bug manifests when the scroll area container doesn't properly
+        trigger layout recalculation after chips are added.
+        """
+        # Use 6 columns to create enough chips to trigger wrapping
+        panel = FilterPanel(
+            columns=["gain_pct", "volume", "price", "vwap", "prev_close", "open"]
+        )
+        panel.setFixedWidth(300)  # Narrow width to force wrapping
+        qtbot.addWidget(panel)
+        panel.show()
+        qtbot.waitExposed(panel)
+
+        # Apply filters to all columns to create multiple chips
+        for i, row in enumerate(panel._column_filter_panel._rows):
+            row._min_input.setText(str(i))
+            row._max_input.setText(str(i + 10))
+
+        panel._apply_btn.click()
+
+        # Force Qt to process all pending events and layout calculations
+        # This matches what happens in real usage when the event loop runs
+        QApplication.processEvents()
+
+        # Should have 6 chips
+        assert len(panel._filter_chips) == 6
+
+        # Verify no chips overlap by checking positions
+        # Each chip should have a unique position (y-coordinate increases or
+        # x-coordinate increases within the same row)
+        chip_rects = []
+        for chip in panel._filter_chips:
+            rect = chip.geometry()
+            # Check this chip doesn't overlap with any previous chip
+            for prev_rect in chip_rects:
+                # Chips should not intersect (allowing 1px tolerance for borders)
+                intersection = rect.intersected(prev_rect)
+                assert intersection.width() <= 1 or intersection.height() <= 1, \
+                    f"Chips overlap: {rect} intersects {prev_rect}"
+            chip_rects.append(rect)
