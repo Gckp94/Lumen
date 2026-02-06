@@ -1,7 +1,7 @@
 """Tests for Parameter Sensitivity tab UI logic."""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 import pandas as pd
 
 from src.core.parameter_sensitivity import ParameterSensitivityConfig
@@ -74,10 +74,10 @@ def mock_app_state():
     return state
 
 
-def test_run_clicked_uses_filtered_df_with_first_triggers(
+def test_run_clicked_uses_baseline_df_with_date_time_filters(
     qtbot, mock_app_state, qapp
 ):
-    """Verify _on_run_clicked uses filtered_df which has first triggers applied."""
+    """Verify _on_run_clicked uses baseline_df + date/time filters for bidirectional analysis."""
     from unittest.mock import patch, MagicMock
     from src.tabs.parameter_sensitivity import ParameterSensitivityTab
     from src.core.models import ColumnMapping, FilterCriteria
@@ -91,12 +91,9 @@ def test_run_clicked_uses_filtered_df_with_first_triggers(
         "gain_pct": [0.05, 0.03, 0.02, 0.04, 0.01],
         "gap_pct": [3.0, 3.0, 3.0, 4.0, 4.0],
     })
-
-    # Create filtered_df simulating Feature Explorer's output (first triggers only)
-    filtered_df = df[df["trigger_number"] == 1].copy()
     
     mock_app_state.baseline_df = df
-    mock_app_state.filtered_df = filtered_df  # Already has first triggers + filters applied
+    mock_app_state.filtered_df = df[df["trigger_number"] == 1].copy()
     mock_app_state.first_trigger_enabled = True
     mock_app_state.column_mapping = ColumnMapping(
         ticker="ticker",
@@ -110,6 +107,13 @@ def test_run_clicked_uses_filtered_df_with_first_triggers(
         FilterCriteria(column="gap_pct", operator="between", min_val=2.0, max_val=5.0)
     ]
     mock_app_state.adjustment_params = None  # Uses default AdjustmentParams
+    # Date/time range fields - all_dates=True means no date/time filtering
+    mock_app_state.all_dates = True
+    mock_app_state.all_times = True
+    mock_app_state.date_start = None
+    mock_app_state.date_end = None
+    mock_app_state.time_start = None
+    mock_app_state.time_end = None
 
     tab = ParameterSensitivityTab(mock_app_state)
     qtbot.addWidget(tab)
@@ -125,41 +129,38 @@ def test_run_clicked_uses_filtered_df_with_first_triggers(
 
         tab._on_run_clicked()
 
-        # Verify worker uses filtered_df (which has first triggers already applied)
+        # Verify worker is called with baseline_df (all 5 rows before feature filters)
         MockWorker.assert_called_once()
         call_kwargs = MockWorker.call_args.kwargs
         
-        # Should use filtered_df (2 rows = first triggers only)
+        # Should use baseline_df (5 rows) - worker applies feature filters with varied thresholds
         passed_df = call_kwargs["baseline_df"]
-        assert len(passed_df) == 2, f"Expected filtered_df with 2 rows, got {len(passed_df)}"
+        assert len(passed_df) == 5, f"Expected baseline_df with 5 rows, got {len(passed_df)}"
         
-        # first_trigger_enabled should be False since filtered_df already has it applied
-        assert call_kwargs["first_trigger_enabled"] is False
+        # first_trigger_enabled should be True (worker applies it after feature filters)
+        assert call_kwargs["first_trigger_enabled"] is True
 
 
-def test_run_clicked_uses_filtered_df(
+def test_run_clicked_applies_date_time_filters(
     qtbot, mock_app_state, qapp
 ):
-    """Verify _on_run_clicked uses filtered_df to respect date/time range filters."""
+    """Verify _on_run_clicked applies date/time filters from AppState."""
     from unittest.mock import patch, MagicMock
     from src.tabs.parameter_sensitivity import ParameterSensitivityTab
     from src.core.models import ColumnMapping, FilterCriteria
 
-    # Create sample data with multiple triggers per ticker-date
+    # Create sample data with multiple dates
     df = pd.DataFrame({
-        "ticker": ["AAPL", "AAPL", "AAPL", "GOOG", "GOOG"],
-        "date": ["2024-01-01", "2024-01-01", "2024-01-01", "2024-01-01", "2024-01-01"],
+        "ticker": ["AAPL", "AAPL", "GOOG", "GOOG", "MSFT"],
+        "date": ["2024-01-01", "2024-01-02", "2024-01-01", "2024-01-02", "2024-01-03"],
         "time": ["09:30", "09:35", "09:40", "09:30", "09:35"],
-        "trigger_number": [1, 2, 3, 1, 2],
+        "trigger_number": [1, 1, 1, 1, 1],
         "gain_pct": [0.05, 0.03, 0.02, 0.04, 0.01],
-        "gap_pct": [3.0, 3.0, 3.0, 4.0, 4.0],
+        "gap_pct": [3.0, 3.0, 4.0, 4.0, 2.5],
     })
-    
-    # When first_trigger_enabled is False, filtered_df has all triggers
-    filtered_df = df.copy()
 
     mock_app_state.baseline_df = df
-    mock_app_state.filtered_df = filtered_df
+    mock_app_state.filtered_df = df.copy()
     mock_app_state.first_trigger_enabled = False  # Disabled
     mock_app_state.column_mapping = ColumnMapping(
         ticker="ticker",
@@ -173,6 +174,13 @@ def test_run_clicked_uses_filtered_df(
         FilterCriteria(column="gap_pct", operator="between", min_val=2.0, max_val=5.0)
     ]
     mock_app_state.adjustment_params = None  # Uses default AdjustmentParams
+    # Set date range filter - should filter to 2024-01-01 and 2024-01-02 only
+    mock_app_state.all_dates = False
+    mock_app_state.date_start = "2024-01-01"
+    mock_app_state.date_end = "2024-01-02"
+    mock_app_state.all_times = True
+    mock_app_state.time_start = None
+    mock_app_state.time_end = None
 
     tab = ParameterSensitivityTab(mock_app_state)
     qtbot.addWidget(tab)
@@ -191,8 +199,8 @@ def test_run_clicked_uses_filtered_df(
         call_kwargs = MockWorker.call_args.kwargs
         passed_df = call_kwargs["baseline_df"]
 
-        # Should use filtered_df (all 5 rows when first trigger disabled)
-        assert len(passed_df) == 5, f"Expected filtered_df with 5 rows, got {len(passed_df)}"
+        # Should have 4 rows (excludes 2024-01-03)
+        assert len(passed_df) == 4, f"Expected 4 rows after date filter, got {len(passed_df)}"
         
-        # first_trigger_enabled should be False (filtered_df already processed)
+        # first_trigger_enabled should be False (disabled in AppState)
         assert call_kwargs["first_trigger_enabled"] is False
