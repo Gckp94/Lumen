@@ -1108,6 +1108,9 @@ class CandlestickChart(QWidget):
         self._crosshair_v.setVisible(False)
         self._crosshair_h.setVisible(False)
 
+        # Clear crosshair labels
+        self._hide_crosshair_labels()
+
         # Clear ruler
         self._ruler_active = False
         self._ruler_start = None

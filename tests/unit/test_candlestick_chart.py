@@ -968,6 +968,16 @@ class TestCrosshairLabels:
         assert not chart._price_label.isVisible()
         assert not chart._time_label.isVisible()
 
+    def test_labels_cleared_on_chart_clear(self, chart, sample_ohlcv_df):
+        """Labels should be hidden when chart.clear() is called."""
+        chart.set_data(sample_ohlcv_df)
+        chart._update_crosshair_labels(bar_idx=0, price=100.0)
+
+        chart.clear()
+
+        assert not chart._price_label.isVisible()
+        assert not chart._time_label.isVisible()
+
 
 class TestCandlestickChartInteractiveFeatures:
     """Integration tests for grid + info box + ruler coexistence."""
