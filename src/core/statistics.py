@@ -921,6 +921,105 @@ def _calculate_time_statistics_row(
     }
 
 
+def calculate_time_stop_table(
+    df: pd.DataFrame,
+    mapping: "ColumnMapping",
+    scale_out_pct: float,
+) -> pd.DataFrame:
+    """Calculate Time Stop table comparing blended vs full hold returns.
+
+    Blending logic: If trade is RED at time X, exit scale_out_pct of position
+    at that loss. If GREEN, hold 100% to final close.
+
+    Args:
+        df: Trade data with change_X_min and adjusted_gain_pct columns.
+        mapping: Column mapping with price_X_min_after fields.
+        scale_out_pct: Fraction of position to exit if red (0-1).
+
+    Returns:
+        DataFrame with rows for each mapped time interval.
+    """
+    rows = []
+
+    interval_to_mapping = {
+        10: mapping.price_10_min_after,
+        20: mapping.price_20_min_after,
+        30: mapping.price_30_min_after,
+        60: mapping.price_60_min_after,
+        90: mapping.price_90_min_after,
+        120: mapping.price_120_min_after,
+        150: mapping.price_150_min_after,
+        180: mapping.price_180_min_after,
+        240: mapping.price_240_min_after,
+    }
+
+    for interval in TIME_STOP_INTERVALS:
+        if interval_to_mapping.get(interval) is None:
+            continue
+
+        change_col = f"change_{interval}_min"
+        if change_col not in df.columns:
+            continue
+
+        row = _calculate_time_stop_row(df, change_col, interval, scale_out_pct)
+        rows.append(row)
+
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+def _calculate_time_stop_row(
+    df: pd.DataFrame,
+    change_col: str,
+    interval: int,
+    scale_out_pct: float,
+) -> dict:
+    """Calculate metrics for a single time stop interval."""
+    changes = df[change_col]
+    final_gains = df["adjusted_gain_pct"]
+
+    # Calculate blended returns
+    # If RED at time X: blend = scale_out * change + (1-scale_out) * final
+    # If GREEN at time X: blend = final (no action)
+    red_mask = changes <= 0
+    blended_returns = final_gains.copy()
+    blended_returns[red_mask] = (
+        scale_out_pct * changes[red_mask] +
+        (1 - scale_out_pct) * final_gains[red_mask]
+    )
+
+    # Calculate metrics for both
+    blended_metrics = _calculate_return_metrics(blended_returns)
+    full_hold_metrics = _calculate_return_metrics(final_gains)
+
+    # Calculate Kelly Stake %
+    blended_kelly = (
+        blended_metrics["edge_pct"] / blended_metrics["profit_ratio"]
+        if blended_metrics["profit_ratio"] and blended_metrics["edge_pct"]
+        else None
+    )
+    full_hold_kelly = (
+        full_hold_metrics["edge_pct"] / full_hold_metrics["profit_ratio"]
+        if full_hold_metrics["profit_ratio"] and full_hold_metrics["edge_pct"]
+        else None
+    )
+
+    return {
+        "Minutes After Entry": f"{interval} Mins",
+        "Blended Win %": blended_metrics["win_pct"],
+        "Full Hold Win %": full_hold_metrics["win_pct"],
+        "Blended EV %": blended_returns.mean() * 100,
+        "Full Hold EV %": final_gains.mean() * 100,
+        "Blended Profit Ratio": blended_metrics["profit_ratio"],
+        "Full Hold Profit Ratio": full_hold_metrics["profit_ratio"],
+        "Blended Edge %": blended_metrics["edge_pct"],
+        "Full Hold Edge %": full_hold_metrics["edge_pct"],
+        "Blended EG %": blended_metrics["eg_pct"],
+        "Full Hold EG %": full_hold_metrics["eg_pct"],
+        "Blended Kelly Stake %": blended_kelly,
+        "Full Hold Kelly Stake %": full_hold_kelly,
+    }
+
+
 def calculate_scaling_table(
     df: pd.DataFrame,
     mapping: ColumnMapping,

@@ -2327,3 +2327,28 @@ def test_calculate_time_statistics_table():
     assert "Minutes After Entry" in result.columns
     assert "Avg. Gain %" in result.columns
     assert "Prob. of Profit (Red) %" in result.columns
+
+
+def test_calculate_time_stop_table():
+    """Test Time Stop table calculation with blended returns."""
+    import pandas as pd
+    from src.core.statistics import calculate_time_stop_table
+    from src.core.models import ColumnMapping
+
+    df = pd.DataFrame({
+        "adjusted_gain_pct": [0.10, -0.05, 0.15, -0.08],
+        "change_10_min": [0.02, -0.01, 0.03, -0.02],
+    })
+
+    mapping = ColumnMapping(
+        ticker="ticker", date="date", time="time",
+        gain_pct="gain_pct", mae_pct="mae_pct", mfe_pct="mfe_pct",
+        price_10_min_after="p10",
+    )
+
+    result = calculate_time_stop_table(df, mapping, scale_out_pct=0.5)
+
+    assert len(result) == 1  # Only 1 interval mapped
+    assert "Blended Win %" in result.columns
+    assert "Full Hold Win %" in result.columns
+    assert "Blended EV %" in result.columns
