@@ -7,6 +7,7 @@ and composite impact score for each numeric feature in the dataset.
 import logging
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -22,6 +23,62 @@ from src.core.feature_impact_calculator import FeatureImpactCalculator, FeatureI
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
 
 logger = logging.getLogger(__name__)
+
+# Gradient colors (matching statistics_tab.py pattern)
+GRADIENT_CORAL = QColor(Colors.SIGNAL_CORAL)  # Negative
+GRADIENT_NEUTRAL = QColor(Colors.BG_ELEVATED)  # Zero
+GRADIENT_CYAN = QColor(Colors.SIGNAL_CYAN)  # Positive
+TEXT_ON_DARK = QColor(Colors.TEXT_PRIMARY)
+TEXT_ON_LIGHT = QColor(Colors.BG_BASE)
+
+
+def lerp_color(c1: QColor, c2: QColor, t: float) -> QColor:
+    """Linear interpolation between two colors."""
+    t = max(0.0, min(1.0, t))
+    return QColor(
+        int(c1.red() + (c2.red() - c1.red()) * t),
+        int(c1.green() + (c2.green() - c1.green()) * t),
+        int(c1.blue() + (c2.blue() - c1.blue()) * t),
+    )
+
+
+def get_gradient_color(
+    value: float,
+    min_val: float,
+    max_val: float,
+) -> tuple[QColor, QColor]:
+    """Get background and text colors for a value in range.
+
+    Args:
+        value: The value to color.
+        min_val: Minimum value in range (maps to coral).
+        max_val: Maximum value in range (maps to cyan).
+
+    Returns:
+        Tuple of (background_color, text_color).
+    """
+    if min_val == max_val:
+        return (GRADIENT_NEUTRAL, TEXT_ON_DARK)
+
+    # Normalize to -1 to +1 range where 0 is neutral
+    if min_val < 0 and max_val > 0:
+        # Range spans zero - normalize around zero
+        if value < 0:
+            t = value / min_val  # 0 to 1 for negative values
+            bg = lerp_color(GRADIENT_NEUTRAL, GRADIENT_CORAL, t)
+        else:
+            t = value / max_val  # 0 to 1 for positive values
+            bg = lerp_color(GRADIENT_NEUTRAL, GRADIENT_CYAN, t)
+    else:
+        # Range doesn't span zero - use full range
+        normalized = (value - min_val) / (max_val - min_val)
+        bg = lerp_color(GRADIENT_CORAL, GRADIENT_CYAN, normalized)
+
+    # Text color based on background brightness
+    brightness = (bg.red() * 299 + bg.green() * 587 + bg.blue() * 114) / 1000
+    text = TEXT_ON_DARK if brightness < 128 else TEXT_ON_LIGHT
+
+    return (bg, text)
 
 
 class FeatureImpactTab(QWidget):
@@ -223,39 +280,66 @@ class FeatureImpactTab(QWidget):
         """Populate the table with analysis results."""
         self._table.setRowCount(len(self._results))
 
+        # Calculate ranges for gradient coloring
+        correlations = [r.correlation for r in self._results]
+        wr_lifts = [r.win_rate_lift for r in self._results]
+        ev_lifts = [r.expectancy_lift for r in self._results]
+        scores = [self._impact_scores.get(r.feature_name, 0) for r in self._results]
+
+        corr_range = (min(correlations), max(correlations)) if correlations else (0, 0)
+        wr_range = (min(wr_lifts), max(wr_lifts)) if wr_lifts else (0, 0)
+        ev_range = (min(ev_lifts), max(ev_lifts)) if ev_lifts else (0, 0)
+        score_range = (min(scores), max(scores)) if scores else (0, 0)
+
         for row, result in enumerate(self._results):
             score = self._impact_scores.get(result.feature_name, 0)
 
-            # Feature name
-            self._table.setItem(row, 0, QTableWidgetItem(result.feature_name))
+            # Feature name (no gradient)
+            name_item = QTableWidgetItem(result.feature_name)
+            name_item.setForeground(QBrush(QColor(Colors.TEXT_PRIMARY)))
+            self._table.setItem(row, 0, name_item)
 
-            # Impact score
+            # Impact score (cyan gradient only - always positive)
             score_item = QTableWidgetItem(f"{score:.2f}")
             score_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            bg, text = get_gradient_color(score, 0, score_range[1])
+            score_item.setBackground(QBrush(bg))
+            score_item.setForeground(QBrush(text))
             self._table.setItem(row, 1, score_item)
 
-            # Correlation
+            # Correlation (coral to cyan)
             corr_item = QTableWidgetItem(f"{result.correlation:+.3f}")
             corr_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            bg, text = get_gradient_color(result.correlation, corr_range[0], corr_range[1])
+            corr_item.setBackground(QBrush(bg))
+            corr_item.setForeground(QBrush(text))
             self._table.setItem(row, 2, corr_item)
 
-            # Win rate lift
+            # Win rate lift (coral to cyan)
             wr_item = QTableWidgetItem(f"{result.win_rate_lift:+.1f}%")
             wr_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            bg, text = get_gradient_color(result.win_rate_lift, wr_range[0], wr_range[1])
+            wr_item.setBackground(QBrush(bg))
+            wr_item.setForeground(QBrush(text))
             self._table.setItem(row, 3, wr_item)
 
-            # Expectancy lift
+            # Expectancy lift (coral to cyan)
             ev_item = QTableWidgetItem(f"{result.expectancy_lift:+.4f}")
             ev_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            bg, text = get_gradient_color(result.expectancy_lift, ev_range[0], ev_range[1])
+            ev_item.setBackground(QBrush(bg))
+            ev_item.setForeground(QBrush(text))
             self._table.setItem(row, 4, ev_item)
 
-            # Threshold
+            # Threshold (no gradient)
             direction = ">" if result.threshold_direction == "above" else "<"
             thresh_item = QTableWidgetItem(f"{direction} {result.optimal_threshold:.2f}")
             thresh_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            thresh_item.setForeground(QBrush(QColor(Colors.TEXT_PRIMARY)))
             self._table.setItem(row, 5, thresh_item)
 
-            # Trades
+            # Trades (no gradient)
             trades_item = QTableWidgetItem(f"{result.trades_total:,}")
             trades_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            trades_item.setForeground(QBrush(QColor(Colors.TEXT_PRIMARY)))
             self._table.setItem(row, 6, trades_item)
