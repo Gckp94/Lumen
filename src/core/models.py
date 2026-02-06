@@ -213,6 +213,52 @@ class TradingMetrics:
 
 
 @dataclass
+class StopScenario:
+    """Metrics calculated at a specific stop loss level.
+
+    Used by MetricsCalculator.calculate_stop_scenarios() for scenario analysis.
+    """
+    stop_pct: int
+    num_trades: int
+    win_pct: float
+    ev_pct: float | None
+    avg_gain_pct: float | None
+    median_gain_pct: float | None
+    edge_pct: float | None
+    kelly_pct: float | None
+    stop_adjusted_kelly_pct: float | None
+    max_loss_pct: float
+    max_dd_pct: float | None
+    kelly_pnl: float | None
+
+
+@dataclass
+class OffsetScenario:
+    """Metrics calculated at a specific entry price offset.
+
+    Used by MetricsCalculator.calculate_offset_scenarios() for scenario analysis.
+    """
+    offset_pct: float
+    num_trades: int
+    win_pct: float
+    total_return_pct: float | None
+    eg_pct: float | None
+
+
+@dataclass
+class ComputedMetrics:
+    """All computed metrics from a single calculation pass.
+
+    Container for trading metrics plus scenario analysis results.
+    Emitted via AppState.all_metrics_ready signal.
+    """
+    trading_metrics: TradingMetrics
+    stop_scenarios: list[StopScenario]
+    offset_scenarios: list[OffsetScenario]
+    computation_time_ms: float
+
+
+@dataclass
 class AdjustmentParams:
     """User-configurable parameters for trade adjustment calculations.
 

@@ -664,3 +664,54 @@ def test_trading_metrics_has_eg_fields() -> None:
     assert metrics.eg_full_kelly == 0.15
     assert metrics.eg_frac_kelly == 0.04
     assert metrics.eg_flat_stake == 0.10
+
+
+def test_stop_scenario_dataclass():
+    """Test StopScenario dataclass creation."""
+    from src.core.models import StopScenario
+
+    scenario = StopScenario(
+        stop_pct=20,
+        num_trades=100,
+        win_pct=55.0,
+        ev_pct=2.5,
+        avg_gain_pct=3.0,
+        median_gain_pct=2.8,
+        edge_pct=12.0,
+        kelly_pct=15.0,
+        stop_adjusted_kelly_pct=75.0,
+        max_loss_pct=10.0,
+        max_dd_pct=25.0,
+        kelly_pnl=50000.0,
+    )
+    assert scenario.stop_pct == 20
+    assert scenario.win_pct == 55.0
+
+
+def test_offset_scenario_dataclass():
+    """Test OffsetScenario dataclass creation."""
+    from src.core.models import OffsetScenario
+
+    scenario = OffsetScenario(
+        offset_pct=-2.0,
+        num_trades=80,
+        win_pct=60.0,
+        total_return_pct=150.0,
+        eg_pct=0.5,
+    )
+    assert scenario.offset_pct == -2.0
+    assert scenario.num_trades == 80
+
+
+def test_computed_metrics_dataclass():
+    """Test ComputedMetrics container dataclass."""
+    from src.core.models import ComputedMetrics, StopScenario, OffsetScenario, TradingMetrics
+
+    computed = ComputedMetrics(
+        trading_metrics=TradingMetrics.empty(),
+        stop_scenarios=[],
+        offset_scenarios=[],
+        computation_time_ms=150.0,
+    )
+    assert computed.computation_time_ms == 150.0
+    assert computed.stop_scenarios == []
