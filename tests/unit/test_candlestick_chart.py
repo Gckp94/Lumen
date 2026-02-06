@@ -892,6 +892,22 @@ class TestCrosshairLabels:
         qtbot.addWidget(chart)
         return chart
 
+    @pytest.fixture
+    def sample_ohlcv_df(self):
+        """Create a sample OHLCV DataFrame for testing."""
+        return pd.DataFrame({
+            "datetime": pd.to_datetime([
+                "2024-01-15 09:32",
+                "2024-01-15 09:33",
+                "2024-01-15 09:34",
+            ]),
+            "open": [100.0, 103.0, 106.0],
+            "high": [105.0, 108.0, 110.0],
+            "low": [98.0, 101.0, 100.0],
+            "close": [103.0, 106.0, 105.0],
+            "volume": [1000, 1200, 800],
+        })
+
     def test_price_label_exists(self, chart):
         """Price label TextItem should exist after initialization."""
         assert hasattr(chart, "_price_label")
@@ -909,6 +925,21 @@ class TestCrosshairLabels:
     def test_time_label_initially_hidden(self, chart):
         """Time label should be hidden initially."""
         assert not chart._time_label.isVisible()
+
+    def test_price_label_updates_on_mouse_move(self, chart, sample_ohlcv_df):
+        """Price label should update text and position when mouse moves over chart."""
+        chart.set_data(sample_ohlcv_df)
+
+        # Simulate mouse at y=105.0
+        # The label should show the price value
+        view_range = chart._plot_widget.viewRange()
+        y_pos = 105.0
+
+        # Manually trigger the label update logic
+        chart._update_crosshair_labels(bar_idx=0, price=y_pos)
+
+        assert chart._price_label.isVisible()
+        assert "105.00" in chart._price_label.toPlainText()
 
 
 class TestCandlestickChartInteractiveFeatures:

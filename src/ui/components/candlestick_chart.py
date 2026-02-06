@@ -982,6 +982,9 @@ class CandlestickChart(QWidget):
 
         self._update_info_box(bar_idx)
 
+        # Update floating crosshair labels
+        self._update_crosshair_labels(bar_idx, mouse_point.y())
+
         # Update ruler if active
         if self._ruler_active and self._ruler_start is not None:
             sx, sy = self._ruler_start
@@ -1030,6 +1033,31 @@ class CandlestickChart(QWidget):
         # Anchor text to top-left of visible area
         view_range = self._plot_widget.viewRange()
         self._info_text.setPos(view_range[0][0], view_range[1][1])
+
+    def _update_crosshair_labels(self, bar_idx: int, price: float) -> None:
+        """Update the floating crosshair price and time labels.
+
+        Args:
+            bar_idx: Integer index of the bar at cursor X position.
+            price: Y coordinate (price level) at cursor position.
+        """
+        view_range = self._plot_widget.viewRange()
+        x_min, x_max = view_range[0]
+        y_min, y_max = view_range[1]
+
+        # Update price label - position on right edge at crosshair Y
+        self._price_label.setText(f" {price:.2f} ")
+        self._price_label.setPos(x_max, price)
+        self._price_label.setVisible(True)
+
+        # Update time label - position at bottom at crosshair X
+        if 0 <= bar_idx < len(self._datetimes):
+            time_str = self._datetimes[bar_idx].strftime("%H:%M")
+            self._time_label.setText(f" {time_str} ")
+            self._time_label.setPos(float(bar_idx), y_min)
+            self._time_label.setVisible(True)
+        else:
+            self._time_label.setVisible(False)
 
     def _format_ruler_label(
         self,
