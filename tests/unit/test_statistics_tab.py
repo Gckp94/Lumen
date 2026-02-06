@@ -78,6 +78,8 @@ class TestStatisticsTabDataUpdates:
             "adjusted_gain_pct": [0.10, -0.05, 0.15, -0.08, 0.20, -0.03],
             "mae_pct": [5.0, 15.0, 8.0, 12.0, 6.0, 18.0],
             "mfe_pct": [12.0, 5.0, 20.0, 8.0, 25.0, 4.0],
+            "mae_time": [5, 10, 8, 12, 6, 15],
+            "mfe_time": [10, 8, 15, 10, 20, 6],
             "gain_pct": [0.10, -0.05, 0.15, -0.08, 0.20, -0.03],
             "ticker": ["AAPL"] * 6,
             "date": ["2024-01-01"] * 6,
@@ -94,6 +96,8 @@ class TestStatisticsTabDataUpdates:
             gain_pct="gain_pct",
             mae_pct="mae_pct",
             mfe_pct="mfe_pct",
+            mae_time="mae_time",
+            mfe_time="mfe_time",
         )
 
     def test_updates_on_baseline_calculated(self, app, test_df, test_mapping):
@@ -226,7 +230,9 @@ class TestStatisticsTabDataUpdates:
         assert tab._scaling_table.rowCount() == 8
 
         # Get initial cell value (Blended Return for first row)
-        initial_blended = tab._scaling_table.item(0, 2)  # Column 2: Avg Blended Return %
+        # Column 0 is Select (radio), Column 1 is Target %, Column 2 is % of Trades,
+        # Column 3 is Avg Blended Return %
+        initial_blended = tab._scaling_table.item(0, 3)  # Column 3: Avg Blended Return %
         initial_value = initial_blended.text() if initial_blended else None
 
         # Change spinbox value
@@ -236,7 +242,7 @@ class TestStatisticsTabDataUpdates:
         assert tab._scaling_table.rowCount() == 8
 
         # Value should change because scale_out_pct affects blended returns
-        new_blended = tab._scaling_table.item(0, 2)
+        new_blended = tab._scaling_table.item(0, 3)
         new_value = new_blended.text() if new_blended else None
         # The values should differ when scale_out changes (50% vs 70%)
         assert new_value != initial_value or initial_value is None

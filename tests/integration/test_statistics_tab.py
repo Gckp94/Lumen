@@ -190,6 +190,16 @@ def sample_statistics_data() -> pd.DataFrame:
                 "L",
                 "W",
             ],
+            # MAE time (minutes after entry when MAE occurred)
+            "mae_time": [
+                5, 10, 15, 20, 8, 12, 18, 25, 30, 6,
+                9, 35, 4, 14, 22, 28, 11, 16, 40, 7,
+            ],
+            # MFE time (minutes after entry when MFE occurred)
+            "mfe_time": [
+                12, 18, 25, 8, 20, 30, 40, 15, 10, 35,
+                45, 20, 8, 22, 32, 42, 12, 24, 18, 38,
+            ],
         }
     )
 
@@ -204,6 +214,8 @@ def statistics_column_mapping() -> ColumnMapping:
         gain_pct="gain_pct",
         mae_pct="mae_pct",
         mfe_pct="mfe_pct",
+        mae_time="mae_time",
+        mfe_time="mfe_time",
         win_loss_derived=True,
     )
 
@@ -584,6 +596,8 @@ class TestStatisticsTabIntegration:
             "gain_pct": [0.20, 0.15, -0.10],  # Decimal format: 20%, 15%, -10%
             "mae_pct": [5.0, 10.0, 15.0],  # MAE in percentage points
             "mfe_pct": [25.0, 20.0, 5.0],  # MFE in percentage points
+            "mae_time": [5, 10, 15],  # Minutes when MAE occurred
+            "mfe_time": [12, 18, 8],  # Minutes when MFE occurred
             "adjusted_gain_pct": [0.20, 0.15, -0.10],  # Initial: matches gain_pct (0% efficiency)
         })
 
@@ -599,6 +613,8 @@ class TestStatisticsTabIntegration:
             gain_pct="gain_pct",
             mae_pct="mae_pct",
             mfe_pct="mfe_pct",
+            mae_time="mae_time",
+            mfe_time="mfe_time",
         )
 
         # Initial params: 0% efficiency (so adjusted = original gains)
