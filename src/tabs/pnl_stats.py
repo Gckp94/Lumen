@@ -1243,6 +1243,47 @@ class PnLStatsTab(QWidget):
             self._app_state.filtered_metrics,
         )
 
+        # Calculate and store scenario results (golden statistics)
+        scenario_start = time.perf_counter()
+
+        # Only calculate scenarios if we have the required columns
+        if column_mapping.mae_pct and column_mapping.mae_pct in filtered_df.columns:
+            self._app_state.stop_scenarios = self._metrics_calculator.calculate_stop_scenarios(
+                df=filtered_df,
+                mapping=column_mapping,
+                adjustment_params=adjustment_params,
+                start_capital=metrics_inputs.starting_capital if metrics_inputs else None,
+                fractional_kelly_pct=fractional_kelly_pct,
+            )
+        else:
+            self._app_state.stop_scenarios = []
+
+        if (column_mapping.mae_pct and column_mapping.mfe_pct and
+            column_mapping.mae_pct in filtered_df.columns and
+            column_mapping.mfe_pct in filtered_df.columns):
+            self._app_state.offset_scenarios = self._metrics_calculator.calculate_offset_scenarios(
+                df=filtered_df,
+                mapping=column_mapping,
+                adjustment_params=adjustment_params,
+                start_capital=metrics_inputs.starting_capital if metrics_inputs else None,
+                fractional_kelly_pct=fractional_kelly_pct,
+            )
+        else:
+            self._app_state.offset_scenarios = []
+
+        scenario_elapsed = (time.perf_counter() - scenario_start) * 1000
+        logger.info("Scenarios calculated in %.2fms", scenario_elapsed)
+
+        # Emit unified metrics signal
+        from src.core.models import ComputedMetrics
+        computed = ComputedMetrics(
+            trading_metrics=metrics,
+            stop_scenarios=self._app_state.stop_scenarios,
+            offset_scenarios=self._app_state.offset_scenarios,
+            computation_time_ms=elapsed_ms + scenario_elapsed,
+        )
+        self._app_state.all_metrics_ready.emit(computed)
+
     def _schedule_equity_curve_calculation(self) -> None:
         """Schedule debounced equity curve calculation."""
         self._filtered_equity_debounce_timer.start(Animation.DEBOUNCE_METRICS)

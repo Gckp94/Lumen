@@ -724,3 +724,135 @@ class TestPnLStatsTabDistributionCards:
         assert "Distribution Statistics" in label_texts
 
         tab.cleanup()
+
+
+class TestPnLStatsTabScenarioCalculation:
+    """Tests for scenario calculation and emission in PnLStatsTab."""
+
+    def test_filtered_metrics_populates_scenarios(self, qtbot):
+        """Test that calculating filtered metrics also populates scenario storage."""
+        import pandas as pd
+
+        from src.core.models import ColumnMapping
+        from src.tabs.pnl_stats import PnLStatsTab
+
+        app_state = AppState()
+        tab = PnLStatsTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Set up baseline data with MAE/MFE for scenario calculations
+        app_state.baseline_df = pd.DataFrame({
+            "gain_pct": [5.0, -2.0, 3.0, 4.0, -1.0],
+            "mae_pct": [1.0, 2.0, 1.5, 1.0, 0.5],
+            "mfe_pct": [6.0, 1.0, 4.0, 5.0, 0.5],
+            "trigger_number": [1, 1, 1, 1, 1],
+            "date": ["2024-01-01"] * 5,
+            "time": ["09:30:00"] * 5,
+        })
+        app_state.column_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+            win_loss_derived=True,
+        )
+
+        # Trigger filtered data update
+        filtered_df = app_state.baseline_df.copy()
+        tab._on_filtered_data_updated(filtered_df)
+
+        # Verify scenarios were stored
+        assert app_state.stop_scenarios is not None
+        assert app_state.offset_scenarios is not None
+        assert len(app_state.stop_scenarios) > 0
+
+        tab.cleanup()
+
+    def test_filtered_metrics_emits_all_metrics_ready(self, qtbot):
+        """Test that calculating filtered metrics emits all_metrics_ready signal."""
+        import pandas as pd
+
+        from src.core.models import ColumnMapping, ComputedMetrics
+        from src.tabs.pnl_stats import PnLStatsTab
+
+        app_state = AppState()
+        tab = PnLStatsTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Set up baseline data
+        app_state.baseline_df = pd.DataFrame({
+            "gain_pct": [5.0, -2.0, 3.0, 4.0, -1.0],
+            "mae_pct": [1.0, 2.0, 1.5, 1.0, 0.5],
+            "mfe_pct": [6.0, 1.0, 4.0, 5.0, 0.5],
+            "trigger_number": [1, 1, 1, 1, 1],
+            "date": ["2024-01-01"] * 5,
+            "time": ["09:30:00"] * 5,
+        })
+        app_state.column_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+            win_loss_derived=True,
+        )
+
+        # Track signal emission
+        received_metrics = []
+        app_state.all_metrics_ready.connect(lambda m: received_metrics.append(m))
+
+        # Trigger filtered data update
+        filtered_df = app_state.baseline_df.copy()
+        tab._on_filtered_data_updated(filtered_df)
+
+        # Verify signal was emitted with ComputedMetrics
+        assert len(received_metrics) == 1
+        computed = received_metrics[0]
+        assert isinstance(computed, ComputedMetrics)
+        assert computed.trading_metrics is not None
+        assert isinstance(computed.stop_scenarios, list)
+        assert isinstance(computed.offset_scenarios, list)
+        assert computed.computation_time_ms > 0
+
+        tab.cleanup()
+
+    def test_scenarios_empty_without_mae_column(self, qtbot):
+        """Test that scenarios are empty lists when MAE column is not available."""
+        import pandas as pd
+
+        from src.core.models import ColumnMapping
+        from src.tabs.pnl_stats import PnLStatsTab
+
+        app_state = AppState()
+        tab = PnLStatsTab(app_state)
+        qtbot.addWidget(tab)
+
+        # Set up baseline data WITHOUT mae_pct column
+        app_state.baseline_df = pd.DataFrame({
+            "gain_pct": [5.0, -2.0, 3.0, 4.0, -1.0],
+            "trigger_number": [1, 1, 1, 1, 1],
+            "date": ["2024-01-01"] * 5,
+            "time": ["09:30:00"] * 5,
+        })
+        app_state.column_mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct=None,  # No MAE column
+            mfe_pct=None,  # No MFE column
+            win_loss_derived=True,
+        )
+
+        # Trigger filtered data update
+        filtered_df = app_state.baseline_df.copy()
+        tab._on_filtered_data_updated(filtered_df)
+
+        # Scenarios should be empty lists (not None)
+        assert app_state.stop_scenarios == []
+        assert app_state.offset_scenarios == []
+
+        tab.cleanup()
