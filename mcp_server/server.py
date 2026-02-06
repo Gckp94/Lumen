@@ -35,6 +35,16 @@ from core.portfolio_metrics_calculator import (  # noqa: E402
     PortfolioMetrics,
     PortfolioMetricsCalculator,
 )
+from core.statistics import (  # noqa: E402
+    calculate_mae_before_win,
+    calculate_mfe_before_loss,
+    calculate_stop_loss_table,
+    calculate_offset_table,
+    calculate_scaling_table,
+    calculate_partial_cover_table,
+    calculate_profit_chance_table,
+    calculate_loss_chance_table,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -391,6 +401,54 @@ class GetPortfolioStatsInput(BaseModel):
     start_capital: float = Field(
         default=10000.0,
         description="Starting capital for equity curve and portfolio metrics calculation.",
+    )
+
+
+class GetStatisticsInput(BaseModel):
+    """Input for retrieving Statistics tab tables."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    alias: str = Field(..., description="Alias of the loaded dataset.")
+    tables: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "List of table names to retrieve. If None, returns all tables. "
+            "Options: 'mae_before_win', 'mfe_before_loss', 'stop_loss', 'offset', "
+            "'scaling', 'cover', 'profit_chance', 'loss_chance'"
+        ),
+    )
+    filters: Optional[list[dict[str, Any]]] = Field(
+        default=None,
+        description="Optional list of filter dicts to narrow the data.",
+    )
+    first_trigger_only: bool = Field(
+        default=False,
+        description="If True, keep only trigger_number == 1 rows.",
+    )
+    stop_loss_pct: float = Field(
+        default=8.0,
+        description="Stop loss percentage for calculations (e.g., 8 for 8%).",
+    )
+    efficiency_pct: float = Field(
+        default=5.0,
+        description="Efficiency/slippage percentage (e.g., 5 for 5%).",
+    )
+    scale_out_pct: float = Field(
+        default=50.0,
+        description="Scale out percentage for scaling table (0-100).",
+    )
+    cover_pct: float = Field(
+        default=50.0,
+        description="Cover percentage for cover table (0-100).",
+    )
+    start_capital: Optional[float] = Field(
+        default=None,
+        description="Starting capital for Kelly calculations. If None, Kelly columns will be None.",
+    )
+    fractional_kelly_pct: float = Field(
+        default=25.0,
+        description="Fractional Kelly percentage (e.g., 25 = 25%).",
     )
 
 
@@ -983,6 +1041,193 @@ async def lumen_get_portfolio_stats(params: GetPortfolioStatsInput) -> str:
         }
     except Exception as e:
         return f"Error computing portfolio stats: {type(e).__name__}: {e}"
+
+    return _truncate(json.dumps(result, indent=2, default=str))
+
+
+@mcp.tool(
+    name="lumen_get_statistics",
+    annotations={
+        "title": "Get Statistics Tables",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def lumen_get_statistics(params: GetStatisticsInput) -> str:
+    """Get Statistics tab tables for a loaded dataset.
+
+    Available tables:
+    - mae_before_win: MAE probabilities for winning trades by gain bucket
+    - mfe_before_loss: MFE probabilities for losing trades by loss bucket
+    - stop_loss: Simulated stop loss levels with performance metrics
+    - offset: Entry offset simulation with recalculated MAE/MFE
+    - scaling: Blended partial-profit vs full hold comparison
+    - cover: Blended partial-cover vs full hold comparison
+    - profit_chance: Profit chance metrics for trades reaching MFE thresholds
+    - loss_chance: Loss chance metrics for trades reaching MAE thresholds
+
+    Args:
+        params (GetStatisticsInput): Validated input containing:
+            - alias (str): Dataset alias
+            - tables (Optional[list]): Table names to retrieve (None = all)
+            - filters (Optional[list]): Filter dicts to narrow the data
+            - first_trigger_only (bool): Keep only trigger_number == 1
+            - stop_loss_pct (float): Stop loss percentage
+            - efficiency_pct (float): Efficiency percentage
+            - scale_out_pct (float): Scale out percentage (0-100)
+            - cover_pct (float): Cover percentage (0-100)
+            - start_capital (Optional[float]): Starting capital for Kelly
+            - fractional_kelly_pct (float): Fractional Kelly percentage
+
+    Returns:
+        str: JSON with requested statistics tables as DataFrames converted to records.
+    """
+    try:
+        ds = _get_dataset(params.alias)
+    except ValueError as e:
+        return f"Error: {e}"
+
+    df = ds.df.copy()
+    mapping = ds.mapping
+    filter_summary: list[str] = []
+
+    # Check required columns
+    if not mapping.gain_pct:
+        return json.dumps({"error": "No gain_pct column mapped."})
+    if not mapping.mae_pct:
+        return json.dumps({"error": "No mae_pct column mapped. Required for statistics tables."})
+
+    # Apply first-trigger filter
+    if params.first_trigger_only:
+        trig_col = None
+        for alias_name in _COLUMN_ALIASES.get("trigger_number", []):
+            lower_cols = {c.lower(): c for c in df.columns}
+            if alias_name in lower_cols:
+                trig_col = lower_cols[alias_name]
+                break
+        if trig_col:
+            df = df[df[trig_col] == 1].reset_index(drop=True)
+            filter_summary.append("first_trigger_only=True")
+
+    # Apply user filters
+    if params.filters:
+        try:
+            df = _apply_filters(df, params.filters)
+            filter_summary.append(f"{len(params.filters)} filter(s) applied")
+        except Exception as e:
+            return f"Error applying filters: {e}"
+
+    if len(df) == 0:
+        return json.dumps({
+            "error": "No rows remain after filtering.",
+            "filters_applied": filter_summary,
+        }, indent=2)
+
+    # Build adjustment params
+    adjustment_params = AdjustmentParams(
+        stop_loss=params.stop_loss_pct,
+        efficiency=params.efficiency_pct,
+    )
+
+    # Pre-compute adjusted gains (used by several tables)
+    df["adjusted_gain_pct"] = adjustment_params.calculate_adjusted_gains(
+        df, mapping.gain_pct, mapping.mae_pct
+    )
+
+    # Define all available tables
+    all_tables = [
+        "mae_before_win", "mfe_before_loss", "stop_loss", "offset",
+        "scaling", "cover", "profit_chance", "loss_chance"
+    ]
+
+    # Determine which tables to compute
+    requested_tables = params.tables if params.tables else all_tables
+    invalid_tables = [t for t in requested_tables if t not in all_tables]
+    if invalid_tables:
+        return json.dumps({
+            "error": f"Invalid table names: {invalid_tables}",
+            "available_tables": all_tables,
+        }, indent=2)
+
+    result: dict[str, Any] = {
+        "alias": params.alias,
+        "trades_analyzed": len(df),
+        "filters_applied": filter_summary,
+        "parameters": {
+            "stop_loss_pct": params.stop_loss_pct,
+            "efficiency_pct": params.efficiency_pct,
+            "scale_out_pct": params.scale_out_pct,
+            "cover_pct": params.cover_pct,
+            "start_capital": params.start_capital,
+            "fractional_kelly_pct": params.fractional_kelly_pct,
+        },
+        "tables": {},
+    }
+
+    try:
+        if "mae_before_win" in requested_tables:
+            table_df = calculate_mae_before_win(df, mapping)
+            result["tables"]["mae_before_win"] = table_df.to_dict(orient="records")
+
+        if "mfe_before_loss" in requested_tables:
+            if mapping.mfe_pct:
+                table_df = calculate_mfe_before_loss(df, mapping)
+                result["tables"]["mfe_before_loss"] = table_df.to_dict(orient="records")
+            else:
+                result["tables"]["mfe_before_loss"] = {"error": "No mfe_pct column mapped."}
+
+        if "stop_loss" in requested_tables:
+            table_df = calculate_stop_loss_table(
+                df, mapping, adjustment_params,
+                start_capital=params.start_capital,
+                fractional_kelly_pct=params.fractional_kelly_pct,
+            )
+            result["tables"]["stop_loss"] = table_df.to_dict(orient="records")
+
+        if "offset" in requested_tables:
+            if mapping.mfe_pct:
+                table_df = calculate_offset_table(
+                    df, mapping, adjustment_params,
+                    start_capital=params.start_capital,
+                    fractional_kelly_pct=params.fractional_kelly_pct,
+                )
+                result["tables"]["offset"] = table_df.to_dict(orient="records")
+            else:
+                result["tables"]["offset"] = {"error": "No mfe_pct column mapped."}
+
+        if "scaling" in requested_tables:
+            if mapping.mfe_pct:
+                scale_fraction = params.scale_out_pct / 100.0
+                table_df = calculate_scaling_table(
+                    df, mapping, scale_fraction, adjustment_params
+                )
+                result["tables"]["scaling"] = table_df.to_dict(orient="records")
+            else:
+                result["tables"]["scaling"] = {"error": "No mfe_pct column mapped."}
+
+        if "cover" in requested_tables:
+            cover_fraction = params.cover_pct / 100.0
+            table_df = calculate_partial_cover_table(df, mapping, cover_fraction)
+            result["tables"]["cover"] = table_df.to_dict(orient="records")
+
+        if "profit_chance" in requested_tables:
+            if mapping.mfe_pct:
+                table_df = calculate_profit_chance_table(df, mapping, adjustment_params)
+                result["tables"]["profit_chance"] = table_df.to_dict(orient="records")
+            else:
+                result["tables"]["profit_chance"] = {"error": "No mfe_pct column mapped."}
+
+        if "loss_chance" in requested_tables:
+            if mapping.mfe_pct:
+                table_df = calculate_loss_chance_table(df, mapping, adjustment_params)
+                result["tables"]["loss_chance"] = table_df.to_dict(orient="records")
+            else:
+                result["tables"]["loss_chance"] = {"error": "No mfe_pct column mapped."}
+
+    except Exception as e:
+        return f"Error computing statistics: {type(e).__name__}: {e}"
 
     return _truncate(json.dumps(result, indent=2, default=str))
 
