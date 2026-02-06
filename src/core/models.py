@@ -36,6 +36,16 @@ class ColumnMapping:
     win_loss: str | None = None
     mae_time: str | None = None
     mfe_time: str | None = None
+    # Time interval price columns (optional)
+    price_10_min_after: str | None = None
+    price_20_min_after: str | None = None
+    price_30_min_after: str | None = None
+    price_60_min_after: str | None = None
+    price_90_min_after: str | None = None
+    price_120_min_after: str | None = None
+    price_150_min_after: str | None = None
+    price_180_min_after: str | None = None
+    price_240_min_after: str | None = None
     win_loss_derived: bool = False
     breakeven_is_win: bool = False
 

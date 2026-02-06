@@ -146,6 +146,22 @@ class TestColumnMapping:
         assert mapping.mae_time == "MAE_Time"
         assert mapping.mfe_time == "MFE_Time"
 
+    def test_column_mapping_has_time_interval_fields(self) -> None:
+        """Test ColumnMapping has optional time interval price fields."""
+        mapping = ColumnMapping(
+            ticker="ticker",
+            date="date",
+            time="time",
+            gain_pct="gain_pct",
+            mae_pct="mae_pct",
+            mfe_pct="mfe_pct",
+            price_10_min_after="price_10m",
+            price_30_min_after="price_30m",
+        )
+        assert mapping.price_10_min_after == "price_10m"
+        assert mapping.price_30_min_after == "price_30m"
+        assert mapping.price_20_min_after is None  # Not set
+
 
 class TestDetectionResult:
     """Tests for DetectionResult dataclass."""
