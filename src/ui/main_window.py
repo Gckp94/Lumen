@@ -14,6 +14,7 @@ from src.tabs.chart_viewer import ChartViewerTab
 from src.tabs.data_binning import DataBinningTab
 from src.tabs.data_input import DataInputTab
 from src.tabs.feature_explorer import FeatureExplorerTab
+from src.tabs.feature_impact import FeatureImpactTab
 from src.tabs.feature_insights import FeatureInsightsTab
 from src.tabs.monte_carlo import MonteCarloTab
 from src.tabs.parameter_sensitivity import ParameterSensitivityTab
@@ -80,6 +81,7 @@ class MainWindow(QMainWindow):
             ("Monte Carlo", MonteCarloTab(self._app_state)),
             ("Parameter Sensitivity", ParameterSensitivityTab(self._app_state)),
             ("Feature Insights", FeatureInsightsTab(self._app_state)),
+            ("Feature Impact", FeatureImpactTab(self._app_state)),
             ("Portfolio Overview", portfolio_overview),
             ("Portfolio Breakdown", portfolio_breakdown),
             ("Portfolio Metrics", portfolio_metrics),
