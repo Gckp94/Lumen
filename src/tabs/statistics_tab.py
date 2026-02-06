@@ -325,6 +325,10 @@ class StatisticsTab(QWidget):
         self._profit_loss_chance_widget = self._create_profit_loss_chance_widget()
         self._tab_widget.addTab(self._profit_loss_chance_widget, "Profit/Loss Chance")
 
+        # Time Stop tab
+        self._time_stop_widget = self._create_time_stop_widget()
+        self._tab_widget.addTab(self._time_stop_widget, "Time Stop")
+
         # Add both widgets to layout
         layout.addWidget(self._empty_label)
         layout.addWidget(self._tab_widget)
@@ -717,6 +721,139 @@ class StatisticsTab(QWidget):
         layout.addWidget(self._loss_chance_table, 1)
 
         return widget
+
+    def _create_time_stop_widget(self) -> QWidget:
+        """Create Time Stop sub-tab with scale spinbox and two tables."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        layout.setSpacing(Spacing.MD)
+
+        # Scale Out control row
+        scale_out_row = QHBoxLayout()
+        scale_out_row.setSpacing(Spacing.SM)
+
+        scale_out_label = QLabel("Scale Out:")
+        scale_out_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 13px;
+            }}
+        """
+        )
+        scale_out_row.addWidget(scale_out_label)
+
+        self._time_stop_scale_spin = QSpinBox()
+        self._time_stop_scale_spin.setRange(0, 100)
+        self._time_stop_scale_spin.setValue(50)
+        self._time_stop_scale_spin.setSingleStep(10)
+        self._time_stop_scale_spin.setSuffix("%")
+        self._time_stop_scale_spin.setStyleSheet(
+            f"""
+            QSpinBox {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.DATA}';
+                padding: 6px 12px;
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+            }}
+            QSpinBox:focus {{
+                border-color: {Colors.SIGNAL_CYAN};
+            }}
+        """
+        )
+        scale_out_row.addWidget(self._time_stop_scale_spin)
+
+        # Export button for time stop tables
+        self._time_stop_export_btn = QPushButton("Export")
+        self._time_stop_export_btn.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                padding: 6px 12px;
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: {Colors.BG_BORDER};
+            }}
+            QPushButton:pressed {{
+                background-color: {Colors.BG_SURFACE};
+            }}
+        """
+        )
+        self._time_stop_export_btn.clicked.connect(self._on_time_stop_export_clicked)
+        scale_out_row.addWidget(self._time_stop_export_btn)
+
+        scale_out_row.addStretch()
+
+        layout.addLayout(scale_out_row)
+
+        # Time Statistics section label
+        time_stats_label = QLabel("Time Statistics")
+        time_stats_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """
+        )
+        layout.addWidget(time_stats_label)
+
+        # Time Statistics table
+        self._time_stats_table = self._create_table()
+        layout.addWidget(self._time_stats_table, 1)
+
+        # Spacer
+        layout.addSpacing(Spacing.LG)
+
+        # Time Stop section label
+        time_stop_label = QLabel("Time Stop")
+        time_stop_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """
+        )
+        layout.addWidget(time_stop_label)
+
+        # Time Stop table
+        self._time_stop_table = self._create_table()
+        layout.addWidget(self._time_stop_table, 1)
+
+        # Message label for when no time columns are mapped
+        self._time_stop_timing_msg = QLabel("Time column mapping is required")
+        self._time_stop_timing_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._time_stop_timing_msg.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_SECONDARY};
+                font-family: '{Fonts.UI}';
+                font-size: 14px;
+                padding: 40px;
+            }}
+        """
+        )
+        self._time_stop_timing_msg.hide()
+        layout.addWidget(self._time_stop_timing_msg)
+
+        return widget
+
+    def _on_time_stop_export_clicked(self) -> None:
+        """Export Time Stop tables to CSV."""
+        pass  # Will be implemented in Task 8
 
     def _connect_signals(self) -> None:
         """Connect app state signals."""

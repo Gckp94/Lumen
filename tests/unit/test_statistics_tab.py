@@ -29,18 +29,35 @@ class TestStatisticsTab:
         tab = StatisticsTab(app_state)
         assert tab is not None
 
-    def test_has_4_subtabs(self, app):
-        """Test that StatisticsTab has 4 sub-tabs."""
+    def test_has_5_subtabs(self, app):
+        """Test that StatisticsTab has 5 sub-tabs."""
         app_state = AppState()
         tab = StatisticsTab(app_state)
-        assert tab._tab_widget.count() == 4
+        assert tab._tab_widget.count() == 5
 
     def test_subtab_names(self, app):
         """Test correct sub-tab names."""
         app_state = AppState()
         tab = StatisticsTab(app_state)
-        names = [tab._tab_widget.tabText(i) for i in range(4)]
-        assert names == ["MAE/MFE", "Stop Loss/Offset", "Scaling", "Profit/Loss Chance"]
+        names = [tab._tab_widget.tabText(i) for i in range(5)]
+        assert names == ["MAE/MFE", "Stop Loss/Offset", "Scaling", "Profit/Loss Chance", "Time Stop"]
+
+    def test_time_stop_tab_has_required_widgets(self, app):
+        """Test that Time Stop tab has scale spinbox and tables."""
+        app_state = AppState()
+        tab = StatisticsTab(app_state)
+
+        # Find Time Stop tab index
+        time_stop_idx = None
+        for i in range(tab._tab_widget.count()):
+            if tab._tab_widget.tabText(i) == "Time Stop":
+                time_stop_idx = i
+                break
+
+        assert time_stop_idx is not None, "Time Stop tab not found"
+        assert hasattr(tab, "_time_stop_scale_spin")
+        assert hasattr(tab, "_time_stats_table")
+        assert hasattr(tab, "_time_stop_table")
 
     def test_tables_are_tablewidgets(self, app):
         """Test that all sub-tabs contain QTableWidgets (directly or nested)."""
