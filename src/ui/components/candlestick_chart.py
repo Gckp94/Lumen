@@ -462,6 +462,19 @@ class CandlestickChart(QWidget):
         self._plot_widget.addItem(self._crosshair_v, ignoreBounds=True)
         self._plot_widget.addItem(self._crosshair_h, ignoreBounds=True)
 
+        # Floating price label on Y-axis (follows horizontal crosshair)
+        self._price_label = pg.TextItem(
+            text="",
+            color=Colors.TEXT_PRIMARY,
+            anchor=(1, 0.5),  # Right-center anchor (positions on right edge of plot)
+            fill=pg.mkBrush(Colors.BG_ELEVATED + "EE"),
+            border=pg.mkPen(Colors.BG_BORDER),
+        )
+        self._price_label.setFont(QFont(Fonts.DATA, 9))
+        self._price_label.setZValue(1002)  # Above other overlays
+        self._price_label.setVisible(False)
+        self._plot_widget.addItem(self._price_label, ignoreBounds=True)
+
         # Connect mouse move signal
         self._mouse_proxy = pg.SignalProxy(
             self._plot_widget.scene().sigMouseMoved,

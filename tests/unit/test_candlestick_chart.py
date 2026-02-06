@@ -882,6 +882,23 @@ class TestCandlestickChartRuler:
         assert "10.00" in text
 
 
+class TestCrosshairLabels:
+    """Tests for floating crosshair price/time labels."""
+
+    def test_price_label_exists(self, qtbot):
+        """Price label TextItem should exist after initialization."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+        assert hasattr(chart, "_price_label")
+        assert chart._price_label is not None
+
+    def test_price_label_initially_hidden(self, qtbot):
+        """Price label should be hidden initially."""
+        chart = CandlestickChart()
+        qtbot.addWidget(chart)
+        assert not chart._price_label.isVisible()
+
+
 class TestCandlestickChartInteractiveFeatures:
     """Integration tests for grid + info box + ruler coexistence."""
 
