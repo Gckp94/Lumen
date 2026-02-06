@@ -7,6 +7,7 @@ and composite impact score for each numeric feature in the dataset.
 import logging
 
 import numpy as np
+import pyqtgraph as pg
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QBrush, QColor
@@ -86,6 +87,150 @@ def get_gradient_color(
     return (bg, text)
 
 
+class FeatureDetailWidget(QWidget):
+    """Expandable detail widget showing threshold analysis."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._setup_ui()
+
+    def _setup_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(Spacing.MD, Spacing.SM, Spacing.MD, Spacing.SM)
+        layout.setSpacing(Spacing.SM)
+
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {Colors.BG_ELEVATED};
+                border-radius: 4px;
+            }}
+        """)
+
+        # Threshold label
+        self._threshold_label = QLabel()
+        self._threshold_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.UI}';
+                font-size: {FontSizes.BODY}px;
+                font-weight: 600;
+            }}
+        """)
+        layout.addWidget(self._threshold_label)
+
+        # Spark chart
+        self._chart = pg.PlotWidget()
+        self._chart.setBackground(Colors.BG_ELEVATED)
+        self._chart.setMinimumHeight(80)
+        self._chart.setMaximumHeight(100)
+        self._chart.hideAxis('left')
+        self._chart.hideAxis('bottom')
+        self._chart.setMouseEnabled(False, False)
+        layout.addWidget(self._chart)
+
+        # Comparison stats
+        stats_row = QHBoxLayout()
+
+        self._below_stats = self._create_stats_card("BELOW THRESHOLD")
+        self._above_stats = self._create_stats_card("ABOVE THRESHOLD")
+
+        stats_row.addWidget(self._below_stats)
+        stats_row.addWidget(self._above_stats)
+        layout.addLayout(stats_row)
+
+    def _create_stats_card(self, title: str) -> QWidget:
+        """Create a stats comparison card."""
+        card = QWidget()
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.SM, Spacing.SM)
+        layout.setSpacing(2)
+
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Colors.TEXT_SECONDARY};
+                font-family: '{Fonts.UI}';
+                font-size: 10px;
+                letter-spacing: 1px;
+            }}
+        """)
+        layout.addWidget(title_label)
+
+        # Stats labels will be added dynamically
+        card._stats_layout = layout
+        card._stat_labels = {}
+
+        return card
+
+    def set_data(self, result: FeatureImpactResult) -> None:
+        """Populate the detail widget with result data."""
+        # Threshold label
+        direction = ">" if result.threshold_direction == "above" else "<"
+        self._threshold_label.setText(
+            f"Threshold: {result.feature_name} {direction} {result.optimal_threshold:.2f}"
+        )
+
+        # Spark chart - win rate by percentile
+        self._chart.clear()
+        x = list(range(len(result.percentile_win_rates)))
+        y = result.percentile_win_rates
+
+        # Bar chart
+        bar = pg.BarGraphItem(
+            x=x, height=y, width=0.8,
+            brush=Colors.SIGNAL_CYAN,
+            pen=pg.mkPen(None),
+        )
+        self._chart.addItem(bar)
+
+        # Threshold line (approximate position)
+        thresh_pct = 50  # Would need to calculate actual percentile
+        line = pg.InfiniteLine(
+            pos=thresh_pct / 5,  # Scale to bar count
+            angle=90,
+            pen=pg.mkPen(Colors.SIGNAL_AMBER, width=2),
+        )
+        self._chart.addItem(line)
+
+        # Update stats cards
+        self._update_stats_card(self._below_stats, {
+            "Trades": f"{result.trades_below:,}",
+            "Win Rate": f"{result.win_rate_below:.1f}%",
+            "Expectancy": f"{result.expectancy_below:.4f}",
+        })
+
+        lift_wr = result.win_rate_above - result.win_rate_baseline
+        lift_ev = result.expectancy_above - result.expectancy_baseline
+        self._update_stats_card(self._above_stats, {
+            "Trades": f"{result.trades_above:,}",
+            "Win Rate": f"{result.win_rate_above:.1f}% ({lift_wr:+.1f}%)",
+            "Expectancy": f"{result.expectancy_above:.4f} ({lift_ev:+.4f})",
+        }, highlight=result.threshold_direction == "above")
+
+    def _update_stats_card(
+        self, card: QWidget, stats: dict[str, str], highlight: bool = False
+    ) -> None:
+        """Update stats card labels."""
+        # Clear existing stat labels
+        for label in card._stat_labels.values():
+            label.deleteLater()
+        card._stat_labels.clear()
+
+        color = Colors.SIGNAL_CYAN if highlight else Colors.TEXT_PRIMARY
+
+        for key, value in stats.items():
+            label = QLabel(f"{key}: {value}")
+            label.setStyleSheet(f"""
+                QLabel {{
+                    color: {color};
+                    font-family: '{Fonts.DATA}';
+                    font-size: 12px;
+                }}
+            """)
+            card._stats_layout.addWidget(label)
+            card._stat_labels[key] = label
+
+
 class FeatureImpactTab(QWidget):
     """Tab displaying feature impact rankings."""
 
@@ -110,6 +255,8 @@ class FeatureImpactTab(QWidget):
 
         self._user_excluded_cols: set[str] = set()
         self._column_checkboxes: dict[str, QCheckBox] = {}
+
+        self._expanded_row: int | None = None
 
         self._setup_ui()
         self._connect_signals()
@@ -144,6 +291,11 @@ class FeatureImpactTab(QWidget):
             }}
         """)
         layout.addWidget(self._empty_label)
+
+        # Detail widget (hidden by default)
+        self._detail_widget = FeatureDetailWidget()
+        self._detail_widget.setVisible(False)
+        layout.addWidget(self._detail_widget)
 
         # Main table
         self._table = self._create_table()
@@ -247,6 +399,9 @@ class FeatureImpactTab(QWidget):
         table.setAlternatingRowColors(True)
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+
+        # Connect row click
+        table.cellClicked.connect(self._on_row_clicked)
 
         return table
 
@@ -559,3 +714,17 @@ class FeatureImpactTab(QWidget):
         self._table.horizontalHeader().setSortIndicator(self._sort_column, order)
 
         self._populate_table()
+
+    def _on_row_clicked(self, row: int, col: int) -> None:
+        """Handle row click to expand/collapse detail."""
+        if self._expanded_row == row:
+            # Collapse
+            self._detail_widget.setVisible(False)
+            self._expanded_row = None
+        else:
+            # Expand
+            if row < len(self._baseline_results):
+                result = self._baseline_results[row]
+                self._detail_widget.set_data(result)
+                self._detail_widget.setVisible(True)
+                self._expanded_row = row

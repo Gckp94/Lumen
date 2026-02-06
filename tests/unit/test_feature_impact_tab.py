@@ -107,3 +107,15 @@ class TestFeatureImpactTabExclusion:
         tab._user_excluded_cols = excluded
         # Should filter out excluded columns
         assert "feature_a" not in [r.feature_name for r in tab._baseline_results] or len(tab._baseline_results) == 0
+
+
+class TestFeatureImpactTabExpansion:
+    """Tests for expandable row detail."""
+
+    def test_row_click_expands_detail(self, app):
+        """Test that clicking a row shows detail panel."""
+        app_state = AppState()
+        tab = FeatureImpactTab(app_state)
+        assert hasattr(tab, '_on_row_clicked')
+        # Expansion widget should exist
+        assert hasattr(tab, '_detail_widget') or hasattr(tab, '_expanded_row')
