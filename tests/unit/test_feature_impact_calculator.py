@@ -1,8 +1,14 @@
 # tests/unit/test_feature_impact_calculator.py
 """Tests for feature impact calculator."""
 
+import numpy as np
+import pandas as pd
 import pytest
-from src.core.feature_impact_calculator import FeatureImpactResult
+
+from src.core.feature_impact_calculator import (
+    FeatureImpactCalculator,
+    FeatureImpactResult,
+)
 
 
 class TestFeatureImpactResult:
@@ -32,3 +38,63 @@ class TestFeatureImpactResult:
         assert result.correlation == 0.15
         assert result.win_rate_lift == 12.3
         assert result.expectancy_lift == 0.45
+
+
+class TestFeatureImpactCalculator:
+    """Tests for FeatureImpactCalculator."""
+
+    @pytest.fixture
+    def sample_df(self) -> pd.DataFrame:
+        """Create sample trade data with clear feature-outcome relationship."""
+        np.random.seed(42)
+        n = 100
+        # Feature where higher values correlate with wins
+        feature_vals = np.random.uniform(0, 10, n)
+        # Trades with feature > 5 have 80% win rate, below have 40% win rate
+        gains = []
+        for f in feature_vals:
+            if f > 5:
+                gains.append(np.random.choice([0.05, -0.02], p=[0.8, 0.2]))
+            else:
+                gains.append(np.random.choice([0.05, -0.02], p=[0.4, 0.6]))
+        return pd.DataFrame({
+            "feature_a": feature_vals,
+            "gain_pct": gains,
+        })
+
+    def test_calculate_single_feature(self, sample_df: pd.DataFrame):
+        """Test calculating impact for a single feature."""
+        calculator = FeatureImpactCalculator()
+        result = calculator.calculate_single_feature(
+            df=sample_df,
+            feature_col="feature_a",
+            gain_col="gain_pct",
+        )
+        assert isinstance(result, FeatureImpactResult)
+        assert result.feature_name == "feature_a"
+        # Threshold should be around 5 (where win rate changes)
+        assert 4.0 < result.optimal_threshold < 6.0
+        # Win rate lift should be positive (above is better)
+        assert result.win_rate_lift > 0
+        assert result.threshold_direction == "above"
+
+    def test_calculate_single_feature_negative_correlation(self):
+        """Test feature where lower values are better."""
+        np.random.seed(42)
+        n = 100
+        feature_vals = np.random.uniform(0, 10, n)
+        # Lower feature values = higher win rate
+        gains = []
+        for f in feature_vals:
+            if f < 5:
+                gains.append(np.random.choice([0.05, -0.02], p=[0.8, 0.2]))
+            else:
+                gains.append(np.random.choice([0.05, -0.02], p=[0.4, 0.6]))
+        df = pd.DataFrame({"feature_b": feature_vals, "gain_pct": gains})
+
+        calculator = FeatureImpactCalculator()
+        result = calculator.calculate_single_feature(
+            df=df, feature_col="feature_b", gain_col="gain_pct"
+        )
+        assert result.threshold_direction == "below"
+        assert result.win_rate_lift > 0
