@@ -852,8 +852,36 @@ class StatisticsTab(QWidget):
         return widget
 
     def _on_time_stop_export_clicked(self) -> None:
-        """Export Time Stop tables to CSV."""
-        pass  # Will be implemented in Task 8
+        """Export Time Statistics and Time Stop tables to CSV."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_name = f"time_stop_export_{timestamp}.csv"
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export Time Stop Tables", default_name, "CSV Files (*.csv)"
+        )
+
+        if not file_path:
+            return
+
+        try:
+            stats_df = self._table_to_dataframe(self._time_stats_table)
+            stop_df = self._table_to_dataframe(self._time_stop_table)
+
+            scale_out = self._time_stop_scale_spin.value()
+
+            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+                f.write("# Time Statistics\n")
+                if stats_df is not None:
+                    stats_df.to_csv(f, index=False)
+                f.write(f"\n# Time Stop (Scale Out: {scale_out}%)\n")
+                if stop_df is not None:
+                    stop_df.to_csv(f, index=False)
+
+            Toast.display(self, f"Exported to {Path(file_path).name}", "success")
+
+        except Exception as e:
+            logger.error(f"Time Stop export failed: {e}")
+            Toast.display(self, f"Export failed: {e}", "error")
 
     def _connect_signals(self) -> None:
         """Connect app state signals."""
