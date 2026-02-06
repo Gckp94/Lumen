@@ -77,14 +77,22 @@ class FlowLayout(QLayout):
         For height-for-width layouts in scroll areas, we need to report
         a height that accounts for wrapping at the current width.
         """
-        # Get the parent widget's width if available
+        # Get the current geometry width if already laid out
+        current_width = self.geometry().width()
+        if current_width > 0:
+            height = self.heightForWidth(current_width)
+            min_size = self.minimumSize()
+            return QSize(min_size.width(), max(height, min_size.height()))
+
+        # Fall back to parent widget's width if available
         parent = self.parentWidget()
         if parent is not None:
             width = parent.width()
             if width > 0:
                 height = self.heightForWidth(width)
                 min_size = self.minimumSize()
-                return QSize(min_size.width(), height)
+                return QSize(min_size.width(), max(height, min_size.height()))
+
         return self.minimumSize()
 
     def minimumSize(self) -> QSize:
