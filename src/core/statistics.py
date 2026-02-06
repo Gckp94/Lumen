@@ -836,6 +836,91 @@ PROFIT_LOSS_BUCKETS = [5, 10, 15, 20, 25, 30, 35, 40]
 TIME_STOP_INTERVALS = [10, 20, 30, 60, 90, 120, 150, 180, 240]
 
 
+def calculate_time_statistics_table(
+    df: pd.DataFrame,
+    mapping: "ColumnMapping",
+) -> pd.DataFrame:
+    """Calculate Time Statistics table showing gain/loss stats at each interval.
+
+    Args:
+        df: Trade data with change_X_min and adjusted_gain_pct columns.
+        mapping: Column mapping with price_X_min_after fields.
+
+    Returns:
+        DataFrame with rows for each mapped time interval.
+    """
+    rows = []
+
+    # Map intervals to their change column names
+    interval_to_mapping = {
+        10: mapping.price_10_min_after,
+        20: mapping.price_20_min_after,
+        30: mapping.price_30_min_after,
+        60: mapping.price_60_min_after,
+        90: mapping.price_90_min_after,
+        120: mapping.price_120_min_after,
+        150: mapping.price_150_min_after,
+        180: mapping.price_180_min_after,
+        240: mapping.price_240_min_after,
+    }
+
+    for interval in TIME_STOP_INTERVALS:
+        if interval_to_mapping.get(interval) is None:
+            continue
+
+        change_col = f"change_{interval}_min"
+        if change_col not in df.columns:
+            continue
+
+        row = _calculate_time_statistics_row(df, change_col, interval)
+        rows.append(row)
+
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+def _calculate_time_statistics_row(
+    df: pd.DataFrame,
+    change_col: str,
+    interval: int,
+) -> dict:
+    """Calculate statistics for a single time interval."""
+    changes = df[change_col]
+    final_gains = df["adjusted_gain_pct"]
+
+    # Split into winners/losers at this time
+    winners_mask = changes > 0
+    losers_mask = changes <= 0
+
+    # Gain/Loss stats (convert to percentage)
+    avg_gain = changes[winners_mask].mean() * 100 if winners_mask.any() else None
+    median_gain = changes[winners_mask].median() * 100 if winners_mask.any() else None
+    avg_loss = changes[losers_mask].mean() * 100 if losers_mask.any() else None
+    median_loss = changes[losers_mask].median() * 100 if losers_mask.any() else None
+
+    # Recovery probabilities
+    red_trades = df[losers_mask]
+    green_trades = df[winners_mask]
+
+    prob_profit_red = (
+        (red_trades["adjusted_gain_pct"] > 0).mean() * 100
+        if len(red_trades) > 0 else None
+    )
+    prob_profit_green = (
+        (green_trades["adjusted_gain_pct"] > 0).mean() * 100
+        if len(green_trades) > 0 else None
+    )
+
+    return {
+        "Minutes After Entry": f"{interval} Mins",
+        "Avg. Gain %": avg_gain,
+        "Median Gain %": median_gain,
+        "Avg. Loss %": avg_loss,
+        "Median Loss %": median_loss,
+        "Prob. of Profit (Red) %": prob_profit_red,
+        "Prob. of Profit (Green) %": prob_profit_green,
+    }
+
+
 def calculate_scaling_table(
     df: pd.DataFrame,
     mapping: ColumnMapping,

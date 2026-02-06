@@ -2301,3 +2301,29 @@ def test_time_stop_intervals_constant():
     """Test TIME_STOP_INTERVALS constant exists with expected values."""
     from src.core.statistics import TIME_STOP_INTERVALS
     assert TIME_STOP_INTERVALS == [10, 20, 30, 60, 90, 120, 150, 180, 240]
+
+
+def test_calculate_time_statistics_table():
+    """Test Time Statistics table calculation."""
+    import pandas as pd
+    from src.core.statistics import calculate_time_statistics_table
+    from src.core.models import ColumnMapping
+
+    df = pd.DataFrame({
+        "adjusted_gain_pct": [0.10, -0.05, 0.15, -0.08],
+        "change_10_min": [0.02, -0.01, 0.03, -0.02],
+        "change_30_min": [0.05, -0.02, 0.08, -0.04],
+    })
+
+    mapping = ColumnMapping(
+        ticker="ticker", date="date", time="time",
+        gain_pct="gain_pct", mae_pct="mae_pct", mfe_pct="mfe_pct",
+        price_10_min_after="p10", price_30_min_after="p30",
+    )
+
+    result = calculate_time_statistics_table(df, mapping)
+
+    assert len(result) == 2  # Only 2 intervals mapped
+    assert "Minutes After Entry" in result.columns
+    assert "Avg. Gain %" in result.columns
+    assert "Prob. of Profit (Red) %" in result.columns
