@@ -11,7 +11,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from src.core.models import AdjustmentParams, MetricsUserInputs
 
 if TYPE_CHECKING:
-    from src.core.models import ColumnMapping, FilterCriteria, TradingMetrics
+    from src.core.models import ColumnMapping, FilterCriteria, TradingMetrics, StopScenario, OffsetScenario
     from src.core.monte_carlo import MonteCarloResults
 
 logger = logging.getLogger(__name__)
@@ -70,6 +70,8 @@ class AppState(QObject):
     sensitivity_error = pyqtSignal(str)
     # Chart viewer signal
     view_chart_requested = pyqtSignal(dict)  # trade data dict
+    # Golden statistics signal (unified metrics)
+    all_metrics_ready = pyqtSignal(object)  # ComputedMetrics
 
     def __init__(self) -> None:
         """Initialize AppState with default empty values."""
@@ -95,6 +97,9 @@ class AppState(QObject):
         # Monte Carlo state (Story 7.2)
         self.monte_carlo_results: MonteCarloResults | None = None
         self._monte_carlo_running: bool = False
+        # Scenario results storage (golden statistics)
+        self.stop_scenarios: list[StopScenario] | None = None
+        self.offset_scenarios: list[OffsetScenario] | None = None
 
     @property
     def has_data(self) -> bool:

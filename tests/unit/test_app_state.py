@@ -135,3 +135,31 @@ class TestAppStateSignals:
 
         with qtbot.waitSignal(state.state_recovered, timeout=100):
             state.state_recovered.emit()
+
+    def test_all_metrics_ready_signal_emits(self, qtbot: QtBot) -> None:
+        """all_metrics_ready signal emits correctly."""
+        state = AppState()
+
+        with qtbot.waitSignal(state.all_metrics_ready, timeout=100):
+            state.all_metrics_ready.emit(None)
+
+
+class TestAppStateScenarioStorage:
+    """Tests for AppState scenario storage fields."""
+
+    def test_app_state_has_scenario_storage(self) -> None:
+        """Test AppState has stop_scenarios and offset_scenarios attributes."""
+        state = AppState()
+
+        assert hasattr(state, 'stop_scenarios')
+        assert hasattr(state, 'offset_scenarios')
+        assert state.stop_scenarios is None
+        assert state.offset_scenarios is None
+
+    def test_app_state_has_all_metrics_ready_signal(self) -> None:
+        """Test AppState has all_metrics_ready signal."""
+        state = AppState()
+
+        assert hasattr(state, 'all_metrics_ready')
+        # Verify it's a signal by checking it has emit method
+        assert hasattr(state.all_metrics_ready, 'emit')
