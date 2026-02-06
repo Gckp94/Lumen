@@ -475,6 +475,19 @@ class CandlestickChart(QWidget):
         self._price_label.setVisible(False)
         self._plot_widget.addItem(self._price_label, ignoreBounds=True)
 
+        # Floating time label on X-axis (follows vertical crosshair)
+        self._time_label = pg.TextItem(
+            text="",
+            color=Colors.TEXT_PRIMARY,
+            anchor=(0.5, 0),  # Top-center anchor (positions at bottom of plot)
+            fill=pg.mkBrush(Colors.BG_ELEVATED + "EE"),
+            border=pg.mkPen(Colors.BG_BORDER),
+        )
+        self._time_label.setFont(QFont(Fonts.DATA, 9))
+        self._time_label.setZValue(1002)
+        self._time_label.setVisible(False)
+        self._plot_widget.addItem(self._time_label, ignoreBounds=True)
+
         # Connect mouse move signal
         self._mouse_proxy = pg.SignalProxy(
             self._plot_widget.scene().sigMouseMoved,

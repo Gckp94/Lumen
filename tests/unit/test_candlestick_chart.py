@@ -885,18 +885,30 @@ class TestCandlestickChartRuler:
 class TestCrosshairLabels:
     """Tests for floating crosshair price/time labels."""
 
-    def test_price_label_exists(self, qtbot):
-        """Price label TextItem should exist after initialization."""
+    @pytest.fixture
+    def chart(self, qtbot):
+        """Create a CandlestickChart instance for testing."""
         chart = CandlestickChart()
         qtbot.addWidget(chart)
+        return chart
+
+    def test_price_label_exists(self, chart):
+        """Price label TextItem should exist after initialization."""
         assert hasattr(chart, "_price_label")
         assert chart._price_label is not None
 
-    def test_price_label_initially_hidden(self, qtbot):
+    def test_price_label_initially_hidden(self, chart):
         """Price label should be hidden initially."""
-        chart = CandlestickChart()
-        qtbot.addWidget(chart)
         assert not chart._price_label.isVisible()
+
+    def test_time_label_exists(self, chart):
+        """Time label TextItem should exist after initialization."""
+        assert hasattr(chart, "_time_label")
+        assert chart._time_label is not None
+
+    def test_time_label_initially_hidden(self, chart):
+        """Time label should be hidden initially."""
+        assert not chart._time_label.isVisible()
 
 
 class TestCandlestickChartInteractiveFeatures:
