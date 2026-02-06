@@ -23,6 +23,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from core.breakdown import BreakdownCalculator  # noqa: E402
+from core.equity import EquityCalculator  # noqa: E402
 from core.metrics import MetricsCalculator  # noqa: E402
 from core.models import (
     AdjustmentParams,
@@ -30,6 +31,10 @@ from core.models import (
     FilterCriteria,
     TradingMetrics,
 )  # noqa: E402
+from core.portfolio_metrics_calculator import (  # noqa: E402
+    PortfolioMetrics,
+    PortfolioMetricsCalculator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +160,16 @@ def _metrics_to_dict(metrics: TradingMetrics) -> dict[str, Any]:
     # Drop large list fields to keep output concise
     d.pop("winner_gains", None)
     d.pop("loser_gains", None)
+    return d
+
+
+def _portfolio_metrics_to_dict(metrics: PortfolioMetrics) -> dict[str, Any]:
+    """Convert PortfolioMetrics to a serializable dict."""
+    d = asdict(metrics)
+    # Convert nested PeriodMetrics to dicts
+    for period in ["daily", "weekly", "monthly"]:
+        if d.get(period) is not None:
+            d[period] = asdict(d[period])
     return d
 
 
@@ -352,6 +367,38 @@ class GetBreakdownInput(BaseModel):
     efficiency_pct: Optional[float] = Field(
         default=None,
         description="Efficiency/slippage percentage (e.g., 5 for 5%).",
+    )
+
+
+class GetPortfolioStatsInput(BaseModel):
+    """Input for retrieving portfolio-level statistics."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    alias: str = Field(..., description="Alias of the loaded dataset.")
+    filters: Optional[list[dict[str, Any]]] = Field(
+        default=None,
+        description="Optional list of filter dicts to narrow the data.",
+    )
+    first_trigger_only: bool = Field(
+        default=False,
+        description="If True, keep only trigger_number == 1 rows.",
+    )
+    risk_free_rate: float = Field(
+        default=0.0,
+        description="Annual risk-free rate as decimal (e.g., 0.05 for 5%).",
+    )
+    trading_days_per_year: int = Field(
+        default=252,
+        description="Number of trading days per year for annualization.",
+    )
+    stake: float = Field(
+        default=1000.0,
+        description="Fixed stake amount for equity curve calculation.",
+    )
+    start_capital: float = Field(
+        default=10000.0,
+        description="Starting capital for equity curve calculation.",
     )
 
 
@@ -832,6 +879,121 @@ async def lumen_get_breakdown(params: GetBreakdownInput) -> str:
             return json.dumps({"error": f"Invalid period '{params.period}'. Use 'yearly' or 'monthly'."})
     except Exception as e:
         return f"Error computing breakdown: {type(e).__name__}: {e}"
+
+    return _truncate(json.dumps(result, indent=2, default=str))
+
+
+@mcp.tool(
+    name="lumen_get_portfolio_stats",
+    annotations={
+        "title": "Get Portfolio Statistics",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def lumen_get_portfolio_stats(params: GetPortfolioStatsInput) -> str:
+    """Get portfolio-level statistics for a loaded dataset.
+
+    Calculates: CAGR, Sharpe ratio, Sortino ratio, Calmar ratio, max drawdown,
+    win rate, profit factor, t-statistic, VaR/CVaR, and period metrics.
+
+    Args:
+        params (GetPortfolioStatsInput): Validated input containing:
+            - alias (str): Dataset alias
+            - filters (Optional[list]): Filter dicts to narrow the data
+            - first_trigger_only (bool): Keep only trigger_number == 1
+            - risk_free_rate (float): Annual risk-free rate
+            - trading_days_per_year (int): Trading days for annualization
+            - stake (float): Fixed stake for equity curve
+            - start_capital (float): Starting capital for equity curve
+
+    Returns:
+        str: JSON with portfolio metrics.
+    """
+    try:
+        ds = _get_dataset(params.alias)
+    except ValueError as e:
+        return f"Error: {e}"
+
+    df = ds.df.copy()
+    mapping = ds.mapping
+    filter_summary: list[str] = []
+
+    # Check required columns
+    if not mapping.date:
+        return json.dumps({"error": "No date column mapped. Portfolio stats requires a date column."})
+    if not mapping.gain_pct:
+        return json.dumps({"error": "No gain_pct column mapped."})
+
+    # Apply first-trigger filter
+    if params.first_trigger_only:
+        trig_col = None
+        for alias_name in _COLUMN_ALIASES.get("trigger_number", []):
+            lower_cols = {c.lower(): c for c in df.columns}
+            if alias_name in lower_cols:
+                trig_col = lower_cols[alias_name]
+                break
+        if trig_col:
+            df = df[df[trig_col] == 1].reset_index(drop=True)
+            filter_summary.append("first_trigger_only=True")
+
+    # Apply user filters
+    if params.filters:
+        try:
+            df = _apply_filters(df, params.filters)
+            filter_summary.append(f"{len(params.filters)} filter(s) applied")
+        except Exception as e:
+            return f"Error applying filters: {e}"
+
+    if len(df) == 0:
+        return json.dumps({
+            "error": "No rows remain after filtering.",
+            "filters_applied": filter_summary,
+        }, indent=2)
+
+    # Build equity curve using EquityCalculator
+    equity_calc = EquityCalculator()
+    try:
+        equity_curve = equity_calc.calculate_flat_stake(
+            df=df,
+            gain_col=mapping.gain_pct,
+            stake=params.stake,
+            start_capital=params.start_capital,
+            date_col=mapping.date,
+        )
+    except Exception as e:
+        return f"Error building equity curve: {type(e).__name__}: {e}"
+
+    # Add win column (needed by portfolio metrics)
+    gains_array = df[mapping.gain_pct].astype(float).values
+    # Sort df by date to match equity curve order
+    df["_date"] = pd.to_datetime(df[mapping.date], dayfirst=True, format="mixed")
+    df = df.sort_values("_date").reset_index(drop=True)
+    gains_array = df[mapping.gain_pct].astype(float).values
+    equity_curve["win"] = gains_array > 0
+
+    # Create calculator
+    calc = PortfolioMetricsCalculator(
+        risk_free_rate=params.risk_free_rate,
+        trading_days_per_year=params.trading_days_per_year,
+    )
+
+    try:
+        metrics = calc.calculate_all_metrics(equity_curve)
+        result = {
+            "alias": params.alias,
+            "trades_analyzed": len(df),
+            "filters_applied": filter_summary,
+            "date_range": {
+                "start": str(df["_date"].min().date()),
+                "end": str(df["_date"].max().date()),
+            },
+            "metrics": _portfolio_metrics_to_dict(metrics),
+        }
+    except Exception as e:
+        return f"Error computing portfolio stats: {type(e).__name__}: {e}"
 
     return _truncate(json.dumps(result, indent=2, default=str))
 
