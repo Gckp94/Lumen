@@ -123,6 +123,21 @@ class ColumnConfigPanel(QWidget):
         row = self._add_field_row(grid, row, "mae_time", "MAE Time", required=False)
         row = self._add_field_row(grid, row, "mfe_time", "MFE Time", required=False)
 
+        # Time interval price columns (optional, for time stop analysis)
+        time_price_fields = [
+            ("price_10_min_after", "Price 10 Mins After"),
+            ("price_20_min_after", "Price 20 Mins After"),
+            ("price_30_min_after", "Price 30 Mins After"),
+            ("price_60_min_after", "Price 60 Mins After"),
+            ("price_90_min_after", "Price 90 Mins After"),
+            ("price_120_min_after", "Price 120 Mins After"),
+            ("price_150_min_after", "Price 150 Mins After"),
+            ("price_180_min_after", "Price 180 Mins After"),
+            ("price_240_min_after", "Price 240 Mins After"),
+        ]
+        for field_name, display_name in time_price_fields:
+            row = self._add_field_row(grid, row, field_name, display_name, required=False)
+
         layout.addLayout(grid)
 
         # Derive Win/Loss checkbox
@@ -523,6 +538,15 @@ class ColumnConfigPanel(QWidget):
             win_loss=self._combos["win_loss"].currentText() or None,
             mae_time=self._combos["mae_time"].currentText() or None,
             mfe_time=self._combos["mfe_time"].currentText() or None,
+            price_10_min_after=self._combos["price_10_min_after"].currentText() or None,
+            price_20_min_after=self._combos["price_20_min_after"].currentText() or None,
+            price_30_min_after=self._combos["price_30_min_after"].currentText() or None,
+            price_60_min_after=self._combos["price_60_min_after"].currentText() or None,
+            price_90_min_after=self._combos["price_90_min_after"].currentText() or None,
+            price_120_min_after=self._combos["price_120_min_after"].currentText() or None,
+            price_150_min_after=self._combos["price_150_min_after"].currentText() or None,
+            price_180_min_after=self._combos["price_180_min_after"].currentText() or None,
+            price_240_min_after=self._combos["price_240_min_after"].currentText() or None,
             win_loss_derived=self._derive_checkbox.isChecked(),
             breakeven_is_win=self._breakeven_checkbox.isChecked(),
         )
@@ -560,6 +584,15 @@ class ColumnConfigPanel(QWidget):
             win_loss=self._combos["win_loss"].currentText() or None,
             mae_time=self._combos["mae_time"].currentText() or None,
             mfe_time=self._combos["mfe_time"].currentText() or None,
+            price_10_min_after=self._combos["price_10_min_after"].currentText() or None,
+            price_20_min_after=self._combos["price_20_min_after"].currentText() or None,
+            price_30_min_after=self._combos["price_30_min_after"].currentText() or None,
+            price_60_min_after=self._combos["price_60_min_after"].currentText() or None,
+            price_90_min_after=self._combos["price_90_min_after"].currentText() or None,
+            price_120_min_after=self._combos["price_120_min_after"].currentText() or None,
+            price_150_min_after=self._combos["price_150_min_after"].currentText() or None,
+            price_180_min_after=self._combos["price_180_min_after"].currentText() or None,
+            price_240_min_after=self._combos["price_240_min_after"].currentText() or None,
             win_loss_derived=self._derive_checkbox.isChecked(),
             breakeven_is_win=self._breakeven_checkbox.isChecked(),
         )
@@ -690,6 +723,25 @@ class ColumnMappingSuccessPanel(QWidget):
             summary += f"\nMAE Time: {mapping.mae_time}"
         if mapping.mfe_time:
             summary += f"\nMFE Time: {mapping.mfe_time}"
+        # Time interval price columns
+        if mapping.price_10_min_after:
+            summary += f"\nPrice 10 Mins After: {mapping.price_10_min_after}"
+        if mapping.price_20_min_after:
+            summary += f"\nPrice 20 Mins After: {mapping.price_20_min_after}"
+        if mapping.price_30_min_after:
+            summary += f"\nPrice 30 Mins After: {mapping.price_30_min_after}"
+        if mapping.price_60_min_after:
+            summary += f"\nPrice 60 Mins After: {mapping.price_60_min_after}"
+        if mapping.price_90_min_after:
+            summary += f"\nPrice 90 Mins After: {mapping.price_90_min_after}"
+        if mapping.price_120_min_after:
+            summary += f"\nPrice 120 Mins After: {mapping.price_120_min_after}"
+        if mapping.price_150_min_after:
+            summary += f"\nPrice 150 Mins After: {mapping.price_150_min_after}"
+        if mapping.price_180_min_after:
+            summary += f"\nPrice 180 Mins After: {mapping.price_180_min_after}"
+        if mapping.price_240_min_after:
+            summary += f"\nPrice 240 Mins After: {mapping.price_240_min_after}"
         self._summary_label.setText(summary)
 
     def get_mapping(self) -> ColumnMapping | None:
@@ -1540,6 +1592,15 @@ class DataInputTab(QWidget):
             "win_loss": "detected" if mapping and mapping.win_loss else "missing",
             "mae_time": "detected" if mapping and mapping.mae_time else "missing",
             "mfe_time": "detected" if mapping and mapping.mfe_time else "missing",
+            "price_10_min_after": "detected" if mapping and mapping.price_10_min_after else "missing",
+            "price_20_min_after": "detected" if mapping and mapping.price_20_min_after else "missing",
+            "price_30_min_after": "detected" if mapping and mapping.price_30_min_after else "missing",
+            "price_60_min_after": "detected" if mapping and mapping.price_60_min_after else "missing",
+            "price_90_min_after": "detected" if mapping and mapping.price_90_min_after else "missing",
+            "price_120_min_after": "detected" if mapping and mapping.price_120_min_after else "missing",
+            "price_150_min_after": "detected" if mapping and mapping.price_150_min_after else "missing",
+            "price_180_min_after": "detected" if mapping and mapping.price_180_min_after else "missing",
+            "price_240_min_after": "detected" if mapping and mapping.price_240_min_after else "missing",
         }
         detection_result = DetectionResult(
             mapping=mapping,
