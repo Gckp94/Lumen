@@ -953,6 +953,21 @@ class TestCrosshairLabels:
         text = chart._time_label.toPlainText().strip()
         assert ":" in text  # Contains time separator
 
+    def test_labels_hidden_when_mouse_leaves(self, chart, sample_ohlcv_df):
+        """Labels should hide when mouse leaves chart area."""
+        chart.set_data(sample_ohlcv_df)
+
+        # First show labels
+        chart._update_crosshair_labels(bar_idx=0, price=100.0)
+        assert chart._price_label.isVisible()
+        assert chart._time_label.isVisible()
+
+        # Now hide them (simulating mouse leaving)
+        chart._hide_crosshair_labels()
+
+        assert not chart._price_label.isVisible()
+        assert not chart._time_label.isVisible()
+
 
 class TestCandlestickChartInteractiveFeatures:
     """Integration tests for grid + info box + ruler coexistence."""

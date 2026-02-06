@@ -969,6 +969,7 @@ class CandlestickChart(QWidget):
         if not self._plot_widget.sceneBoundingRect().contains(pos):
             self._crosshair_v.setVisible(False)
             self._crosshair_h.setVisible(False)
+            self._hide_crosshair_labels()
             return
 
         mouse_point = self._plot_widget.getViewBox().mapSceneToView(pos)
@@ -1058,6 +1059,11 @@ class CandlestickChart(QWidget):
             self._time_label.setVisible(True)
         else:
             self._time_label.setVisible(False)
+
+    def _hide_crosshair_labels(self) -> None:
+        """Hide the floating crosshair price and time labels."""
+        self._price_label.setVisible(False)
+        self._time_label.setVisible(False)
 
     def _format_ruler_label(
         self,
