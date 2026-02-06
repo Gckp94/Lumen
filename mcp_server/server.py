@@ -174,13 +174,12 @@ def _metrics_to_dict(metrics: TradingMetrics) -> dict[str, Any]:
 
 
 def _portfolio_metrics_to_dict(metrics: PortfolioMetrics) -> dict[str, Any]:
-    """Convert PortfolioMetrics to a serializable dict."""
-    d = asdict(metrics)
-    # Convert nested PeriodMetrics to dicts
-    for period in ["daily", "weekly", "monthly"]:
-        if d.get(period) is not None:
-            d[period] = asdict(d[period])
-    return d
+    """Convert PortfolioMetrics to a serializable dict.
+
+    Note: asdict() already recursively converts nested dataclass instances,
+    so no additional conversion is needed for period metrics.
+    """
+    return asdict(metrics)
 
 
 def _apply_filters(
