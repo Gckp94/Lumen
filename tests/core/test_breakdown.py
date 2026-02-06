@@ -129,6 +129,20 @@ def test_monthly_breakdown_avg_winner_loser(sample_df):
     assert result["Feb"]["avg_loser_pct"] == pytest.approx(-1.5)
 
 
+def test_yearly_breakdown_avg_winner_loser(sample_df):
+    """Test yearly breakdown includes avg winner/loser."""
+    calc = BreakdownCalculator()
+    result = calc.calculate_yearly(sample_df, "date", "gain_pct", "win_loss")
+
+    # 2024 has trades: -0.015 (L), 0.04 (W), 0.02 (W), -0.03 (L)
+    # Winners: 4%, 2% -> avg = 3%
+    # Losers: -1.5%, -3% -> avg = -2.25%
+    assert "avg_winner_pct" in result["2024"]
+    assert "avg_loser_pct" in result["2024"]
+    assert result["2024"]["avg_winner_pct"] == pytest.approx(3.0)
+    assert result["2024"]["avg_loser_pct"] == pytest.approx(-2.25)
+
+
 def test_win_loss_without_column():
     """Test win rate calculation when no win_loss column is provided."""
     df = pd.DataFrame({

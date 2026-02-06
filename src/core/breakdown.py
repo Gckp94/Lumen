@@ -69,7 +69,7 @@ class BreakdownCalculator:
         # Sort by date to ensure correct equity curve calculation
         df = df.copy()
         df = df.sort_values(date_col).reset_index(drop=True)
-        df["_year"] = pd.to_datetime(df[date_col]).dt.year
+        df["_year"] = pd.to_datetime(df[date_col], dayfirst=True, format="mixed").dt.year
 
         # Apply adjustments if configured, otherwise use raw gains
         # Store in temporary column for use in calculations
@@ -111,7 +111,7 @@ class BreakdownCalculator:
             # Calculate period metrics with the year-specific equity curve
             # Use _calc_gains (decimal format) - the method converts to percentage
             result[str(year)] = self._calculate_period_metrics_with_equity(
-                group, "_calc_gains", win_loss_col, year_equity
+                group, "_calc_gains", win_loss_col, year_equity, include_avg_winner_loser=True
             )
 
         return result
@@ -148,7 +148,7 @@ class BreakdownCalculator:
         # Sort by date to ensure correct equity curve calculation
         df = df.copy()
         df = df.sort_values(date_col).reset_index(drop=True)
-        dates = pd.to_datetime(df[date_col])
+        dates = pd.to_datetime(df[date_col], dayfirst=True, format="mixed")
 
         df["_year"] = dates.dt.year
         df["_month"] = dates.dt.month
@@ -348,5 +348,5 @@ class BreakdownCalculator:
         if df.empty:
             return []
 
-        years = pd.to_datetime(df[date_col]).dt.year.unique()
+        years = pd.to_datetime(df[date_col], dayfirst=True, format="mixed").dt.year.unique()
         return sorted(years.tolist())
