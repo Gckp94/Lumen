@@ -334,6 +334,7 @@ class ChartViewerTab(QWidget):
         self._app_state.filtered_data_updated.connect(self._on_filtered_data_updated)
         self._app_state.baseline_calculated.connect(self._on_baseline_calculated)
         self._app_state.view_chart_requested.connect(self._on_view_chart_requested)
+        self._app_state.column_mapping_changed.connect(self._on_column_mapping_changed)
 
         # Trade browser signals
         self._trade_browser.trade_selected.connect(self._on_trade_selected)
@@ -346,10 +347,28 @@ class ChartViewerTab(QWidget):
 
     def _initialize_from_state(self) -> None:
         """Initialize from existing app state if available."""
+        logger.debug("_initialize_from_state called")
+        logger.debug("filtered_df=%s, baseline_df=%s",
+                    "None" if self._app_state.filtered_df is None else f"{len(self._app_state.filtered_df)} rows",
+                    "None" if self._app_state.baseline_df is None else f"{len(self._app_state.baseline_df)} rows")
+        
         if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
+            logger.debug("Using filtered_df")
             self._update_trade_browser(self._app_state.filtered_df)
         elif self._app_state.baseline_df is not None and not self._app_state.baseline_df.empty:
+            logger.debug("Using baseline_df")
             self._update_trade_browser(self._app_state.baseline_df)
+        else:
+            logger.debug("No data available to initialize from")
+
+    def _on_column_mapping_changed(self, mapping: object = None) -> None:
+        """Handle column mapping changes - re-initialize trade browser.
+        
+        Args:
+            mapping: The new column mapping (unused, we read from app_state).
+        """
+        logger.debug("_on_column_mapping_changed signal received")
+        self._initialize_from_state()
 
     def _on_filtered_data_updated(self, df: pd.DataFrame) -> None:
         """Handle filtered data update.
@@ -377,17 +396,25 @@ class ChartViewerTab(QWidget):
         Args:
             df: DataFrame with trade data.
         """
+        logger.debug("_update_trade_browser called with df=%s", 
+                    "None" if df is None else f"{len(df)} rows")
+        
         if df is None or df.empty:
+            logger.debug("DataFrame is None or empty, clearing trade browser")
             self._trade_browser.set_trades(pd.DataFrame())
             return
 
         mapping = self._app_state.column_mapping
+        logger.debug("column_mapping=%s", "None" if mapping is None else "set")
+        
         if mapping is None:
+            logger.debug("No column mapping, returning early")
             return
 
         # Transform data for trade browser
         # TradeBrowser expects: ticker, entry_time, entry_price, date, pnl_pct
         browser_df = self._prepare_browser_dataframe(df, mapping)
+        logger.debug("Prepared browser_df with %d rows", len(browser_df))
         self._trade_browser.set_trades(browser_df)
 
     def _prepare_browser_dataframe(
@@ -403,38 +430,84 @@ class ChartViewerTab(QWidget):
             DataFrame with columns needed by TradeBrowser.
         """
         try:
+            logger.debug("Preparing browser DataFrame with %d rows", len(df))
+            logger.debug("Column mapping: ticker=%s, date=%s, time=%s, gain_pct=%s",
+                        mapping.ticker, mapping.date, mapping.time, mapping.gain_pct)
+            logger.debug("Available columns: %s", list(df.columns))
+            
             result = pd.DataFrame()
             result["ticker"] = df[mapping.ticker]
-            result["date"] = pd.to_datetime(df[mapping.date])
+            
+            # Parse dates - use format='mixed' to handle various date formats
+            date_col = df[mapping.date]
+            result["date"] = pd.to_datetime(date_col, format='mixed', dayfirst=True)
 
             # Combine date and time for entry_time
             time_col = df[mapping.time]
-            date_col = df[mapping.date]
-
+            
             # Handle various time formats
             if time_col.dtype == "object":
                 # String times like "09:30:00"
                 datetime_strs = date_col.astype(str) + " " + time_col.astype(str)
-                result["entry_time"] = pd.to_datetime(datetime_strs)
+                result["entry_time"] = pd.to_datetime(datetime_strs, format='mixed', dayfirst=True)
+            elif pd.api.types.is_float_dtype(time_col):
+                # Check if Excel serial time (float between 0 and 1)
+                non_null_times = time_col.dropna()
+                if len(non_null_times) > 0 and non_null_times.between(0, 1).all():
+                    # Excel serial time: fraction of day (0.5 = 12:00 noon)
+                    # Convert to timedelta and add to date
+                    time_delta = pd.to_timedelta(time_col * 24, unit='h')
+                    result["entry_time"] = pd.to_datetime(date_col, format='mixed', dayfirst=True) + time_delta
+                    logger.debug("Converted Excel serial time format")
+                else:
+                    # Try as timestamp
+                    result["entry_time"] = pd.to_datetime(time_col)
+            elif pd.api.types.is_integer_dtype(time_col):
+                # Integer HHMMSS format (e.g., 93000 for 09:30:00)
+                def int_to_time_str(val):
+                    if pd.isna(val):
+                        return None
+                    val_str = str(int(val)).zfill(6)
+                    return f"{val_str[:2]}:{val_str[2:4]}:{val_str[4:6]}"
+                time_strs = time_col.apply(int_to_time_str)
+                datetime_strs = date_col.astype(str) + " " + time_strs.astype(str)
+                result["entry_time"] = pd.to_datetime(datetime_strs, format='mixed', dayfirst=True)
+                logger.debug("Converted integer HHMMSS time format")
             else:
                 # Already datetime
                 result["entry_time"] = pd.to_datetime(time_col)
 
             result["pnl_pct"] = df[mapping.gain_pct]
 
-            # Entry price - use price column if available, otherwise placeholder
-            if "entry_price" in df.columns:
-                result["entry_price"] = df["entry_price"]
-            elif "price" in df.columns:
-                result["entry_price"] = df["price"]
+            # Entry price - check common column names
+            price_columns = [
+                "entry_price",
+                "price",
+                "trigger_price_unadjusted",
+                "trigger_price",
+                "fill_price",
+                "avg_price",
+                "open",
+            ]
+            entry_price_col = None
+            for col in price_columns:
+                if col in df.columns:
+                    entry_price_col = col
+                    break
+
+            if entry_price_col:
+                result["entry_price"] = df[entry_price_col]
+                logger.debug("Using '%s' column for entry price", entry_price_col)
             else:
                 # Default to 100 for percentage calculations
                 result["entry_price"] = 100.0
+                logger.debug("No entry price column found, using default 100.0")
 
+            logger.debug("Successfully prepared browser DataFrame with %d rows", len(result))
             return result
 
         except Exception as e:
-            logger.error("Failed to prepare browser DataFrame: %s", e)
+            logger.error("Failed to prepare browser DataFrame: %s", e, exc_info=True)
             return pd.DataFrame()
 
     def _on_trade_selected(self, trade_data: dict) -> None:
@@ -498,6 +571,9 @@ class ChartViewerTab(QWidget):
         entry_time = trade_data.get("entry_time")
         entry_price = trade_data.get("entry_price", 100.0)
 
+        logger.info("Loading chart for trade: ticker=%s, entry_time=%s, entry_price=%s",
+                   ticker, entry_time, entry_price)
+
         if not ticker or not entry_time:
             logger.warning("Missing ticker or entry_time for chart loading")
             return
@@ -509,6 +585,7 @@ class ChartViewerTab(QWidget):
             else:
                 date = trade_data.get("date")
                 date_str = date.isoformat() if hasattr(date, "isoformat") else str(date)
+            logger.info("Date string for price data: %s", date_str)
         except (AttributeError, TypeError, ValueError) as e:
             logger.warning("Failed to parse date for chart loading: %s", e)
             return
@@ -516,19 +593,82 @@ class ChartViewerTab(QWidget):
         # Get resolution
         resolution_label = self._resolution_combo.currentText()
         resolution = RESOLUTION_MAP.get(resolution_label, Resolution.MINUTE_1)
+        logger.info("Resolution: %s", resolution.label)
 
         # Load price data
         price_df = self._price_loader.load(ticker, date_str, resolution)
 
         if price_df is None or price_df.empty:
-            logger.warning("No price data available for %s on %s", ticker, date_str)
+            logger.warning("No price data available for %s on %s at %s resolution",
+                          ticker, date_str, resolution.label)
             self._chart.clear()
             return
 
-        # Apply zoom filter
+        logger.info("Loaded %d price bars for %s", len(price_df), ticker)
+
+        # Check zoom setting to determine if we show extended hours
+        zoom_preset = self._zoom_combo.currentText()
+        zoom_minutes = ZOOM_PRESETS.get(zoom_preset, 30)
+        show_extended_hours = (zoom_minutes == -1)  # Full session shows extended hours
+
+        if "datetime" in price_df.columns:
+            # Add session type column for background highlighting
+            # Pre-market: before 9:30 AM, Regular: 9:30 AM - 4:00 PM, Post-market: after 4:00 PM
+            def get_session_type(dt):
+                hour, minute = dt.hour, dt.minute
+                if hour < 9 or (hour == 9 and minute < 30):
+                    return "pre"
+                elif hour >= 16:
+                    return "post"
+                else:
+                    return "regular"
+            
+            price_df["session"] = price_df["datetime"].apply(get_session_type)
+            
+            if show_extended_hours:
+                # Full session - keep all data including pre/post market
+                # Filter to extended hours (4:00 AM - 8:00 PM ET for typical extended hours)
+                extended_hours_mask = (price_df["datetime"].dt.hour >= 4) & (price_df["datetime"].dt.hour < 20)
+                price_df = price_df[extended_hours_mask].reset_index(drop=True)
+                logger.info("Full session with extended hours: %d bars", len(price_df))
+            else:
+                # Filter to regular trading hours only (9:30 AM - 4:00 PM ET)
+                regular_hours_mask = (
+                    (price_df["datetime"].dt.hour > 9) |
+                    ((price_df["datetime"].dt.hour == 9) & (price_df["datetime"].dt.minute >= 30))
+                ) & (price_df["datetime"].dt.hour < 16)
+                price_df = price_df[regular_hours_mask].reset_index(drop=True)
+                logger.info("After regular hours filter: %d bars", len(price_df))
+
+            # Log first 5 bars after filtering
+            if len(price_df) >= 5:
+                logger.info("First 5 bars after filter (displayed on chart):")
+                for i in range(5):
+                    row = price_df.iloc[i]
+                    session = row.get("session", "?")
+                    logger.info("  [%d] %s O=%.4f H=%.4f L=%.4f C=%.4f session=%s",
+                               i, row["datetime"], row["open"], row["high"], row["low"], row["close"], session)
+
+        # Apply zoom filter (only affects non-full-session modes)
         price_df = self._apply_zoom_filter(price_df, entry_time)
 
-        # Set chart data
+        if price_df.empty:
+            logger.warning("No valid price data after filtering")
+            self._chart.clear()
+            return
+
+        # Log price data statistics
+        if not price_df.empty:
+            logger.info(
+                "Price data stats - rows: %d, open: [%.2f, %.2f], high: [%.2f, %.2f], low: [%.2f, %.2f], close: [%.2f, %.2f]",
+                len(price_df),
+                price_df["open"].min(), price_df["open"].max(),
+                price_df["high"].min(), price_df["high"].max(),
+                price_df["low"].min(), price_df["low"].max(),
+                price_df["close"].min(), price_df["close"].max(),
+            )
+
+        # Set chart data (pass session info for background highlighting)
         self._chart.set_data(price_df)
 
         # Run exit simulation
@@ -541,6 +681,27 @@ class ChartViewerTab(QWidget):
         else:
             entry_dt = entry_time
 
+        # Debug: Log entry time and first/last bar times for comparison
+        if not price_df.empty and "datetime" in price_df.columns:
+            first_bar_time = price_df["datetime"].iloc[0]
+            last_bar_time = price_df["datetime"].iloc[-1]
+            if hasattr(first_bar_time, "to_pydatetime"):
+                first_bar_time = first_bar_time.to_pydatetime()
+                last_bar_time = last_bar_time.to_pydatetime()
+            logger.info("Entry time: %s (type: %s, tz: %s)", entry_dt, type(entry_dt).__name__, 
+                       getattr(entry_dt, 'tzinfo', None))
+            logger.info("First bar time: %s (type: %s, tz: %s)", first_bar_time, type(first_bar_time).__name__,
+                       getattr(first_bar_time, 'tzinfo', None))
+            logger.info("Last bar time: %s (type: %s, tz: %s)", last_bar_time, type(last_bar_time).__name__,
+                       getattr(last_bar_time, 'tzinfo', None))
+            # Check if entry is within the bar range
+            try:
+                entry_before_first = entry_dt <= first_bar_time
+                entry_after_last = entry_dt >= last_bar_time
+                logger.info("Entry <= first bar? %s, Entry >= last bar? %s", entry_before_first, entry_after_last)
+            except TypeError as e:
+                logger.warning("Cannot compare datetimes (likely timezone mismatch): %s", e)
+
         try:
             simulator = ExitSimulator(
                 entry_price=entry_price,
@@ -550,6 +711,11 @@ class ChartViewerTab(QWidget):
             )
             exits = simulator.simulate(price_df)
             profit_target = simulator.profit_target
+            
+            # Debug: Log exit details
+            for i, exit_event in enumerate(exits):
+                logger.info("Exit[%d]: time=%s, price=%.4f, reason=%s", 
+                           i, exit_event.time, exit_event.price, exit_event.reason)
         except ValueError as e:
             logger.warning("Could not create ExitSimulator: %s", e)
             exits = []
@@ -564,7 +730,10 @@ class ChartViewerTab(QWidget):
             profit_target=profit_target,
         )
 
-        logger.debug(
+        # Ensure chart fits all data including markers
+        self._chart.auto_range()
+
+        logger.info(
             "Chart loaded for %s: %d bars, %d exits",
             ticker,
             len(price_df),
@@ -615,6 +784,7 @@ class ChartViewerTab(QWidget):
         """Calculate stop loss level from adjustment params.
 
         For long trades: stop_level = entry_price * (1 - stop_loss_percent/100)
+        For short trades: stop_level = entry_price * (1 + stop_loss_percent/100)
 
         Args:
             entry_price: Trade entry price.
@@ -623,7 +793,14 @@ class ChartViewerTab(QWidget):
             Stop loss price level.
         """
         stop_loss_pct = self._app_state.adjustment_params.stop_loss
-        return entry_price * (1 - stop_loss_pct / 100)
+        is_short = self._app_state.adjustment_params.is_short
+
+        if is_short:
+            # Short trade: stop is above entry price
+            return entry_price * (1 + stop_loss_pct / 100)
+        else:
+            # Long trade: stop is below entry price
+            return entry_price * (1 - stop_loss_pct / 100)
 
     def _get_scaling_config(self) -> ScalingConfig:
         """Get current scaling configuration from UI.
@@ -661,6 +838,7 @@ class ChartViewerTab(QWidget):
             self._app_state.filtered_data_updated.disconnect(self._on_filtered_data_updated)
             self._app_state.baseline_calculated.disconnect(self._on_baseline_calculated)
             self._app_state.view_chart_requested.disconnect(self._on_view_chart_requested)
+            self._app_state.column_mapping_changed.disconnect(self._on_column_mapping_changed)
 
             # Disconnect trade browser signals
             self._trade_browser.trade_selected.disconnect(self._on_trade_selected)
