@@ -124,6 +124,42 @@ class DockManager(ads.CDockManager):
             ads--CDockSplitter::handle:hover {{
                 background-color: {Colors.SIGNAL_CYAN};
             }}
+
+            /* Tabs menu button (overflow) */
+            ads--CDockAreaTitleBar > QPushButton {{
+                background-color: {Colors.BG_ELEVATED};
+                border: none;
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: {Colors.TEXT_PRIMARY};
+            }}
+
+            ads--CDockAreaTitleBar > QPushButton:hover {{
+                background-color: {Colors.BG_BORDER};
+            }}
+
+            /* Menu styling for overflow dropdown */
+            ads--CDockAreaTitleBar QMenu {{
+                background-color: {Colors.BG_ELEVATED};
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+                padding: 4px 0;
+            }}
+
+            ads--CDockAreaTitleBar QMenu::item {{
+                padding: 8px 24px;
+                color: {Colors.TEXT_PRIMARY};
+            }}
+
+            ads--CDockAreaTitleBar QMenu::item:selected {{
+                background-color: rgba(0, 255, 212, 0.15);
+            }}
+
+            ads--CDockAreaTitleBar QMenu::separator {{
+                height: 1px;
+                background-color: {Colors.BG_BORDER};
+                margin: 4px 8px;
+            }}
         """
         self.setStyleSheet(stylesheet)
 
