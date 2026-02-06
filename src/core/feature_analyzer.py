@@ -854,7 +854,7 @@ class FeatureAnalyzer:
             Consistency score from 0 to 1, or None if insufficient data.
         """
         try:
-            dates = pd.to_datetime(df[date_col])
+            dates = pd.to_datetime(df[date_col], dayfirst=True, format="mixed", errors="coerce")
             years = dates.dt.year.unique()
 
             if len(years) < 2:

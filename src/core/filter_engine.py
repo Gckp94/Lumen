@@ -149,7 +149,7 @@ class FilterEngine:
             logger.warning("Date column '%s' not found in DataFrame", date_col)
             return df.copy()
 
-        col = pd.to_datetime(df[date_col], errors="coerce")
+        col = pd.to_datetime(df[date_col], dayfirst=True, format="mixed", errors="coerce")
         mask = pd.Series(True, index=df.index)
 
         if start is not None:

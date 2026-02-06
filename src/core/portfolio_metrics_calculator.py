@@ -122,7 +122,7 @@ class PortfolioMetricsCalculator:
         ending_value = equity_curve["equity"].iloc[-1]
 
         # Calculate years from date range
-        dates = pd.to_datetime(equity_curve["date"])
+        dates = pd.to_datetime(equity_curve["date"], dayfirst=True, format="mixed", errors="coerce")
         days = (dates.max() - dates.min()).days
         if days == 0:
             return None
@@ -168,7 +168,7 @@ class PortfolioMetricsCalculator:
             Series of daily returns (as decimals) indexed by date.
         """
         df = equity_curve.copy()
-        df["_date"] = pd.to_datetime(df["date"]).dt.normalize()
+        df["_date"] = pd.to_datetime(df["date"], dayfirst=True, format="mixed", errors="coerce").dt.normalize()
 
         # Take end-of-day equity (last trade of each day)
         daily_equity = df.groupby("_date")["equity"].last()
@@ -445,7 +445,7 @@ class PortfolioMetricsCalculator:
             return None
 
         df = equity_curve.copy()
-        df["date"] = pd.to_datetime(df["date"])
+        df["date"] = pd.to_datetime(df["date"], dayfirst=True, format="mixed", errors="coerce")
 
         # Sort by date and trade_num to ensure "first" aggregation gets chronologically first trade
         # trade_num is needed when multiple trades occur on the same date
@@ -685,7 +685,7 @@ class PortfolioMetricsCalculator:
             Series of drawdown percentages (negative values) indexed by date.
         """
         df = equity_curve.copy()
-        df["_date"] = pd.to_datetime(df["date"]).dt.normalize()
+        df["_date"] = pd.to_datetime(df["date"], dayfirst=True, format="mixed", errors="coerce").dt.normalize()
 
         # Take end-of-day equity
         daily_equity = df.groupby("_date")["equity"].last()
@@ -985,8 +985,8 @@ class PortfolioMetricsCalculator:
         if len(baseline_df) == 0 or len(combined_df) == 0:
             return None
 
-        baseline_df["date"] = pd.to_datetime(baseline_df["date"])
-        combined_df["date"] = pd.to_datetime(combined_df["date"])
+        baseline_df["date"] = pd.to_datetime(baseline_df["date"], dayfirst=True, format="mixed", errors="coerce")
+        combined_df["date"] = pd.to_datetime(combined_df["date"], dayfirst=True, format="mixed", errors="coerce")
 
         # Merge on date and ticker
         merged = baseline_df.merge(

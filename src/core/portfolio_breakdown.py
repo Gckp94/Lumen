@@ -46,7 +46,7 @@ class PortfolioBreakdownCalculator:
             return {}
 
         df = equity_df.copy()
-        df["_year"] = pd.to_datetime(df["date"]).dt.year
+        df["_year"] = pd.to_datetime(df["date"], dayfirst=True, format="mixed", errors="coerce").dt.year
 
         results: dict[int, dict[str, float]] = {}
 
@@ -137,7 +137,7 @@ class PortfolioBreakdownCalculator:
             return {}
 
         df = equity_df.copy()
-        df["_date"] = pd.to_datetime(df["date"])
+        df["_date"] = pd.to_datetime(df["date"], dayfirst=True, format="mixed", errors="coerce")
         df["_year"] = df["_date"].dt.year
         df["_month"] = df["_date"].dt.month
 
@@ -178,7 +178,7 @@ class PortfolioBreakdownCalculator:
         if equity_df.empty:
             return []
 
-        years = pd.to_datetime(equity_df["date"]).dt.year.unique()
+        years = pd.to_datetime(equity_df["date"], dayfirst=True, format="mixed", errors="coerce").dt.year.unique()
         return sorted(int(y) for y in years)
 
     def _calculate_dd_duration(
