@@ -1713,6 +1713,7 @@ class BinChartPanel(QWidget):
         self._bin_definitions: list[BinDefinition] = []
         self._selected_column: str = ""
         self._cumulative_mode = False
+        self._use_filtered = False  # Track data source selection
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -1736,6 +1737,36 @@ class BinChartPanel(QWidget):
         header_layout.addWidget(header_label)
 
         header_layout.addStretch()
+
+        # Data source toggle
+        data_source_container = QWidget()
+        data_source_layout = QHBoxLayout(data_source_container)
+        data_source_layout.setContentsMargins(0, 0, 0, 0)
+        data_source_layout.setSpacing(Spacing.SM)
+
+        self._baseline_btn = QPushButton("Baseline")
+        self._baseline_btn.setCheckable(True)
+        self._baseline_btn.setChecked(True)
+        self._baseline_btn.setStyleSheet(self._get_toggle_style())
+        self._baseline_btn.clicked.connect(lambda: self._on_data_source_toggle(False))
+        data_source_layout.addWidget(self._baseline_btn)
+
+        self._filtered_btn = QPushButton("Filtered")
+        self._filtered_btn.setCheckable(True)
+        self._filtered_btn.setStyleSheet(self._get_toggle_style())
+        self._filtered_btn.clicked.connect(lambda: self._on_data_source_toggle(True))
+        data_source_layout.addWidget(self._filtered_btn)
+
+        header_layout.addWidget(data_source_container)
+
+        # Separator between toggle groups
+        separator = QLabel("•")
+        separator.setStyleSheet(f"""
+            color: {Colors.TEXT_DISABLED};
+            font-size: 8px;
+            padding: 0 8px;
+        """)
+        header_layout.addWidget(separator)
 
         # Metric toggle
         toggle_container = QWidget()
@@ -1950,6 +1981,17 @@ class BinChartPanel(QWidget):
         self._gain_btn.setChecked(metric == "gain_pct")
         self._adjusted_btn.setChecked(metric == "adjusted_gain_pct")
         self.metric_toggled.emit(metric)
+        self._recalculate_charts()
+
+    def _on_data_source_toggle(self, use_filtered: bool) -> None:
+        """Handle data source toggle button click.
+
+        Args:
+            use_filtered: True to use filtered_df, False for baseline_df.
+        """
+        self._use_filtered = use_filtered
+        self._baseline_btn.setChecked(not use_filtered)
+        self._filtered_btn.setChecked(use_filtered)
         self._recalculate_charts()
 
     def update_charts(
