@@ -99,35 +99,35 @@ class MainWindow(QMainWindow):
         logger.debug("Dock manager configured with %d docks", self.dock_manager.dock_count())
 
     def _setup_central_widget(self) -> None:
-        """Set up the central widget with two-tier navigation."""
+        """Set up the central widget with category bar above native dock tabs."""
         from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
-        from src.ui.components.two_tier_tab_bar import TwoTierTabBar
+        from src.ui.components.category_bar import CategoryBar
 
         central = QWidget()
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Two-tier tab bar at top
-        self._tab_bar = TwoTierTabBar()
-        self._tab_bar.tab_activated.connect(self._on_tab_bar_activated)
-        layout.addWidget(self._tab_bar)
+        # Category bar at top
+        self._category_bar = CategoryBar()
+        self._category_bar.category_changed.connect(self._on_category_changed)
+        layout.addWidget(self._category_bar)
 
-        # Dock manager below
+        # Dock manager below with native tabs visible
         layout.addWidget(self.dock_manager, 1)
-
-        # Sync dock activation back to tab bar
-        self.dock_manager.dock_activated.connect(self._tab_bar.set_active_tab)
 
         self.setCentralWidget(central)
 
-        # Hide native tabs since we have our custom navigation
-        self.dock_manager.hide_native_tab_bar()
+        # Show only ANALYZE category tabs initially
+        self._on_category_changed("ANALYZE")
 
-    def _on_tab_bar_activated(self, tab_name: str) -> None:
-        """Handle tab activation from two-tier bar."""
-        self.dock_manager.set_active_dock(tab_name)
+    def _on_category_changed(self, category: str) -> None:
+        """Handle category change - show only tabs in that category."""
+        from src.ui.tab_categories import get_tabs_in_category
+
+        tabs_to_show = get_tabs_in_category(category)
+        self.dock_manager.show_only_tabs(tabs_to_show)
 
     @property
     def app_state(self) -> AppState:
@@ -159,24 +159,12 @@ class MainWindow(QMainWindow):
         show_all_action.triggered.connect(self._on_show_all_tabs)
         view_menu.addAction(show_all_action)
 
-        view_menu.addSeparator()
-
-        # Tab navigation
-        next_tab = QAction("Next Tab", self)
-        next_tab.setShortcut("Ctrl+Tab")
-        next_tab.triggered.connect(lambda: self._tab_bar._cycle_tab(True))
-        view_menu.addAction(next_tab)
-
-        prev_tab = QAction("Previous Tab", self)
-        prev_tab.setShortcut("Ctrl+Shift+Tab")
-        prev_tab.triggered.connect(lambda: self._tab_bar._cycle_tab(False))
-        view_menu.addAction(prev_tab)
-
         logger.debug("Menu bar configured with View menu")
 
     def _goto_category(self, category: str) -> None:
         """Switch to a category."""
-        self._tab_bar._on_category_clicked(category)
+        self._category_bar.set_active_category(category)
+        self._on_category_changed(category)
 
     def _on_show_all_tabs(self) -> None:
         """Handle Show All Tabs action."""
