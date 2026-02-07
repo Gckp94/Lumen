@@ -1994,6 +1994,24 @@ class BinChartPanel(QWidget):
         self._filtered_btn.setChecked(use_filtered)
         self._recalculate_charts()
 
+    def _get_binning_df(self) -> "pd.DataFrame | None":
+        """Get the appropriate DataFrame based on data source selection.
+
+        Returns baseline_df or filtered_df based on toggle state.
+        Falls back to baseline_df if filtered is selected but empty/None.
+
+        Returns:
+            DataFrame to use for binning analysis, or None if no data.
+        """
+        import pandas as pd
+
+        if self._use_filtered:
+            filtered = self._app_state.filtered_df
+            if filtered is not None and not filtered.empty:
+                return filtered
+            # Fall back to baseline if filtered is empty
+        return self._app_state.baseline_df
+
     def update_charts(
         self,
         column: str,

@@ -63,3 +63,33 @@ def test_toggle_back_to_baseline(chart_panel, qtbot):
     chart_panel._filtered_btn.click()
     chart_panel._baseline_btn.click()
     assert chart_panel._use_filtered is False
+
+
+def test_get_binning_df_returns_baseline_when_baseline_selected(chart_panel, app_state):
+    """_get_binning_df should return baseline_df when baseline is selected."""
+    chart_panel._use_filtered = False
+    df = chart_panel._get_binning_df()
+    assert len(df) == 4  # All rows from baseline
+
+
+def test_get_binning_df_returns_filtered_when_filtered_selected(chart_panel, app_state):
+    """_get_binning_df should return filtered_df when filtered is selected."""
+    chart_panel._use_filtered = True
+    df = chart_panel._get_binning_df()
+    assert len(df) == 2  # Only filtered rows
+
+
+def test_get_binning_df_falls_back_to_baseline_when_filtered_empty(chart_panel, app_state):
+    """Should fall back to baseline when filtered_df is empty."""
+    app_state.filtered_df = pd.DataFrame()
+    chart_panel._use_filtered = True
+    df = chart_panel._get_binning_df()
+    assert len(df) == 4  # Falls back to baseline
+
+
+def test_get_binning_df_falls_back_to_baseline_when_filtered_none(chart_panel, app_state):
+    """Should fall back to baseline when filtered_df is None."""
+    app_state.filtered_df = None
+    chart_panel._use_filtered = True
+    df = chart_panel._get_binning_df()
+    assert len(df) == 4  # Falls back to baseline
