@@ -88,13 +88,16 @@ class TwoTierTabBar(QFrame):
         layout.addWidget(tab_scroll)
 
     def _apply_styling(self) -> None:
+        """Apply styling with animations."""
         self.setStyleSheet(f"""
             TwoTierTabBar {{
                 background-color: {Colors.BG_BASE};
                 border-bottom: 1px solid {Colors.BG_BORDER};
             }}
 
-            #category_row {{ background-color: {Colors.BG_BASE}; }}
+            #category_row {{
+                background-color: {Colors.BG_BASE};
+            }}
 
             #category_button {{
                 background-color: transparent;
@@ -105,6 +108,7 @@ class TwoTierTabBar(QFrame):
                 letter-spacing: 0.5px;
                 padding: {Spacing.SM}px {Spacing.LG}px;
                 border: none;
+                border-left: 3px solid transparent;
                 border-radius: 4px;
             }}
 
@@ -124,7 +128,13 @@ class TwoTierTabBar(QFrame):
                 max-height: 1px;
             }}
 
-            #tab_scroll, #tab_row {{ background-color: {Colors.BG_BASE}; }}
+            #tab_scroll {{
+                background-color: {Colors.BG_BASE};
+            }}
+
+            #tab_row {{
+                background-color: {Colors.BG_BASE};
+            }}
 
             #tab_button {{
                 background-color: transparent;
@@ -133,8 +143,8 @@ class TwoTierTabBar(QFrame):
                 font-size: {FontSizes.BODY}px;
                 padding: {Spacing.SM}px {Spacing.LG}px;
                 border: none;
-                border-radius: 0;
                 border-bottom: 2px solid transparent;
+                min-width: 80px;
             }}
 
             #tab_button:hover {{
@@ -145,6 +155,28 @@ class TwoTierTabBar(QFrame):
             #tab_button:checked {{
                 color: {Colors.TEXT_PRIMARY};
                 border-bottom: 2px solid {Colors.SIGNAL_CYAN};
+                font-weight: 500;
+            }}
+
+            /* Scrollbar styling */
+            #tab_scroll QScrollBar:horizontal {{
+                height: 4px;
+                background-color: transparent;
+            }}
+
+            #tab_scroll QScrollBar::handle:horizontal {{
+                background-color: {Colors.BG_BORDER};
+                border-radius: 2px;
+                min-width: 30px;
+            }}
+
+            #tab_scroll QScrollBar::handle:horizontal:hover {{
+                background-color: {Colors.SIGNAL_CYAN};
+            }}
+
+            #tab_scroll QScrollBar::add-line:horizontal,
+            #tab_scroll QScrollBar::sub-line:horizontal {{
+                width: 0;
             }}
         """)
 
