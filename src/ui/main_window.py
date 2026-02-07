@@ -139,6 +139,17 @@ class MainWindow(QMainWindow):
         view_menu = menu_bar.addMenu("&View")
         self._view_menu = view_menu
 
+        # Category shortcuts
+        from src.ui.tab_categories import get_all_categories
+
+        for i, category in enumerate(get_all_categories(), 1):
+            action = QAction(f"Go to {category}", self)
+            action.setShortcut(f"Ctrl+{i}")
+            action.triggered.connect(lambda checked, c=category: self._goto_category(c))
+            view_menu.addAction(action)
+
+        view_menu.addSeparator()
+
         # Show All Tabs action
         show_all_action = QAction("Show All Tabs", self)
         show_all_action.setShortcut("Ctrl+Shift+T")
@@ -147,38 +158,27 @@ class MainWindow(QMainWindow):
 
         view_menu.addSeparator()
 
-        # Add checkable action for each tab
-        self._tab_actions: dict[str, QAction] = {}
-        for title in self.dock_manager.get_all_dock_titles():
-            action = QAction(title, self)
-            action.setCheckable(True)
-            action.setChecked(True)
-            action.triggered.connect(lambda checked, t=title: self._on_toggle_tab(t))
-            view_menu.addAction(action)
-            self._tab_actions[title] = action
+        # Tab navigation
+        next_tab = QAction("Next Tab", self)
+        next_tab.setShortcut("Ctrl+Tab")
+        next_tab.triggered.connect(lambda: self._tab_bar._cycle_tab(True))
+        view_menu.addAction(next_tab)
 
-        # Update check states when menu is about to show
-        view_menu.aboutToShow.connect(self._update_tab_action_states)
+        prev_tab = QAction("Previous Tab", self)
+        prev_tab.setShortcut("Ctrl+Shift+Tab")
+        prev_tab.triggered.connect(lambda: self._tab_bar._cycle_tab(False))
+        view_menu.addAction(prev_tab)
 
         logger.debug("Menu bar configured with View menu")
+
+    def _goto_category(self, category: str) -> None:
+        """Switch to a category."""
+        self._tab_bar._on_category_clicked(category)
 
     def _on_show_all_tabs(self) -> None:
         """Handle Show All Tabs action."""
         self.dock_manager.show_all_docks()
         logger.debug("Restored all tabs")
-
-    def _on_toggle_tab(self, title: str) -> None:
-        """Handle tab visibility toggle.
-
-        Args:
-            title: Title of the tab to toggle.
-        """
-        self.dock_manager.toggle_dock_visibility(title)
-
-    def _update_tab_action_states(self) -> None:
-        """Update checkable action states to reflect current visibility."""
-        for title, action in self._tab_actions.items():
-            action.setChecked(self.dock_manager.is_dock_visible(title))
 
     def _apply_menu_styling(self) -> None:
         """Apply custom styling to the menu bar."""
