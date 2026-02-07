@@ -158,3 +158,30 @@ class TestDockManagerVisibility:
         dock_a = manager.get_dock("Tab A")
         assert dock_a is not None
         assert dock_a.isCurrentTab()  # Verify Tab A is now the active/current tab
+
+    def test_show_only_tabs_empty_list_logs_warning(self, qtbot) -> None:
+        """Empty list should log warning and not crash."""
+        manager = DockManager()
+        qtbot.addWidget(manager)
+
+        manager.add_dock("Tab A", QWidget())
+
+        # Should not crash, just log warning
+        manager.show_only_tabs([])
+
+        # Tab should still be visible (no changes made)
+        assert manager.is_dock_visible("Tab A")
+
+    def test_show_only_tabs_ignores_nonexistent(self, qtbot) -> None:
+        """Non-existent tabs should be ignored, valid ones processed."""
+        manager = DockManager()
+        qtbot.addWidget(manager)
+
+        manager.add_dock("Tab A", QWidget())
+        manager.add_dock("Tab B", QWidget())
+
+        # Mix of valid and invalid tabs
+        manager.show_only_tabs(["Tab A", "Nonexistent"])
+
+        assert manager.is_dock_visible("Tab A")
+        assert not manager.is_dock_visible("Tab B")

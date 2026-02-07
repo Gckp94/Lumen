@@ -388,25 +388,41 @@ class DockManager(ads.CDockManager):
         If the currently active tab is hidden, activates the first visible tab.
 
         Args:
-            tab_titles: List of tab titles to show.
+            tab_titles: List of tab titles to show. Invalid titles are logged
+                       and ignored. Empty list logs a warning.
         """
-        visible_set = set(tab_titles)
-        first_visible: str | None = None
-        active_is_visible = False
+        if not tab_titles:
+            logger.warning("show_only_tabs called with empty list")
+            return
 
+        visible_set = set(tab_titles)
+
+        # Log any invalid tab titles
+        invalid_titles = [t for t in tab_titles if t not in self._dock_widgets]
+        if invalid_titles:
+            logger.warning("show_only_tabs: unknown tabs ignored: %s", invalid_titles)
+
+        # Find current active tab BEFORE making visibility changes
+        current_tab: str | None = None
+        for title, dock_widget in self._dock_widgets.items():
+            if not dock_widget.isClosed() and dock_widget.isCurrentTab():
+                current_tab = title
+                break
+
+        current_tab_is_visible = current_tab in visible_set
+        first_visible: str | None = None
+
+        # Apply visibility changes
         for title, dock_widget in self._dock_widgets.items():
             if title in visible_set:
                 if dock_widget.isClosed():
                     dock_widget.toggleView(True)
                 if first_visible is None:
                     first_visible = title
-                # Check if this is the currently active tab
-                if not dock_widget.isClosed() and dock_widget.isCurrentTab():
-                    active_is_visible = True
             else:
                 if not dock_widget.isClosed():
                     dock_widget.toggleView(False)
 
         # If active tab was hidden, activate first visible
-        if not active_is_visible and first_visible:
+        if not current_tab_is_visible and first_visible:
             self.set_active_dock(first_visible)
