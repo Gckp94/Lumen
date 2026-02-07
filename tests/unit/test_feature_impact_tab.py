@@ -96,7 +96,7 @@ class TestFeatureImpactTabExclusion:
         """Test that exclusion panel widget exists."""
         app_state = AppState()
         tab = FeatureImpactTab(app_state)
-        assert hasattr(tab, '_exclusion_panel')
+        assert hasattr(tab, '_exclude_panel')
 
     def test_excluding_column_removes_from_results(self, app):
         """Test that excluding a column removes it from analysis."""

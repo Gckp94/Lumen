@@ -7,6 +7,7 @@ and composite impact score for each numeric feature in the dataset.
 import logging
 
 import numpy as np
+import pandas as pd
 import pyqtgraph as pg
 
 from PyQt6.QtCore import Qt
@@ -478,8 +479,13 @@ class FeatureImpactTab(QWidget):
             self._baseline_results
         )
 
-        # Calculate for filtered (if different from baseline)
-        if filtered_df is not None and not filtered_df.empty and len(filtered_df) != len(baseline_df):
+        # Calculate for filtered - always recalculate if filtered_df exists
+        # Use 'is not' to check if it's a different DataFrame object
+        if (
+            filtered_df is not None
+            and not filtered_df.empty
+            and filtered_df is not baseline_df
+        ):
             self._filtered_results = self._calculator.calculate_all_features(
                 df=filtered_df,
                 gain_col=gain_col,
@@ -507,16 +513,25 @@ class FeatureImpactTab(QWidget):
         if hasattr(self, "_exclude_panel"):
             self._exclude_panel.set_columns(analyzable)
 
-        self._update_summary()
+        self._update_summary(baseline_df, filtered_df)
         self._populate_table()
 
-    def _update_summary(self) -> None:
-        """Update the summary label."""
+    def _update_summary(
+        self, baseline_df: pd.DataFrame, filtered_df: pd.DataFrame | None
+    ) -> None:
+        """Update the summary label with actual trade counts."""
         n_features = len(self._baseline_results)
-        n_trades = self._baseline_results[0].trades_total if self._baseline_results else 0
-        self._summary_label.setText(
-            f"Analyzing {n_features} features across {n_trades:,} trades"
-        )
+        n_baseline = len(baseline_df)
+        
+        if filtered_df is not None and filtered_df is not baseline_df:
+            n_filtered = len(filtered_df)
+            self._summary_label.setText(
+                f"Analyzing {n_features} features | Baseline: {n_baseline:,} trades | Filtered: {n_filtered:,} trades"
+            )
+        else:
+            self._summary_label.setText(
+                f"Analyzing {n_features} features across {n_baseline:,} trades"
+            )
 
     def _populate_table(self) -> None:
         """Populate table with baseline and filtered results."""

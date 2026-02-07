@@ -221,13 +221,12 @@ class TestFeatureImpactIntegration:
         app_state_with_data.baseline_calculated.emit(None)
         qtbot.wait(50)
 
-        # Should have checkboxes for each numeric feature column
-        # gap_pct, volume_ratio, float_pct, mae_pct, mfe_pct = 5 features
-        assert len(tab._column_checkboxes) == 5
+        # Exclusion panel should exist
+        assert hasattr(tab, '_exclude_panel')
 
-        # All should be checked by default (not excluded)
-        for checkbox in tab._column_checkboxes.values():
-            assert checkbox.isChecked()
+        # No columns should be excluded by default
+        excluded = tab._exclude_panel.get_excluded()
+        assert len(excluded) == 0
 
 
 class TestFeatureImpactWithCorrelatedData:
