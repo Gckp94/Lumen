@@ -117,6 +117,9 @@ class MainWindow(QMainWindow):
         # Dock manager below with native tabs visible
         layout.addWidget(self.dock_manager, 1)
 
+        # Sync dock activation back to category bar
+        self.dock_manager.dock_activated.connect(self._on_dock_activated)
+
         self.setCentralWidget(central)
 
         # Show only ANALYZE category tabs initially
@@ -128,6 +131,14 @@ class MainWindow(QMainWindow):
 
         tabs_to_show = get_tabs_in_category(category)
         self.dock_manager.show_only_tabs(tabs_to_show)
+
+    def _on_dock_activated(self, tab_name: str) -> None:
+        """Handle dock activation - update category bar if needed."""
+        from src.ui.tab_categories import get_category_for_tab
+
+        category = get_category_for_tab(tab_name)
+        if category and category != self._category_bar.active_category:
+            self._category_bar.set_active_category(category)
 
     @property
     def app_state(self) -> AppState:
