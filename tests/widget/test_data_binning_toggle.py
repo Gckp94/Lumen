@@ -112,3 +112,19 @@ def test_recalculate_uses_filtered_when_selected(chart_panel, app_state):
     with patch.object(chart_panel, '_get_binning_df', return_value=app_state.filtered_df) as mock:
         chart_panel._recalculate_charts()
         mock.assert_called_once()
+
+
+def test_charts_update_when_filtered_data_changes(chart_panel, app_state):
+    """Charts should recalculate when filtered_data_updated signal fires."""
+    from src.core.models import BinDefinition
+
+    chart_panel._selected_column = "gain_pct"
+    chart_panel._bin_definitions = [
+        BinDefinition(operator=">", value1=0, value2=None, label="Positive"),
+    ]
+    chart_panel._use_filtered = True
+
+    with patch.object(chart_panel, '_recalculate_charts') as mock_recalc:
+        # Simulate the signal
+        chart_panel._on_filtered_data_updated(app_state.filtered_df)
+        mock_recalc.assert_called_once()

@@ -450,6 +450,11 @@ class DataBinningTab(QWidget):
         self.bin_config_changed.connect(self._on_bin_config_changed)
         self.column_selected.connect(self._on_column_selected_for_chart)
 
+        # Connect filtered data updates to chart panel
+        self._app_state.filtered_data_updated.connect(
+            self._chart_panel._on_filtered_data_updated
+        )
+
     def _initialize_from_state(self) -> None:
         """Initialize UI from current AppState if data exists."""
         if self._app_state.baseline_df is not None:
@@ -2011,6 +2016,17 @@ class BinChartPanel(QWidget):
                 return filtered
             # Fall back to baseline if filtered is empty
         return self._app_state.baseline_df
+
+    def _on_filtered_data_updated(self, df: "pd.DataFrame | None") -> None:
+        """Handle filtered data update signal.
+
+        Only recalculates if currently showing filtered data.
+
+        Args:
+            df: The updated filtered DataFrame.
+        """
+        if self._use_filtered:
+            self._recalculate_charts()
 
     def update_charts(
         self,
