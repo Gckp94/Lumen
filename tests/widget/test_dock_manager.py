@@ -157,3 +157,4 @@ class TestDockManagerVisibility:
         # Should have activated Tab A
         dock_a = manager.get_dock("Tab A")
         assert dock_a is not None
+        assert dock_a.isCurrentTab()  # Verify Tab A is now the active/current tab
