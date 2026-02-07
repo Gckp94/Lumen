@@ -93,3 +93,22 @@ def test_get_binning_df_falls_back_to_baseline_when_filtered_none(chart_panel, a
     chart_panel._use_filtered = True
     df = chart_panel._get_binning_df()
     assert len(df) == 4  # Falls back to baseline
+
+
+def test_recalculate_uses_filtered_when_selected(chart_panel, app_state):
+    """_recalculate_charts should use filtered data when toggle is set."""
+    from src.core.models import BinDefinition
+
+    chart_panel._selected_column = "gain_pct"
+    chart_panel._bin_definitions = [
+        BinDefinition(operator=">", value1=0, value2=None, label="Positive"),
+        BinDefinition(operator="<", value1=0, value2=None, label="Negative"),
+    ]
+
+    # Switch to filtered
+    chart_panel._use_filtered = True
+
+    # Mock _get_binning_df to verify it's called
+    with patch.object(chart_panel, '_get_binning_df', return_value=app_state.filtered_df) as mock:
+        chart_panel._recalculate_charts()
+        mock.assert_called_once()

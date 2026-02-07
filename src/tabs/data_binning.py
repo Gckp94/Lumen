@@ -2031,7 +2031,7 @@ class BinChartPanel(QWidget):
         """Recalculate and render all charts."""
         from src.core.binning_engine import BinningEngine
 
-        df = self._app_state.baseline_df
+        df = self._get_binning_df()
         if df is None or df.empty:
             self._show_empty_state("No Data Loaded", "Load trade data to begin analysis")
             return
