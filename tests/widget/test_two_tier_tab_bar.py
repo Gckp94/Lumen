@@ -104,15 +104,19 @@ class TestTwoTierTabBarSetActiveTab:
         assert bar.active_tab == "Monte Carlo"
         assert bar.active_category == "SIMULATE"
 
-    def test_set_active_tab_emits_signals(self, qtbot: QtBot) -> None:
-        """set_active_tab should emit tab_activated signal."""
+    def test_set_active_tab_does_not_emit_signal(self, qtbot: QtBot) -> None:
+        """set_active_tab should NOT emit tab_activated (prevents recursion in sync)."""
         bar = TwoTierTabBar()
         qtbot.addWidget(bar)
 
-        with qtbot.waitSignal(bar.tab_activated, timeout=1000) as blocker:
-            bar.set_active_tab("Chart Viewer")
+        signals_emitted = []
+        bar.tab_activated.connect(lambda name: signals_emitted.append(name))
 
-        assert blocker.args == ["Chart Viewer"]
+        bar.set_active_tab("Chart Viewer")
+
+        # Should update visual state without emitting signal
+        assert bar.active_tab == "Chart Viewer"
+        assert signals_emitted == [], "set_active_tab should not emit tab_activated"
 
 
 class TestTwoTierTabBarCategoryChanged:
