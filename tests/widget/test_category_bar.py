@@ -5,6 +5,7 @@ from PyQt6.QtCore import Qt
 from pytestqt.qtbot import QtBot
 
 from src.ui.components.category_bar import CategoryBar
+from src.ui.tab_categories import get_all_categories
 
 
 class TestCategoryBar:
@@ -27,8 +28,6 @@ class TestCategoryBar:
         bar = CategoryBar()
         qtbot.addWidget(bar)
 
-        from src.ui.tab_categories import get_all_categories
-
         for category in get_all_categories():
             assert category in bar._category_buttons
 
@@ -50,3 +49,32 @@ class TestCategoryBar:
         assert bar.active_category == "PORTFOLIO"
         assert bar._category_buttons["PORTFOLIO"].isChecked()
         assert not bar._category_buttons["ANALYZE"].isChecked()
+
+    def test_set_active_category_does_not_emit_signal(self, qtbot: QtBot) -> None:
+        """set_active_category does NOT emit category_changed signal."""
+        bar = CategoryBar()
+        qtbot.addWidget(bar)
+
+        # Verify NO signal is emitted when calling set_active_category
+        with pytest.raises(qtbot.TimeoutError):
+            with qtbot.waitSignal(
+                bar.category_changed, timeout=100, raising=True
+            ):
+                bar.set_active_category("SIMULATE")
+
+        # State should still be updated
+        assert bar.active_category == "SIMULATE"
+
+    def test_set_active_category_invalid_category(self, qtbot: QtBot) -> None:
+        """Invalid category doesn't crash or change state."""
+        bar = CategoryBar()
+        qtbot.addWidget(bar)
+
+        original_category = bar.active_category
+
+        # Passing invalid category should not crash
+        bar.set_active_category("INVALID_CATEGORY")
+
+        # State should remain unchanged
+        assert bar.active_category == original_category
+        assert bar._category_buttons[original_category].isChecked()
