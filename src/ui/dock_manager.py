@@ -381,3 +381,32 @@ class DockManager(ads.CDockManager):
         """
         current = self.styleSheet()
         self.setStyleSheet(current + hide_tabs_style)
+
+    def show_only_tabs(self, tab_titles: list[str]) -> None:
+        """Show only the specified tabs, hiding all others.
+
+        If the currently active tab is hidden, activates the first visible tab.
+
+        Args:
+            tab_titles: List of tab titles to show.
+        """
+        visible_set = set(tab_titles)
+        first_visible: str | None = None
+        active_is_visible = False
+
+        for title, dock_widget in self._dock_widgets.items():
+            if title in visible_set:
+                if dock_widget.isClosed():
+                    dock_widget.toggleView(True)
+                if first_visible is None:
+                    first_visible = title
+                # Check if this is the currently active tab
+                if not dock_widget.isClosed() and dock_widget.isCurrentTab():
+                    active_is_visible = True
+            else:
+                if not dock_widget.isClosed():
+                    dock_widget.toggleView(False)
+
+        # If active tab was hidden, activate first visible
+        if not active_is_visible and first_visible:
+            self.set_active_dock(first_visible)

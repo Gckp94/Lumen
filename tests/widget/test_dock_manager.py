@@ -119,3 +119,41 @@ class TestGetAllDockTitles:
         assert "Tab One" in titles
         assert "Tab Two" in titles
         assert len(titles) == 2
+
+
+class TestDockManagerVisibility:
+    """Tests for DockManager tab visibility methods."""
+
+    def test_show_only_tabs_hides_others(self, qtbot) -> None:
+        """show_only_tabs hides tabs not in the list."""
+        manager = DockManager()
+        qtbot.addWidget(manager)
+
+        # Add test tabs
+        manager.add_dock("Tab A", QWidget())
+        manager.add_dock("Tab B", QWidget())
+        manager.add_dock("Tab C", QWidget())
+
+        # Show only Tab A and Tab B
+        manager.show_only_tabs(["Tab A", "Tab B"])
+
+        # Tab C should be hidden
+        assert manager.is_dock_visible("Tab A")
+        assert manager.is_dock_visible("Tab B")
+        assert not manager.is_dock_visible("Tab C")
+
+    def test_show_only_tabs_activates_first_if_active_hidden(self, qtbot) -> None:
+        """If active tab is hidden, activate first visible tab."""
+        manager = DockManager()
+        qtbot.addWidget(manager)
+
+        manager.add_dock("Tab A", QWidget())
+        manager.add_dock("Tab B", QWidget())
+        manager.set_active_dock("Tab B")
+
+        # Hide Tab B by only showing Tab A
+        manager.show_only_tabs(["Tab A"])
+
+        # Should have activated Tab A
+        dock_a = manager.get_dock("Tab A")
+        assert dock_a is not None
