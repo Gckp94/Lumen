@@ -12,12 +12,10 @@ import pyqtgraph as pg
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
-    QCheckBox,
-    QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
-    QScrollArea,
+    QSplitter,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -26,6 +24,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.app_state import AppState
 from src.core.feature_impact_calculator import FeatureImpactCalculator, FeatureImpactResult
+from src.ui.components.resizable_exclude_panel import ResizableExcludePanel
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
 
 logger = logging.getLogger(__name__)
@@ -254,7 +253,6 @@ class FeatureImpactTab(QWidget):
         self._sort_ascending = False
 
         self._user_excluded_cols: set[str] = set()
-        self._column_checkboxes: dict[str, QCheckBox] = {}
 
         self._expanded_row: int | None = None
 
@@ -268,16 +266,9 @@ class FeatureImpactTab(QWidget):
         layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
         layout.setSpacing(Spacing.MD)
 
-        # Top row: Header + Exclusion panel
-        top_row = QHBoxLayout()
-
+        # Header row
         header = self._create_header()
-        top_row.addWidget(header, stretch=1)
-
-        self._exclusion_panel = self._create_exclusion_panel()
-        top_row.addWidget(self._exclusion_panel)
-
-        layout.addLayout(top_row)
+        layout.addWidget(header)
 
         # Empty state label
         self._empty_label = QLabel("Load trade data to view feature impact analysis")
@@ -297,9 +288,32 @@ class FeatureImpactTab(QWidget):
         self._detail_widget.setVisible(False)
         layout.addWidget(self._detail_widget)
 
-        # Main table
+        # Splitter with exclude panel and table
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(4)
+        splitter.setStyleSheet(f"""
+            QSplitter::handle {{
+                background-color: {Colors.BG_BORDER};
+            }}
+            QSplitter::handle:hover {{
+                background-color: {Colors.SIGNAL_CYAN};
+            }}
+        """)
+
+        # Exclude panel (left)
+        self._exclude_panel = ResizableExcludePanel()
+        self._exclude_panel.exclusion_changed.connect(self._on_exclusion_changed)
+        splitter.addWidget(self._exclude_panel)
+
+        # Table (right)
         self._table = self._create_table()
-        layout.addWidget(self._table)
+        splitter.addWidget(self._table)
+
+        splitter.setSizes([280, 800])
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+
+        layout.addWidget(splitter, 1)
 
     def _create_header(self) -> QWidget:
         """Create the header section with title and summary."""
@@ -405,96 +419,17 @@ class FeatureImpactTab(QWidget):
 
         return table
 
-    def _create_exclusion_panel(self) -> QWidget:
-        """Create collapsible column exclusion panel."""
-        group = QGroupBox("Exclude Columns")
-        group.setCheckable(True)
-        group.setChecked(False)  # Collapsed by default
-        group.setStyleSheet(f"""
-            QGroupBox {{
-                background-color: {Colors.BG_SURFACE};
-                border: 1px solid {Colors.BG_BORDER};
-                border-radius: 4px;
-                margin-top: 8px;
-                padding-top: 16px;
-                font-family: '{Fonts.UI}';
-                font-size: 12px;
-                color: {Colors.TEXT_SECONDARY};
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 8px;
-                padding: 0 4px;
-            }}
-            QGroupBox::indicator {{
-                width: 12px;
-                height: 12px;
-            }}
-        """)
-        group.setMaximumWidth(200)
-        group.setMaximumHeight(300)
+    def _on_exclusion_changed(self, column: str, is_excluded: bool) -> None:
+        """Handle column exclusion change from panel.
 
-        # Scroll area for checkboxes
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(f"""
-            QScrollArea {{
-                border: none;
-                background-color: transparent;
-            }}
-        """)
-
-        self._checkbox_container = QWidget()
-        self._checkbox_layout = QVBoxLayout(self._checkbox_container)
-        self._checkbox_layout.setContentsMargins(4, 4, 4, 4)
-        self._checkbox_layout.setSpacing(2)
-
-        scroll.setWidget(self._checkbox_container)
-
-        layout = QVBoxLayout(group)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.addWidget(scroll)
-
-        return group
-
-    def _update_exclusion_checkboxes(self, columns: list[str]) -> None:
-        """Update checkboxes to match available columns."""
-        # Clear existing
-        for checkbox in self._column_checkboxes.values():
-            checkbox.deleteLater()
-        self._column_checkboxes.clear()
-
-        # Clear the layout
-        while self._checkbox_layout.count():
-            item = self._checkbox_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-
-        # Create checkbox for each column
-        for col in sorted(columns):
-            checkbox = QCheckBox(col)
-            checkbox.setChecked(col not in self._user_excluded_cols)
-            checkbox.setStyleSheet(f"""
-                QCheckBox {{
-                    color: {Colors.TEXT_PRIMARY};
-                    font-family: '{Fonts.DATA}';
-                    font-size: 11px;
-                }}
-            """)
-            checkbox.stateChanged.connect(
-                lambda state, c=col: self._on_exclusion_changed(c, state)
-            )
-            self._checkbox_layout.addWidget(checkbox)
-            self._column_checkboxes[col] = checkbox
-
-        self._checkbox_layout.addStretch()
-
-    def _on_exclusion_changed(self, column: str, state: int) -> None:
-        """Handle column exclusion checkbox change."""
-        if state == Qt.CheckState.Checked.value:
-            self._user_excluded_cols.discard(column)
-        else:
+        Args:
+            column: The column name that changed.
+            is_excluded: True if the column is now excluded, False otherwise.
+        """
+        if is_excluded:
             self._user_excluded_cols.add(column)
+        else:
+            self._user_excluded_cols.discard(column)
 
         # Re-analyze with updated exclusions
         self._analyze_features()
@@ -566,10 +501,11 @@ class FeatureImpactTab(QWidget):
             reverse=True,
         )
 
-        # Update checkbox panel with available columns
+        # Update exclude panel with available columns
         numeric_cols = baseline_df.select_dtypes(include=[np.number]).columns.tolist()
         analyzable = [c for c in numeric_cols if c != gain_col]
-        self._update_exclusion_checkboxes(analyzable)
+        if hasattr(self, "_exclude_panel"):
+            self._exclude_panel.set_columns(analyzable)
 
         self._update_summary()
         self._populate_table()
