@@ -439,6 +439,7 @@ class FeatureImpactTab(QWidget):
         """Connect to app state signals."""
         self._app_state.baseline_calculated.connect(self._on_data_updated)
         self._app_state.filtered_data_updated.connect(self._on_data_updated)
+        self._app_state.first_trigger_toggled.connect(self._on_data_updated)
 
     def _show_empty_state(self, show: bool) -> None:
         """Toggle between empty state and table."""
@@ -465,6 +466,15 @@ class FeatureImpactTab(QWidget):
         gain_col = "gain_pct"
         if self._app_state.column_mapping:
             gain_col = self._app_state.column_mapping.gain_pct
+
+        # Apply First Trigger Only filtering if enabled
+        if (
+            self._app_state.first_trigger_enabled
+            and "trigger_number" in baseline_df.columns
+        ):
+            baseline_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
+            if filtered_df is not None and "trigger_number" in filtered_df.columns:
+                filtered_df = filtered_df[filtered_df["trigger_number"] == 1].copy()
 
         # Build full exclusion list
         excluded = list(self._user_excluded_cols)
@@ -523,14 +533,17 @@ class FeatureImpactTab(QWidget):
         n_features = len(self._baseline_results)
         n_baseline = len(baseline_df)
         
+        # Indicate first trigger mode
+        ft_suffix = " (1st trigger)" if self._app_state.first_trigger_enabled else ""
+        
         if filtered_df is not None and filtered_df is not baseline_df:
             n_filtered = len(filtered_df)
             self._summary_label.setText(
-                f"Analyzing {n_features} features | Baseline: {n_baseline:,} trades | Filtered: {n_filtered:,} trades"
+                f"Analyzing {n_features} features{ft_suffix} | Baseline: {n_baseline:,} | Filtered: {n_filtered:,}"
             )
         else:
             self._summary_label.setText(
-                f"Analyzing {n_features} features across {n_baseline:,} trades"
+                f"Analyzing {n_features} features across {n_baseline:,} trades{ft_suffix}"
             )
 
     def _populate_table(self) -> None:
