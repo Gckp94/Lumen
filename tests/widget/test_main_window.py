@@ -43,18 +43,18 @@ class TestViewMenu:
         action_texts = [a.text() for a in view_menu.actions()]
         assert "Show All Tabs" in action_texts
 
-    def test_view_menu_has_tab_entries(self, main_window):
-        """View menu should have entries for each tab."""
-        menu_bar = main_window.menuBar()
-        view_menu = None
-        for action in menu_bar.actions():
-            if action.text() == "&View":
-                view_menu = action.menu()
-                break
+    def test_view_menu_has_tab_entries(self, main_window: MainWindow) -> None:
+        """View menu should have category shortcuts."""
+        view_menu = main_window._view_menu
+        actions = view_menu.actions()
+        action_texts = [a.text() for a in actions]
 
-        action_texts = [a.text() for a in view_menu.actions()]
-        assert "Data Input" in action_texts
-        assert "Feature Explorer" in action_texts
+        # Should have category navigation entries
+        assert "Go to ANALYZE" in action_texts
+        assert "Go to SIMULATE" in action_texts
+        assert "Go to FEATURES" in action_texts
+        assert "Go to PORTFOLIO" in action_texts
+        assert "Go to CHARTS" in action_texts
 
     def test_show_all_tabs_restores_hidden(self, main_window, qtbot):
         """'Show All Tabs' should restore hidden tabs."""
@@ -79,11 +79,11 @@ class TestViewMenu:
 class TestMainWindow:
     """Tests for the MainWindow class."""
 
-    def test_main_window_has_thirteen_docks(self, qtbot: QtBot) -> None:
-        """MainWindow contains exactly 13 docks."""
+    def test_main_window_has_fourteen_docks(self, qtbot: QtBot) -> None:
+        """MainWindow contains exactly 14 docks."""
         window = MainWindow()
         qtbot.addWidget(window)
-        assert window.dock_manager.dock_count() == 13
+        assert window.dock_manager.dock_count() == 14
 
     def test_dock_titles_match_workflow(self, qtbot: QtBot) -> None:
         """Dock titles match expected workflow order."""
