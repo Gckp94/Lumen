@@ -136,3 +136,17 @@ def test_toggle_buttons_show_row_counts(chart_panel, app_state):
 
     assert "4" in chart_panel._baseline_btn.text()  # 4 rows in baseline
     assert "2" in chart_panel._filtered_btn.text()  # 2 rows in filtered
+
+
+def test_auto_switch_to_baseline_when_filters_cleared(chart_panel, app_state):
+    """Should auto-switch to baseline when filtered data becomes empty."""
+    chart_panel._use_filtered = True
+    chart_panel._filtered_btn.setChecked(True)
+
+    # Simulate filters being cleared
+    app_state.filtered_df = pd.DataFrame()
+    chart_panel._on_filtered_data_updated(app_state.filtered_df)
+
+    # Should have switched back to baseline
+    assert chart_panel._use_filtered is False
+    assert chart_panel._baseline_btn.isChecked() is True

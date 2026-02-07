@@ -2020,14 +2020,20 @@ class BinChartPanel(QWidget):
     def _on_filtered_data_updated(self, df: "pd.DataFrame | None") -> None:
         """Handle filtered data update signal.
 
-        Only recalculates if currently showing filtered data.
+        If filtered is selected but data becomes empty, auto-switch to baseline.
 
         Args:
             df: The updated filtered DataFrame.
         """
-        self._update_toggle_labels()  # Update counts
-        if self._use_filtered:
-            self._recalculate_charts()
+        self._update_toggle_labels()
+
+        # Auto-switch to baseline if filtered becomes empty while selected
+        if self._use_filtered and (df is None or df.empty):
+            self._use_filtered = False
+            self._baseline_btn.setChecked(True)
+            self._filtered_btn.setChecked(False)
+
+        self._recalculate_charts()
 
     def _update_toggle_labels(self) -> None:
         """Update toggle button labels with row counts."""
