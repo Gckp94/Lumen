@@ -7,6 +7,7 @@ to floating windows and docked back.
 import logging
 
 import PyQt6Ads as ads
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QWidget
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,9 @@ class DockManager(ads.CDockManager):
     Wraps CDockManager to provide a simplified API for adding
     and managing dockable widgets as tabbed panels.
     """
+
+    # Emitted when a dock becomes the active/focused tab
+    dock_activated = pyqtSignal(str)  # dock title
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the dock manager.
@@ -191,6 +195,11 @@ class DockManager(ads.CDockManager):
         # Handle close to re-dock instead of destroy
         dock_widget.closeRequested.connect(lambda: self._on_dock_close_requested(dock_widget))
 
+        # Track visibility changes for sync with external navigation
+        dock_widget.visibilityChanged.connect(
+            lambda visible, title=title: self._on_dock_visibility_changed(title, visible)
+        )
+
         # Add to existing dock area to create tabs, or create new area
         if self._center_area is not None and area == ads.DockWidgetArea.CenterDockWidgetArea:
             # Add to existing center area as a tab
@@ -241,6 +250,16 @@ class DockManager(ads.CDockManager):
                 ads.DockWidgetArea.CenterDockWidgetArea, dock_widget, self._center_area
             )
             logger.debug("Re-docked floating widget: %s", dock_widget.windowTitle())
+
+    def _on_dock_visibility_changed(self, title: str, visible: bool) -> None:
+        """Handle dock visibility change.
+
+        Args:
+            title: The dock title.
+            visible: Whether the dock became visible.
+        """
+        if visible:
+            self.dock_activated.emit(title)
 
     def toggle_dock_visibility(self, title: str) -> None:
         """Toggle visibility of a dock widget.
@@ -298,6 +317,9 @@ class DockManager(ads.CDockManager):
 
         # Raise the tab
         dock_widget.raise_()
+
+        # Emit signal for external navigation sync
+        self.dock_activated.emit(title)
         logger.debug("Set active dock: %s", title)
 
     def is_dock_visible(self, title: str) -> bool:

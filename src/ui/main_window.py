@@ -117,6 +117,9 @@ class MainWindow(QMainWindow):
         # Dock manager below
         layout.addWidget(self.dock_manager, 1)
 
+        # Sync dock activation back to tab bar
+        self.dock_manager.dock_activated.connect(self._tab_bar.set_active_tab)
+
         self.setCentralWidget(central)
 
         # Hide native tabs since we have our custom navigation

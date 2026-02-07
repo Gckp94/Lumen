@@ -6,6 +6,25 @@ from pytestqt.qtbot import QtBot
 from src.ui.main_window import MainWindow
 
 
+class TestTwoTierSync:
+    """Test bidirectional sync between bar and docks."""
+
+    def test_dock_activation_updates_bar(self, qtbot: QtBot) -> None:
+        """Activating dock should update tab bar selection."""
+        window = MainWindow()
+        qtbot.addWidget(window)
+
+        # Activate dock directly
+        window.dock_manager.set_active_dock("Monte Carlo")
+
+        from src.ui.components.two_tier_tab_bar import TwoTierTabBar
+
+        bar = window.findChild(TwoTierTabBar)
+
+        assert bar.active_tab == "Monte Carlo"
+        assert bar.active_category == "SIMULATE"
+
+
 class TestTwoTierIntegration:
     """Test two-tier navigation integration."""
 

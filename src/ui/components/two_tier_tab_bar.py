@@ -209,11 +209,27 @@ class TwoTierTabBar(QFrame):
         return self._active_tab
 
     def set_active_tab(self, tab_name: str) -> None:
+        """Set active tab programmatically (without emitting tab_activated)."""
+        # Skip if already active to avoid unnecessary updates
+        if tab_name == self._active_tab:
+            return
+
         from src.ui.tab_categories import get_category_for_tab
+
         category = get_category_for_tab(tab_name)
         if category and category != self._active_category:
-            self._on_category_clicked(category)
-        self._on_tab_clicked(tab_name)
+            # Update category visually without triggering tab change
+            self._active_category = category
+            for cat, btn in self._category_buttons.items():
+                btn.setChecked(cat == category)
+            category_tabs = get_tabs_in_category(category)
+            for name, btn in self._tab_buttons.items():
+                btn.setVisible(name in category_tabs)
+
+        # Update tab button state without emitting signal
+        self._active_tab = tab_name
+        for name, btn in self._tab_buttons.items():
+            btn.setChecked(name == tab_name)
 
     def keyPressEvent(self, event) -> None:
         """Handle keyboard navigation."""
