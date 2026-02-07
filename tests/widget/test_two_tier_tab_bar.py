@@ -148,3 +148,49 @@ class TestTwoTierTabBarCategoryChanged:
 
         assert bar._tab_buttons["Breakdown"].isChecked()
         assert not bar._tab_buttons["Data Input"].isChecked()
+
+
+class TestTwoTierTabBarKeyboard:
+    """Test keyboard navigation."""
+
+    def test_ctrl_number_switches_category(self, qtbot: QtBot) -> None:
+        """Ctrl+1-5 should switch categories."""
+        bar = TwoTierTabBar()
+        qtbot.addWidget(bar)
+        bar.setFocus()
+
+        # Ctrl+3 should switch to FEATURES (index 2, 1-based = 3)
+        qtbot.keyClick(bar, Qt.Key.Key_3, Qt.KeyboardModifier.ControlModifier)
+
+        assert bar.active_category == "FEATURES"
+
+    def test_ctrl_tab_cycles_tabs(self, qtbot: QtBot) -> None:
+        """Ctrl+Tab should cycle to next tab in category."""
+        bar = TwoTierTabBar()
+        qtbot.addWidget(bar)
+        bar.set_active_tab("Data Input")
+
+        qtbot.keyClick(bar, Qt.Key.Key_Tab, Qt.KeyboardModifier.ControlModifier)
+
+        assert bar.active_tab == "Feature Explorer"
+
+    def test_ctrl_shift_tab_cycles_backwards(self, qtbot: QtBot) -> None:
+        """Ctrl+Shift+Tab should cycle to previous tab."""
+        bar = TwoTierTabBar()
+        qtbot.addWidget(bar)
+        bar.set_active_tab("Feature Explorer")
+
+        qtbot.keyClick(bar, Qt.Key.Key_Tab,
+                       Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+
+        assert bar.active_tab == "Data Input"
+
+    def test_tab_cycling_wraps_around(self, qtbot: QtBot) -> None:
+        """Tab cycling should wrap around at boundaries."""
+        bar = TwoTierTabBar()
+        qtbot.addWidget(bar)
+        bar.set_active_tab("Data Binning")  # Last tab in ANALYZE
+
+        qtbot.keyClick(bar, Qt.Key.Key_Tab, Qt.KeyboardModifier.ControlModifier)
+
+        assert bar.active_tab == "Data Input"  # Wraps to first

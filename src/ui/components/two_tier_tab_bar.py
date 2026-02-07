@@ -182,3 +182,46 @@ class TwoTierTabBar(QFrame):
         if category and category != self._active_category:
             self._on_category_clicked(category)
         self._on_tab_clicked(tab_name)
+
+    def keyPressEvent(self, event) -> None:
+        """Handle keyboard navigation."""
+        from src.ui.tab_categories import get_all_categories
+
+        modifiers = event.modifiers()
+        key = event.key()
+
+        # Ctrl+1-5: Switch category
+        if modifiers == Qt.KeyboardModifier.ControlModifier:
+            if Qt.Key.Key_1 <= key <= Qt.Key.Key_5:
+                index = key - Qt.Key.Key_1
+                categories = get_all_categories()
+                if index < len(categories):
+                    self._on_category_clicked(categories[index])
+                    return
+
+            # Ctrl+Tab: Next tab in category
+            if key == Qt.Key.Key_Tab:
+                self._cycle_tab(forward=True)
+                return
+
+        # Ctrl+Shift+Tab: Previous tab in category
+        if modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
+            if key == Qt.Key.Key_Tab:
+                self._cycle_tab(forward=False)
+                return
+
+        super().keyPressEvent(event)
+
+    def _cycle_tab(self, forward: bool = True) -> None:
+        """Cycle to next/previous tab in current category."""
+        tabs = get_tabs_in_category(self._active_category)
+        if not tabs or self._active_tab not in tabs:
+            return
+
+        current_index = tabs.index(self._active_tab)
+        if forward:
+            next_index = (current_index + 1) % len(tabs)
+        else:
+            next_index = (current_index - 1) % len(tabs)
+
+        self._on_tab_clicked(tabs[next_index])
