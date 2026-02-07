@@ -9,6 +9,7 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QMainWindow
 
 from src.core.app_state import AppState
+from src.core.state_exporter import StateExporter
 from src.tabs.breakdown import BreakdownTab
 from src.tabs.chart_viewer import ChartViewerTab
 from src.tabs.data_binning import DataBinningTab
@@ -42,14 +43,17 @@ class MainWindow(QMainWindow):
 
         # Create dock manager
         self.dock_manager = DockManager(self)
-        self.setCentralWidget(self.dock_manager)
 
         self._setup_docks()
+        self._setup_central_widget()
         self._setup_menu_bar()
         self._apply_menu_styling()
 
         # Set Data Input as the default active tab
         self.dock_manager.set_active_dock("Data Input")
+
+        # State exporter for MCP bridge
+        self._state_exporter = StateExporter(self._app_state, self)
 
         logger.debug("MainWindow initialized with dockable tabs")
 
@@ -93,6 +97,34 @@ class MainWindow(QMainWindow):
             self.dock_manager.add_dock(title, widget)
 
         logger.debug("Dock manager configured with %d docks", self.dock_manager.dock_count())
+
+    def _setup_central_widget(self) -> None:
+        """Set up the central widget with two-tier navigation."""
+        from PyQt6.QtWidgets import QVBoxLayout, QWidget
+
+        from src.ui.components.two_tier_tab_bar import TwoTierTabBar
+
+        central = QWidget()
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Two-tier tab bar at top
+        self._tab_bar = TwoTierTabBar()
+        self._tab_bar.tab_activated.connect(self._on_tab_bar_activated)
+        layout.addWidget(self._tab_bar)
+
+        # Dock manager below
+        layout.addWidget(self.dock_manager, 1)
+
+        self.setCentralWidget(central)
+
+        # Hide native tabs since we have our custom navigation
+        self.dock_manager.hide_native_tab_bar()
+
+    def _on_tab_bar_activated(self, tab_name: str) -> None:
+        """Handle tab activation from two-tier bar."""
+        self.dock_manager.set_active_dock(tab_name)
 
     @property
     def app_state(self) -> AppState:
@@ -221,3 +253,8 @@ class MainWindow(QMainWindow):
             }}
         """
         self.menuBar().setStyleSheet(menu_stylesheet)
+
+    def closeEvent(self, event: object) -> None:
+        """Clean up state exporter on close."""
+        self._state_exporter.cleanup()
+        super().closeEvent(event)  # type: ignore[arg-type]

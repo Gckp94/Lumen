@@ -344,3 +344,18 @@ class DockManager(ads.CDockManager):
                     self._center_area,
                 )
                 logger.debug("Docked floating widget: %s", dock_widget.windowTitle())
+
+    def hide_native_tab_bar(self) -> None:
+        """Hide the native PyQt6Ads tab bar (when using external navigation)."""
+        hide_tabs_style = """
+            ads--CDockAreaTabBar {
+                max-height: 0;
+                min-height: 0;
+            }
+            ads--CDockAreaTitleBar {
+                max-height: 0;
+                min-height: 0;
+            }
+        """
+        current = self.styleSheet()
+        self.setStyleSheet(current + hide_tabs_style)
