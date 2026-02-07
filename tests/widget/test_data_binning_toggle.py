@@ -128,3 +128,11 @@ def test_charts_update_when_filtered_data_changes(chart_panel, app_state):
         # Simulate the signal
         chart_panel._on_filtered_data_updated(app_state.filtered_df)
         mock_recalc.assert_called_once()
+
+
+def test_toggle_buttons_show_row_counts(chart_panel, app_state):
+    """Toggle buttons should display row counts."""
+    chart_panel._update_toggle_labels()
+
+    assert "4" in chart_panel._baseline_btn.text()  # 4 rows in baseline
+    assert "2" in chart_panel._filtered_btn.text()  # 2 rows in filtered

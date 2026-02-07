@@ -2025,8 +2025,38 @@ class BinChartPanel(QWidget):
         Args:
             df: The updated filtered DataFrame.
         """
+        self._update_toggle_labels()  # Update counts
         if self._use_filtered:
             self._recalculate_charts()
+
+    def _update_toggle_labels(self) -> None:
+        """Update toggle button labels with row counts."""
+        baseline_count = 0
+        filtered_count = 0
+
+        if self._app_state.baseline_df is not None:
+            df = self._app_state.baseline_df
+            # Count first triggers only (matching analysis behavior)
+            if "trigger_number" in df.columns:
+                baseline_count = len(df[df["trigger_number"] == 1])
+            else:
+                baseline_count = len(df)
+
+        if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
+            df = self._app_state.filtered_df
+            if "trigger_number" in df.columns:
+                filtered_count = len(df[df["trigger_number"] == 1])
+            else:
+                filtered_count = len(df)
+
+        self._baseline_btn.setText(f"Baseline ({baseline_count:,})")
+
+        if filtered_count > 0:
+            self._filtered_btn.setText(f"Filtered ({filtered_count:,})")
+            self._filtered_btn.setEnabled(True)
+        else:
+            self._filtered_btn.setText("Filtered (\u2014)")
+            self._filtered_btn.setToolTip("No filters applied")
 
     def update_charts(
         self,
@@ -2041,6 +2071,7 @@ class BinChartPanel(QWidget):
         """
         self._selected_column = column
         self._bin_definitions = bin_definitions
+        self._update_toggle_labels()  # Update row counts
         self._recalculate_charts()
 
     def _recalculate_charts(self) -> None:
