@@ -244,6 +244,9 @@ class FeatureInsightsTab(BackgroundCalculationMixin, QWidget):
         self.app_state.data_loaded.connect(self._on_data_loaded)
         self.app_state.filtered_data_updated.connect(self._on_data_updated)
 
+        # Connect to tab visibility for stale refresh
+        self.app_state.tab_became_visible.connect(self._on_tab_became_visible)
+
     @pyqtSlot(object)
     def _on_data_loaded(self, df) -> None:
         """Handle data loaded event."""
@@ -261,6 +264,19 @@ class FeatureInsightsTab(BackgroundCalculationMixin, QWidget):
                 return
 
         self._run_button.setEnabled(df is not None and len(df) > 0)
+
+    def _on_tab_became_visible(self, tab_name: str) -> None:
+        """Handle tab becoming visible after being marked stale.
+
+        Args:
+            tab_name: Name of the tab that became visible.
+        """
+        if tab_name == self._tab_name:
+            # Update run button enabled state based on current data
+            df = self.app_state.filtered_df
+            if df is None:
+                df = self.app_state.baseline_df
+            self._run_button.setEnabled(df is not None and len(df) > 0)
 
     @pyqtSlot()
     def _on_run_clicked(self) -> None:

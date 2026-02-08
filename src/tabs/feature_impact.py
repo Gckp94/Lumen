@@ -443,6 +443,9 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         self._app_state.filtered_data_updated.connect(self._on_data_updated)
         self._app_state.first_trigger_toggled.connect(self._on_data_updated)
 
+        # Connect to tab visibility for stale refresh
+        self._app_state.tab_became_visible.connect(self._on_tab_became_visible)
+
     def _show_empty_state(self, show: bool) -> None:
         """Toggle between empty state and table."""
         self._empty_label.setVisible(show)
@@ -462,6 +465,16 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
 
         self._show_empty_state(False)
         self._analyze_features()
+
+    def _on_tab_became_visible(self, tab_name: str) -> None:
+        """Handle tab becoming visible after being marked stale.
+
+        Args:
+            tab_name: Name of the tab that became visible.
+        """
+        if tab_name == self._tab_name:
+            # Rerun data update logic which will analyze if data exists
+            self._on_data_updated()
 
     def _analyze_features(self) -> None:
         """Analyze features for both baseline and filtered data."""

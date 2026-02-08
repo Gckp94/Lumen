@@ -676,6 +676,9 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
             self._on_filtered_kelly_equity_curve_updated
         )
 
+        # Connect to tab visibility for stale refresh
+        self._app_state.tab_became_visible.connect(self._on_tab_became_visible)
+
     def _initialize_from_state(self) -> None:
         """Initialize panel values from AppState."""
         if self._app_state.adjustment_params:
@@ -1189,6 +1192,18 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
 
         # Schedule debounced equity curve calculation
         self._schedule_equity_curve_calculation()
+
+    def _on_tab_became_visible(self, tab_name: str) -> None:
+        """Handle tab becoming visible after being marked stale.
+
+        Args:
+            tab_name: Name of the tab that became visible.
+        """
+        if tab_name == self._tab_name:
+            # Get current filtered data and recalculate
+            filtered_df = self._app_state.filtered_df
+            if filtered_df is not None and not filtered_df.empty:
+                self._on_filtered_data_updated(filtered_df)
 
     def _calculate_filtered_metrics(self, filtered_df: pd.DataFrame) -> None:
         """Calculate filtered metrics without equity curves (fast path).
