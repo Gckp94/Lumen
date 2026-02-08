@@ -191,8 +191,8 @@ class UserInputsPanel(QWidget):
         self._fractional_kelly_spin.valueChanged.connect(self._on_metrics_input_changed)
 
         # Adjustment params
-        self._stop_loss_spin.valueChanged.connect(self._on_adjustment_input_changed)
-        self._efficiency_spin.valueChanged.connect(self._on_adjustment_input_changed)
+        self._stop_loss_spin.editingFinished.connect(self._on_adjustment_input_changed)
+        self._efficiency_spin.editingFinished.connect(self._on_adjustment_input_changed)
 
     def _on_metrics_input_changed(self) -> None:
         """Handle metrics input value change."""
