@@ -413,6 +413,28 @@ class EquityChart(QWidget):
         # Force plot update to ensure fill renders
         self._plot_widget.update()
 
+    def set_baseline_visible(self, visible: bool) -> None:
+        """Show or hide the baseline curve.
+
+        Args:
+            visible: Whether to show baseline curve.
+        """
+        self._baseline_curve.setVisible(visible)
+        self._peak_curve.setVisible(visible)
+        # Drawdown fill depends on baseline, so hide it when baseline is hidden
+        if self._show_drawdown:
+            self._drawdown_fill.setVisible(visible)
+        self._plot_widget.update()
+
+    def set_filtered_visible(self, visible: bool) -> None:
+        """Show or hide the filtered curve.
+
+        Args:
+            visible: Whether to show filtered curve.
+        """
+        self._filtered_curve.setVisible(visible)
+        self._plot_widget.update()
+
     def set_baseline(
         self,
         equity_df: pd.DataFrame | None,
@@ -765,6 +787,39 @@ class _ChartPanel(QWidget):
         self._axis_toggle = AxisModeToggle()
         self._axis_toggle.mode_changed.connect(self._on_axis_mode_changed)
         controls_layout.addWidget(self._axis_toggle)
+
+        # Curve visibility toggles
+        self._baseline_checkbox = QCheckBox("Baseline")
+        self._baseline_checkbox.setChecked(True)
+        self._baseline_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Colors.SIGNAL_BLUE};
+                font-family: {Fonts.UI};
+                font-size: {FontSizes.BODY}px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+            }}
+        """)
+        self._baseline_checkbox.toggled.connect(self.chart.set_baseline_visible)
+        controls_layout.addWidget(self._baseline_checkbox)
+
+        self._filtered_checkbox = QCheckBox("Filtered")
+        self._filtered_checkbox.setChecked(True)
+        self._filtered_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Colors.SIGNAL_CYAN};
+                font-family: {Fonts.UI};
+                font-size: {FontSizes.BODY}px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+            }}
+        """)
+        self._filtered_checkbox.toggled.connect(self.chart.set_filtered_visible)
+        controls_layout.addWidget(self._filtered_checkbox)
 
         controls_layout.addStretch()
 
