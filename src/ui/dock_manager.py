@@ -187,6 +187,11 @@ class DockManager(ads.CDockManager):
         """
         dock_widget = ads.CDockWidget(title)
         dock_widget.setWidget(widget)
+
+        # Set dock widget on tab for visibility tracking
+        if hasattr(widget, "set_dock_widget"):
+            widget.set_dock_widget(dock_widget)
+
         # Allow closing only when floating (undocked)
         dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetClosable, True)
         dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetFloatable, True)
