@@ -1368,7 +1368,8 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         for error in result.get("errors", []):
             logger.warning(f"Error calculating table: {error}")
 
-        # Reset the golden metrics flag
+        # Capture flag before reset (used for conditional Stop/Offset table clearing)
+        was_from_golden = self._stop_offset_from_golden
         self._stop_offset_from_golden = False
 
         # MAE table
@@ -1386,13 +1387,13 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         # Stop Loss table
         if result["stop_loss_df"] is not None:
             self._populate_table(self._stop_loss_table, result["stop_loss_df"])
-        elif not self._stop_offset_from_golden:
+        elif not was_from_golden:
             self._stop_loss_table.setRowCount(0)
 
         # Offset table
         if result["offset_df"] is not None:
             self._populate_table(self._offset_table, result["offset_df"])
-        elif not self._stop_offset_from_golden:
+        elif not was_from_golden:
             self._offset_table.setRowCount(0)
 
         # Scaling table (visibility handling)
