@@ -9,15 +9,16 @@ TAB_CATEGORIES: OrderedDict[str, list[str]] = OrderedDict([
         "Feature Explorer",
         "Breakdown",
         "Data Binning",
-    ]),
-    ("SIMULATE", [
         "P&L Stats",
-        "Monte Carlo",
-        "Parameter Sensitivity",
+        "Statistics",
     ]),
     ("FEATURES", [
         "Feature Insights",
         "Feature Impact",
+        "Parameter Sensitivity",
+    ]),
+    ("MONTE CARLO", [
+        "Monte Carlo",
     ]),
     ("PORTFOLIO", [
         "Portfolio Overview",
@@ -26,7 +27,6 @@ TAB_CATEGORIES: OrderedDict[str, list[str]] = OrderedDict([
     ]),
     ("CHARTS", [
         "Chart Viewer",
-        "Statistics",
     ]),
 ])
 
