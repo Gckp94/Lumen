@@ -26,6 +26,7 @@ from src.core.models import BinConfig, BinDefinition
 from src.ui.components.empty_state import EmptyState
 from src.ui.components.toast import Toast
 from src.ui.constants import Colors, Fonts, Spacing
+from src.ui.mixins.background_calculation import BackgroundCalculationMixin
 
 if TYPE_CHECKING:
     from src.core.app_state import AppState
@@ -119,7 +120,7 @@ def is_time_column(column_name: str) -> bool:
     return any(indicator in column_lower for indicator in time_indicators)
 
 
-class DataBinningTab(QWidget):
+class DataBinningTab(BackgroundCalculationMixin, QWidget):
     """Tab for configuring data binning on numeric columns.
 
     Provides UI for selecting a numeric column from the loaded dataset
@@ -144,8 +145,8 @@ class DataBinningTab(QWidget):
             app_state: Centralized application state.
             parent: Optional parent widget.
         """
-        super().__init__(parent)
-        self._app_state = app_state
+        QWidget.__init__(self, parent)
+        BackgroundCalculationMixin.__init__(self, app_state, "Data Binning")
         self._bin_rows: list[BinConfigRow] = []
         self._is_time_column: bool = False
         self._debounce_timer = QTimer()
@@ -153,6 +154,7 @@ class DataBinningTab(QWidget):
         self._debounce_timer.timeout.connect(self._update_chart_panel)
         self._last_save_dir: Path | None = None
         self._setup_ui()
+        self._setup_background_calculation()
         self._connect_signals()
         self._initialize_from_state()
 

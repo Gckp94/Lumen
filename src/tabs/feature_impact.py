@@ -27,6 +27,7 @@ from src.core.app_state import AppState
 from src.core.feature_impact_calculator import FeatureImpactCalculator, FeatureImpactResult
 from src.ui.components.resizable_exclude_panel import ResizableExcludePanel
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
+from src.ui.mixins.background_calculation import BackgroundCalculationMixin
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +232,7 @@ class FeatureDetailWidget(QWidget):
             card._stat_labels[key] = label
 
 
-class FeatureImpactTab(QWidget):
+class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
     """Tab displaying feature impact rankings."""
 
     def __init__(self, app_state: AppState, parent: QWidget | None = None) -> None:
@@ -241,8 +242,8 @@ class FeatureImpactTab(QWidget):
             app_state: Application state for data access.
             parent: Parent widget.
         """
-        super().__init__(parent)
-        self._app_state = app_state
+        QWidget.__init__(self, parent)
+        BackgroundCalculationMixin.__init__(self, app_state, "Feature Impact")
         self._calculator = FeatureImpactCalculator()
         self._baseline_results: list[FeatureImpactResult] = []
         self._filtered_results: list[FeatureImpactResult] = []
@@ -258,6 +259,7 @@ class FeatureImpactTab(QWidget):
         self._expanded_row: int | None = None
 
         self._setup_ui()
+        self._setup_background_calculation()
         self._connect_signals()
         self._show_empty_state(True)
 
@@ -448,6 +450,12 @@ class FeatureImpactTab(QWidget):
 
     def _on_data_updated(self) -> None:
         """Handle data updates from app state."""
+        # Check visibility first
+        if self._dock_widget is not None:
+            if not self._app_state.visibility_tracker.is_visible(self._dock_widget):
+                self._app_state.visibility_tracker.mark_stale(self._tab_name)
+                return
+
         if not self._app_state.has_data:
             self._show_empty_state(True)
             return

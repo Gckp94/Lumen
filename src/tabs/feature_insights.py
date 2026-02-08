@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 from src.ui.components.exclude_column_panel import ExcludeColumnPanel
 from src.ui.components.feature_impact_chart import FeatureImpactChart
 from src.ui.components.range_analysis_table import RangeAnalysisTable
+from src.ui.mixins.background_calculation import BackgroundCalculationMixin
 
 if TYPE_CHECKING:
     from src.core.app_state import AppState
@@ -77,7 +78,7 @@ class AnalysisWorker(QThread):
             self.error.emit(str(e))
 
 
-class FeatureInsightsTab(QWidget):
+class FeatureInsightsTab(BackgroundCalculationMixin, QWidget):
     """Tab for analyzing feature impact on trading performance."""
 
     def __init__(self, app_state: AppState, parent: QWidget | None = None):
@@ -87,13 +88,15 @@ class FeatureInsightsTab(QWidget):
             app_state: Application state for data access.
             parent: Parent widget.
         """
-        super().__init__(parent)
+        QWidget.__init__(self, parent)
+        BackgroundCalculationMixin.__init__(self, app_state, "Feature Insights")
         self.app_state = app_state
         self._results = None
         self._selected_feature = None
         self._worker = None
 
         self._setup_ui()
+        self._setup_background_calculation()
         self._connect_signals()
 
     def _setup_ui(self) -> None:
@@ -251,6 +254,12 @@ class FeatureInsightsTab(QWidget):
     @pyqtSlot(object)
     def _on_data_updated(self, df) -> None:
         """Handle filtered data update."""
+        # Check visibility first
+        if self._dock_widget is not None:
+            if not self._app_state.visibility_tracker.is_visible(self._dock_widget):
+                self._app_state.visibility_tracker.mark_stale(self._tab_name)
+                return
+
         self._run_button.setEnabled(df is not None and len(df) > 0)
 
     @pyqtSlot()
