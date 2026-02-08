@@ -262,7 +262,10 @@ class TestChartViewerTabStopLevel:
     def test_stop_level_calculated_from_adjustment_params(self, qtbot):
         """Stop level is calculated from adjustment_params.stop_loss."""
         app_state = AppState()
-        app_state.adjustment_params = AdjustmentParams(stop_loss=10.0, efficiency=5.0)
+        # Explicitly set is_short=False for long trade test
+        app_state.adjustment_params = AdjustmentParams(
+            stop_loss=10.0, efficiency=5.0, is_short=False
+        )
 
         tab = ChartViewerTab(app_state)
         qtbot.addWidget(tab)
@@ -278,7 +281,10 @@ class TestChartViewerTabStopLevel:
     def test_stop_level_with_different_entry_price(self, qtbot):
         """Stop level scales correctly with entry price."""
         app_state = AppState()
-        app_state.adjustment_params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+        # Explicitly set is_short=False for long trade test
+        app_state.adjustment_params = AdjustmentParams(
+            stop_loss=8.0, efficiency=5.0, is_short=False
+        )
 
         tab = ChartViewerTab(app_state)
         qtbot.addWidget(tab)
@@ -352,7 +358,10 @@ class TestChartViewerTabExitSimulation:
             mfe_pct="mfe_pct",
             win_loss_derived=True,
         )
-        app_state.adjustment_params = AdjustmentParams(stop_loss=8.0, efficiency=5.0)
+        # Explicitly set is_short=False for long trade test
+        app_state.adjustment_params = AdjustmentParams(
+            stop_loss=8.0, efficiency=5.0, is_short=False
+        )
 
         tab = ChartViewerTab(app_state)
         qtbot.addWidget(tab)

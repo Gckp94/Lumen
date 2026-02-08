@@ -27,13 +27,13 @@ class TestAdjustmentInputsPanel:
         assert spinner is not None
 
     def test_default_stop_loss_value(self, qtbot: QtBot) -> None:
-        """Stop Loss % has default value of 8."""
+        """Stop Loss % has default value of 100 (disabled by default)."""
         panel = AdjustmentInputsPanel()
         qtbot.addWidget(panel)
 
         spinner = panel.findChild(QDoubleSpinBox, "stop_loss_spin")
         assert spinner is not None
-        assert spinner.value() == 8.0
+        assert spinner.value() == 100.0
 
     def test_default_efficiency_value(self, qtbot: QtBot) -> None:
         """Efficiency % has default value of 5."""
@@ -65,7 +65,11 @@ class TestAdjustmentInputsPanel:
         assert spinner.maximum() == 100.0
 
     def test_params_changed_signal_on_stop_loss_change(self, qtbot: QtBot) -> None:
-        """params_changed signal emits when stop loss changed."""
+        """params_changed signal emits when stop loss changed.
+
+        Note: Since editingFinished is used (not valueChanged), we need to
+        explicitly trigger the signal emission after programmatic setValue.
+        """
         panel = AdjustmentInputsPanel()
         qtbot.addWidget(panel)
 
@@ -75,13 +79,19 @@ class TestAdjustmentInputsPanel:
         spinner = panel.findChild(QDoubleSpinBox, "stop_loss_spin")
         assert spinner is not None
         spinner.setValue(10.0)
+        # Explicitly call handler since editingFinished doesn't fire on setValue
+        panel._on_value_changed()
 
         assert len(received_params) == 1
         assert received_params[0].stop_loss == 10.0
         assert received_params[0].efficiency == 5.0
 
     def test_params_changed_signal_on_efficiency_change(self, qtbot: QtBot) -> None:
-        """params_changed signal emits when efficiency changed."""
+        """params_changed signal emits when efficiency changed.
+
+        Note: Since editingFinished is used (not valueChanged), we need to
+        explicitly trigger the signal emission after programmatic setValue.
+        """
         panel = AdjustmentInputsPanel()
         qtbot.addWidget(panel)
 
@@ -91,23 +101,31 @@ class TestAdjustmentInputsPanel:
         spinner = panel.findChild(QDoubleSpinBox, "efficiency_spin")
         assert spinner is not None
         spinner.setValue(3.0)
+        # Explicitly call handler since editingFinished doesn't fire on setValue
+        panel._on_value_changed()
 
         assert len(received_params) == 1
-        assert received_params[0].stop_loss == 8.0
+        assert received_params[0].stop_loss == 100.0  # Default is now 100
         assert received_params[0].efficiency == 3.0
 
     def test_get_params_returns_current_values(self, qtbot: QtBot) -> None:
-        """get_params returns current AdjustmentParams."""
+        """get_params returns current AdjustmentParams.
+
+        Note: get_params returns the internal _params state, which is only
+        updated when _on_value_changed is called. We need to trigger the
+        handler after programmatic setValue for the internal state to update.
+        """
         panel = AdjustmentInputsPanel()
         qtbot.addWidget(panel)
 
         params = panel.get_params()
-        assert params.stop_loss == 8.0
+        assert params.stop_loss == 100.0  # Default is now 100
         assert params.efficiency == 5.0
 
-        # Change values
+        # Change values and trigger handler since editingFinished doesn't fire
         panel._stop_loss_spin.setValue(12.0)
         panel._efficiency_spin.setValue(7.0)
+        panel._on_value_changed()  # Update internal state
 
         params = panel.get_params()
         assert params.stop_loss == 12.0

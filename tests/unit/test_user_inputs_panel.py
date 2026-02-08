@@ -27,7 +27,7 @@ class TestUserInputsPanel:
         assert inputs.fractional_kelly == 25.0
 
         params = panel.get_adjustment_params()
-        assert params.stop_loss == 8.0
+        assert params.stop_loss == 100.0
         assert params.efficiency == 5.0
 
         panel.cleanup()
@@ -118,15 +118,22 @@ class TestUserInputsPanel:
         panel.cleanup()
 
     def test_adjustment_params_changed_signal(self, qtbot):
-        """adjustment_params_changed signal emits AdjustmentParams."""
+        """adjustment_params_changed signal emits AdjustmentParams.
+
+        Note: Since editingFinished is used (not valueChanged), we need to
+        explicitly trigger the signal emission by calling the handler method
+        after programmatically setting the value.
+        """
         panel = UserInputsPanel()
         qtbot.addWidget(panel)
 
         received = []
         panel.adjustment_params_changed.connect(lambda x: received.append(x))
 
-        # Change stop loss
+        # Change stop loss and explicitly call the handler (editingFinished
+        # does not fire on programmatic setValue)
         panel._stop_loss_spin.setValue(10.0)
+        panel._on_adjustment_input_changed()
 
         # Wait for debounce
         qtbot.wait(200)
@@ -226,15 +233,18 @@ class TestUserInputsPanel:
         panel.cleanup()
 
     def test_get_adjustment_params_returns_current(self, qtbot):
-        """get_adjustment_params returns current spinbox values."""
+        """get_adjustment_params returns current spinbox values.
+
+        Note: get_adjustment_params returns internal state, which is only
+        updated when _on_adjustment_input_changed is called. We need to
+        trigger the handler after programmatic setValue.
+        """
         panel = UserInputsPanel()
         qtbot.addWidget(panel)
 
         panel._stop_loss_spin.setValue(15.0)
         panel._efficiency_spin.setValue(7.0)
-
-        # Wait for internal state update
-        qtbot.wait(200)
+        panel._on_adjustment_input_changed()  # Update internal state
 
         params = panel.get_adjustment_params()
         assert params.stop_loss == 15.0

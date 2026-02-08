@@ -64,33 +64,55 @@ class TestTimeRangeFilterSignals:
         assert all_times is False
 
     def test_emits_signal_on_start_time_change(self, qtbot: QtBot) -> None:
-        """Changing start time emits time_range_changed signal."""
+        """Changing start time emits time_range_changed signal.
+
+        Note: Since editingFinished is used (not timeChanged), we need to
+        explicitly call the handler after programmatic setTime.
+        """
         filter_widget = TimeRangeFilter()
         qtbot.addWidget(filter_widget)
 
         # First uncheck All Times to enable the time pickers
         filter_widget._all_times_checkbox.setChecked(False)
 
-        with qtbot.waitSignal(filter_widget.time_range_changed, timeout=1000) as blocker:
-            filter_widget._start_time.setTime(QTime(10, 0, 0))
+        # Set time and explicitly call the handler
+        filter_widget._start_time.setTime(QTime(10, 0, 0))
 
-        start, end, all_times = blocker.args
+        received = []
+        filter_widget.time_range_changed.connect(
+            lambda s, e, a: received.append((s, e, a))
+        )
+        filter_widget._on_time_changed()
+
+        assert len(received) == 1
+        start, end, all_times = received[0]
         assert start == "10:00:00"
         assert end == "16:00:00"
         assert all_times is False
 
     def test_emits_signal_on_end_time_change(self, qtbot: QtBot) -> None:
-        """Changing end time emits time_range_changed signal."""
+        """Changing end time emits time_range_changed signal.
+
+        Note: Since editingFinished is used (not timeChanged), we need to
+        explicitly call the handler after programmatic setTime.
+        """
         filter_widget = TimeRangeFilter()
         qtbot.addWidget(filter_widget)
 
         # First uncheck All Times to enable the time pickers
         filter_widget._all_times_checkbox.setChecked(False)
 
-        with qtbot.waitSignal(filter_widget.time_range_changed, timeout=1000) as blocker:
-            filter_widget._end_time.setTime(QTime(15, 30, 0))
+        # Set time and explicitly call the handler
+        filter_widget._end_time.setTime(QTime(15, 30, 0))
 
-        start, end, all_times = blocker.args
+        received = []
+        filter_widget.time_range_changed.connect(
+            lambda s, e, a: received.append((s, e, a))
+        )
+        filter_widget._on_time_changed()
+
+        assert len(received) == 1
+        start, end, all_times = received[0]
         assert start == "09:30:00"
         assert end == "15:30:00"
         assert all_times is False
@@ -210,14 +232,19 @@ class TestTimeRangeFilterValidation:
     """Tests for time range validation."""
 
     def test_end_time_auto_corrected_if_before_start(self, qtbot: QtBot) -> None:
-        """End time is auto-corrected if set before start time."""
+        """End time is auto-corrected if set before start time.
+
+        Note: With editingFinished signal, auto-correction happens when
+        the handler is called, not on programmatic setValue.
+        """
         filter_widget = TimeRangeFilter()
         qtbot.addWidget(filter_widget)
 
         filter_widget._all_times_checkbox.setChecked(False)
 
-        # Set start time after end time
+        # Set start time after end time and trigger handler
         filter_widget._start_time.setTime(QTime(17, 0, 0))
+        filter_widget._on_time_changed()
 
         # End time should be auto-corrected to match start
         assert filter_widget._end_time.time() == QTime(17, 0, 0)

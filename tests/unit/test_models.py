@@ -441,8 +441,9 @@ class TestAdjustmentParams:
         from src.core.models import AdjustmentParams
 
         params = AdjustmentParams()
-        assert params.stop_loss == 8.0
+        assert params.stop_loss == 100.0
         assert params.efficiency == 5.0
+        assert params.is_short is True
 
     def test_custom_values(self) -> None:
         """AdjustmentParams accepts custom values."""

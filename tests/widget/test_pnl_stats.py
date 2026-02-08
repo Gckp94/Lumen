@@ -74,15 +74,20 @@ class TestPnLStatsTabBidirectionalSync:
     """Tests for bidirectional sync between PnLStatsTab and AppState."""
 
     def test_stop_loss_change_updates_app_state(self, qtbot):
-        """Changing stop loss in panel updates AppState."""
+        """Changing stop loss in panel updates AppState.
+
+        Note: Since editingFinished is used (not valueChanged), we need to
+        explicitly trigger the handler after programmatic setValue.
+        """
         app_state = AppState()
         tab = PnLStatsTab(app_state)
         qtbot.addWidget(tab)
 
         user_inputs = tab.findChild(UserInputsPanel)
 
-        # Change stop loss
+        # Change stop loss and trigger handler
         user_inputs._stop_loss_spin.setValue(12.0)
+        user_inputs._on_adjustment_input_changed()
 
         # Wait for debounce
         qtbot.wait(200)
@@ -92,15 +97,20 @@ class TestPnLStatsTabBidirectionalSync:
         tab.cleanup()
 
     def test_efficiency_change_updates_app_state(self, qtbot):
-        """Changing efficiency in panel updates AppState."""
+        """Changing efficiency in panel updates AppState.
+
+        Note: Since editingFinished is used (not valueChanged), we need to
+        explicitly trigger the handler after programmatic setValue.
+        """
         app_state = AppState()
         tab = PnLStatsTab(app_state)
         qtbot.addWidget(tab)
 
         user_inputs = tab.findChild(UserInputsPanel)
 
-        # Change efficiency
+        # Change efficiency and trigger handler
         user_inputs._efficiency_spin.setValue(7.0)
+        user_inputs._on_adjustment_input_changed()
 
         # Wait for debounce
         qtbot.wait(200)
@@ -173,7 +183,11 @@ class TestPnLStatsTabPersistence:
     """Tests for input persistence via AppState."""
 
     def test_inputs_persist_across_tab_recreate(self, qtbot):
-        """Inputs persist when tab is recreated (simulating tab switch)."""
+        """Inputs persist when tab is recreated (simulating tab switch).
+
+        Note: Since editingFinished is used (not valueChanged), we need to
+        explicitly trigger the handler after programmatic setValue.
+        """
         app_state = AppState()
 
         # Create first tab instance
@@ -183,6 +197,9 @@ class TestPnLStatsTabPersistence:
         user_inputs1 = tab1.findChild(UserInputsPanel)
         user_inputs1._flat_stake_spin.setValue(7500.0)
         user_inputs1._stop_loss_spin.setValue(10.0)
+        # Trigger handlers since editingFinished doesn't fire on setValue
+        user_inputs1._on_metrics_input_changed()
+        user_inputs1._on_adjustment_input_changed()
 
         # Wait for debounce
         qtbot.wait(200)
@@ -404,7 +421,11 @@ class TestPnLStatsTabRecalculation:
         tab.cleanup()
 
     def test_recalc_scheduled_on_stop_loss_change(self, qtbot):
-        """Recalculation is scheduled when stop loss changes."""
+        """Recalculation is scheduled when stop loss changes.
+
+        Note: Since editingFinished is used (not valueChanged), we need to
+        explicitly trigger the handler after programmatic setValue.
+        """
         import pandas as pd
 
         from src.core.models import ColumnMapping
@@ -429,9 +450,10 @@ class TestPnLStatsTabRecalculation:
             win_loss_derived=True,
         )
 
-        # Change stop loss
+        # Change stop loss and trigger handler
         user_inputs = tab.findChild(UserInputsPanel)
         user_inputs._stop_loss_spin.setValue(12.0)
+        user_inputs._on_adjustment_input_changed()
 
         # Wait for debounce
         qtbot.wait(200)
