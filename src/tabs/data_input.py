@@ -30,6 +30,7 @@ from src.core.file_load_worker import FileLoadWorker
 from src.core.file_loader import FileLoader
 from src.core.filter_engine import time_to_minutes
 from src.core.first_trigger import FirstTriggerEngine
+from src.core.mapping_worker import MappingResult, MappingWorker
 from src.core.metrics import MetricsCalculator
 from src.core.models import AdjustmentParams, ColumnMapping, DetectionResult, TradingMetrics
 from src.ui.components.metric_card import MetricCard
@@ -887,7 +888,7 @@ class AdjustmentInputsPanel(QWidget):
         self._stop_loss_spin = NoScrollDoubleSpinBox()
         self._stop_loss_spin.setObjectName("stop_loss_spin")
         self._stop_loss_spin.setRange(0.0, 100.0)
-        self._stop_loss_spin.setValue(8.0)
+        self._stop_loss_spin.setValue(100.0)
         self._stop_loss_spin.setSingleStep(0.5)
         self._stop_loss_spin.setDecimals(1)
         self._stop_loss_spin.setSuffix("%")
@@ -906,24 +907,34 @@ class AdjustmentInputsPanel(QWidget):
         inputs_layout.addWidget(efficiency_label, 1, 0)
         inputs_layout.addWidget(self._efficiency_spin, 1, 1)
 
+        # Short Strategy checkbox
+        self._is_short_checkbox = QCheckBox("Short Strategy")
+        self._is_short_checkbox.setObjectName("is_short_checkbox")
+        self._is_short_checkbox.setChecked(True)
+        self._is_short_checkbox.setToolTip("Check if trading short positions (stop above entry)")
+        inputs_layout.addWidget(self._is_short_checkbox, 2, 0, 1, 2)
+
         layout.addLayout(inputs_layout)
 
     def _connect_signals(self) -> None:
         """Connect input signals to handlers."""
         self._stop_loss_spin.valueChanged.connect(self._on_value_changed)
         self._efficiency_spin.valueChanged.connect(self._on_value_changed)
+        self._is_short_checkbox.stateChanged.connect(self._on_value_changed)
 
     def _on_value_changed(self) -> None:
-        """Handle value changes in spinboxes."""
+        """Handle value changes in spinboxes and checkbox."""
         self._params = AdjustmentParams(
             stop_loss=self._stop_loss_spin.value(),
             efficiency=self._efficiency_spin.value(),
+            is_short=self._is_short_checkbox.isChecked(),
         )
         self.params_changed.emit(self._params)
         logger.debug(
-            "Adjustment params changed: stop_loss=%.1f%%, efficiency=%.1f%%",
+            "Adjustment params changed: stop_loss=%.1f%%, efficiency=%.1f%%, is_short=%s",
             self._params.stop_loss,
             self._params.efficiency,
+            self._params.is_short,
         )
 
     def get_params(self) -> AdjustmentParams:
@@ -944,10 +955,13 @@ class AdjustmentInputsPanel(QWidget):
         # Block signals to prevent triggering params_changed during set
         self._stop_loss_spin.blockSignals(True)
         self._efficiency_spin.blockSignals(True)
+        self._is_short_checkbox.blockSignals(True)
         self._stop_loss_spin.setValue(params.stop_loss)
         self._efficiency_spin.setValue(params.efficiency)
+        self._is_short_checkbox.setChecked(params.is_short)
         self._stop_loss_spin.blockSignals(False)
         self._efficiency_spin.blockSignals(False)
+        self._is_short_checkbox.blockSignals(False)
 
 
 class MetricsPanel(QWidget):
@@ -1101,6 +1115,7 @@ class DataInputTab(QWidget):
         self._selected_path: Path | None = None
         self._selected_sheet: str | None = None
         self._worker: FileLoadWorker | None = None
+        self._mapping_worker: MappingWorker | None = None
         self._df: pd.DataFrame | None = None
         self._file_loader = FileLoader()
         self._column_mapper = ColumnMapper()
@@ -1615,6 +1630,9 @@ class DataInputTab(QWidget):
     def _on_mapping_continue(self, mapping: ColumnMapping | None = None) -> None:
         """Handle continue after mapping is complete.
 
+        Saves the mapping to cache (fast) and launches the heavy computation
+        on a background ``MappingWorker`` thread so the UI stays responsive.
+
         Args:
             mapping: The column mapping (from config panel signal).
         """
@@ -1626,35 +1644,11 @@ class DataInputTab(QWidget):
 
         self._column_mapping = mapping
 
-        # Persist mapping to cache
+        # Persist mapping to cache (fast, stays on main thread)
         self._column_mapper.save_mapping(self._selected_path, mapping, self._selected_sheet)
         logger.info("Column mapping saved to cache")
 
-        # Assign trigger numbers to all rows (trigger_number = 1, 2, 3, etc. per ticker-date)
-        # First trigger filtering now happens later in feature_explorer when toggle is enabled
-        raw_df = self._df
-        baseline_df = self._first_trigger_engine.assign_trigger_numbers(
-            raw_df,
-            ticker_col=mapping.ticker,
-            date_col=mapping.date,
-            time_col=mapping.time,
-        )
-
-        total_rows = len(baseline_df)
-        # Count first triggers (trigger_number == 1) for baseline info display
-        if len(baseline_df) > 0:
-            baseline_rows = len(baseline_df[baseline_df["trigger_number"] == 1])
-        else:
-            baseline_rows = 0
-        max_trigger = baseline_df["trigger_number"].max() if len(baseline_df) > 0 else 0
-
-        logger.info(
-            "Trigger numbers assigned: %d rows, max trigger_number=%d",
-            total_rows,
-            max_trigger,
-        )
-
-        # Get current adjustment params (default: 8% stop-loss, 5% efficiency)
+        # Get current adjustment params
         adjustment_params = self._adjustment_panel.get_params()
         self._pending_adjustment_params = adjustment_params
 
@@ -1663,45 +1657,73 @@ class DataInputTab(QWidget):
         flat_stake = metrics_inputs.flat_stake if metrics_inputs else 10000.0
         start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
 
-        # Filter to first triggers only for baseline metrics calculation
-        # baseline_df retains all triggers for storage; metrics use first triggers only
-        first_triggers_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
-        logger.info(
-            "data_input._handle_load_click: Using %d first triggers (from %d total rows)",
-            len(first_triggers_df),
-            len(baseline_df),
+        # Disable Continue buttons and show progress bar
+        self._success_panel.setVisible(False)
+        self._config_panel.setVisible(False)
+        self._progress_bar.setValue(0)
+        self._progress_bar.setVisible(True)
+        self._status_label.setText("Processing data...")
+        self._status_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.TEXT_SECONDARY};
+                font-family: "{Fonts.UI}";
+                font-size: 14px;
+                padding: 8px 0;
+            }}
+        """
         )
 
-        # Calculate metrics WITH adjustment params (3-tuple: metrics, flat_equity, kelly_equity)
-        metrics, flat_equity, kelly_equity = self._metrics_calculator.calculate(
-            df=first_triggers_df,
-            gain_col=mapping.gain_pct,
-            win_loss_col=mapping.win_loss,
-            derived=mapping.win_loss_derived,
-            breakeven_is_win=mapping.breakeven_is_win,
+        # Launch background worker
+        self._mapping_worker = MappingWorker(
+            df=self._df,
+            mapping=mapping,
             adjustment_params=adjustment_params,
-            mae_col=mapping.mae_pct,
-            date_col=mapping.date,
-            time_col=mapping.time,
             flat_stake=flat_stake,
             start_capital=start_capital,
         )
+        self._mapping_worker.progress.connect(self._on_progress)
+        self._mapping_worker.finished.connect(self._on_mapping_complete)
+        self._mapping_worker.error.connect(self._on_mapping_error)
+        self._mapping_worker.start()
 
-        # Add adjusted_gain_pct column to baseline_df for Feature Explorer chart use
-        if mapping.mae_pct is not None:
-            adjusted_gains = adjustment_params.calculate_adjusted_gains(
-                baseline_df, mapping.gain_pct, mapping.mae_pct
-            )
-            baseline_df["adjusted_gain_pct"] = adjusted_gains
+    def _on_mapping_complete(self, result: MappingResult) -> None:
+        """Handle successful completion of the background mapping worker.
 
-        # Add time_minutes column for time-based analysis in Data Binning and Feature Explorer
-        if mapping.time and mapping.time in baseline_df.columns:
-            baseline_df["time_minutes"] = time_to_minutes(baseline_df[mapping.time])
-            logger.debug("Added time_minutes column derived from '%s'", mapping.time)
+        Updates AppState, emits signals, and shows baseline/metrics UI.
+
+        Args:
+            result: MappingResult from the worker thread.
+        """
+        mapping = self._column_mapping
+        if mapping is None:
+            return
+
+        self._progress_bar.setVisible(False)
+
+        baseline_df = result.baseline_df
+        metrics = result.metrics
+        flat_equity = result.flat_equity
+        kelly_equity = result.kelly_equity
+        adjustment_params = self._pending_adjustment_params or self._adjustment_panel.get_params()
+
+        max_trigger = baseline_df["trigger_number"].max() if result.total_rows > 0 else 0
+        logger.info(
+            "Trigger numbers assigned: %d rows, max trigger_number=%d",
+            result.total_rows,
+            max_trigger,
+        )
+        logger.info(
+            "data_input._on_mapping_complete: Using %d first triggers (from %d total rows)",
+            result.baseline_rows,
+            result.total_rows,
+        )
 
         # Update AppState if available
         if self._app_state is not None:
-            self._app_state.raw_df = raw_df
+            self._app_state.source_file_path = str(self._selected_path)
+            self._app_state.source_sheet = self._selected_sheet or ""
+            self._app_state.raw_df = self._df
             self._app_state.baseline_df = baseline_df
             self._app_state.column_mapping = mapping
             self._app_state.baseline_metrics = metrics
@@ -1731,7 +1753,7 @@ class DataInputTab(QWidget):
                     logger.info("Baseline Kelly is None, not plotting Kelly curve")
 
         # Display baseline info card
-        self._baseline_card.update_counts(total_rows, baseline_rows)
+        self._baseline_card.update_counts(result.total_rows, result.baseline_rows)
         self._baseline_card.setVisible(True)
 
         # Display adjustment inputs panel
@@ -1741,8 +1763,34 @@ class DataInputTab(QWidget):
         self._metrics_panel.update_metrics(metrics)
         self._metrics_panel.setVisible(True)
 
+        # Show success status
+        self._status_label.setText(
+            f"✓ Processed {result.total_rows:,} rows "
+            f"({result.baseline_rows:,} first triggers)"
+        )
+        self._status_label.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {Colors.SIGNAL_CYAN};
+                font-family: "{Fonts.UI}";
+                font-size: 14px;
+                padding: 8px 0;
+            }}
+        """
+        )
+
         # Emit signal for next workflow step
         self.mapping_completed.emit(mapping)
+
+    def _on_mapping_error(self, error_message: str) -> None:
+        """Handle mapping worker error.
+
+        Args:
+            error_message: The error message to display.
+        """
+        self._progress_bar.setVisible(False)
+        self._show_error(f"Processing error: {error_message}")
+        logger.error("MappingWorker error: %s", error_message)
 
     @property
     def dataframe(self) -> pd.DataFrame | None:
