@@ -17,11 +17,11 @@ class TestCategoryBar:
         qtbot.addWidget(bar)
 
         with qtbot.waitSignal(bar.category_changed, timeout=1000) as blocker:
-            # Find and click the SIMULATE button
-            simulate_btn = bar._category_buttons["SIMULATE"]
+            # Find and click the MONTE CARLO button
+            simulate_btn = bar._category_buttons["MONTE CARLO"]
             qtbot.mouseClick(simulate_btn, Qt.MouseButton.LeftButton)
 
-        assert blocker.args == ["SIMULATE"]
+        assert blocker.args == ["MONTE CARLO"]
 
     def test_category_bar_has_all_categories(self, qtbot: QtBot) -> None:
         """CategoryBar has buttons for all categories."""
@@ -60,10 +60,10 @@ class TestCategoryBar:
             with qtbot.waitSignal(
                 bar.category_changed, timeout=100, raising=True
             ):
-                bar.set_active_category("SIMULATE")
+                bar.set_active_category("MONTE CARLO")
 
         # State should still be updated
-        assert bar.active_category == "SIMULATE"
+        assert bar.active_category == "MONTE CARLO"
 
     def test_set_active_category_invalid_category(self, qtbot: QtBot) -> None:
         """Invalid category doesn't crash or change state."""

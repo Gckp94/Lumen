@@ -402,31 +402,28 @@ class TestMetricsCalculatorExtended:
         )
 
     def test_eg_full_kelly_formula(self, known_trades_df: pd.DataFrame) -> None:
-        """EG Full Kelly formula: EG = f * EV - (f² * σ²) / 2 with percentage² variance."""
+        """EG Full Kelly formula: EG = ((1 + R*S)^p) * ((1-S)^(1-p)) - 1."""
         calc = MetricsCalculator()
         metrics, _, _ = calc.calculate(known_trades_df, "gain_pct", derived=True)
 
         # Verify eg_full_kelly is calculated
         assert metrics.eg_full_kelly is not None
 
-        # Manually calculate for verification
-        kelly_decimal = metrics.kelly / 100
-        all_gains = metrics.winner_gains + metrics.loser_gains
-        variance_decimal = float(pd.Series(all_gains).var())
-        # Convert variance for consistent units with EV (percentage format)
-        variance_pct = variance_decimal * 100
-        expected_eg = (kelly_decimal * metrics.ev) - (
-            (kelly_decimal**2) * variance_pct / 2
-        )
+        # Manually calculate for verification using exact Kelly geometric formula
+        stake = metrics.kelly / 100
+        p = metrics.win_rate / 100  # Win probability
+        r = metrics.rr_ratio  # Profit ratio
+        expected_eg = (
+            ((1 + r * stake) ** p) * ((1 - stake) ** (1 - p)) - 1
+        ) * 100  # Convert to percentage
         assert metrics.eg_full_kelly == pytest.approx(expected_eg, abs=0.001)
 
-    def test_eg_full_kelly_variance_units(self) -> None:
-        """EG formula uses variance in percentage² units (consistent with EV)."""
+    def test_eg_full_kelly_exact_formula(self) -> None:
+        """EG uses exact Kelly geometric formula: EG = ((1+R*S)^p) * ((1-S)^(1-p)) - 1."""
         calc = MetricsCalculator()
         # Create trades with known values for manual verification
         # 4 winners at +10%, 1 loser at -20%
         # Win rate = 80%, avg_winner = 10%, avg_loser = -20%
-        # EV = 0.8 * 10 + 0.2 * (-20) = 8 - 4 = 4%
         # R:R = 10/20 = 0.5
         # Kelly = 0.8 - 0.2/0.5 = 0.8 - 0.4 = 0.4 = 40%
         df = pd.DataFrame({
@@ -436,36 +433,32 @@ class TestMetricsCalculatorExtended:
 
         # Verify intermediate values
         assert metrics.win_rate == pytest.approx(80.0, abs=0.1)
-        assert metrics.ev == pytest.approx(4.0, abs=0.1)
+        assert metrics.rr_ratio == pytest.approx(0.5, abs=0.01)
         assert metrics.kelly == pytest.approx(40.0, abs=0.1)
 
-        # Manual calculation with CORRECT units:
-        # Gains in decimal: [0.10, 0.10, 0.10, 0.10, -0.20]
-        # Variance (decimal²) = var([0.10, 0.10, 0.10, 0.10, -0.20])
-        #                     = 0.018 (sample variance)
-        # Variance for EG formula = 0.018 * 100 = 1.8
+        # Manual calculation with exact Kelly geometric formula:
+        # p = 0.80 (win probability)
+        # R = 0.5 (profit ratio)
+        # S = 0.40 (stake = Kelly/100)
         #
-        # EG = f * EV - (f² * variance_pct) / 2
-        #    = 0.40 * 4.0 - (0.40² * 1.8) / 2
-        #    = 1.6 - (0.16 * 1.8) / 2
-        #    = 1.6 - 0.144
-        #    = 1.456%
-        #
-        # This validates that variance penalty is meaningful but not excessive.
+        # EG = ((1 + R*S)^p) * ((1 - S)^(1-p)) - 1
+        #    = ((1 + 0.5*0.40)^0.80) * ((1 - 0.40)^0.20) - 1
+        #    = ((1.20)^0.80) * ((0.60)^0.20) - 1
+        #    = 1.1566 * 0.9029 - 1
+        #    = 1.0444 - 1
+        #    = 0.0444 = 4.44%
 
-        kelly_decimal = metrics.kelly / 100  # 0.40
-        all_gains = metrics.winner_gains + metrics.loser_gains
-        variance_decimal = float(pd.Series(all_gains).var())
-        variance_pct = variance_decimal * 100  # Convert for EG formula
+        p = metrics.win_rate / 100  # 0.80
+        r = metrics.rr_ratio  # 0.5
+        stake = metrics.kelly / 100  # 0.40
 
-        expected_eg = (kelly_decimal * metrics.ev) - (
-            (kelly_decimal**2) * variance_pct / 2
-        )
+        expected_eg = (
+            ((1 + r * stake) ** p) * ((1 - stake) ** (1 - p)) - 1
+        ) * 100
 
         assert metrics.eg_full_kelly == pytest.approx(expected_eg, abs=0.1)
-        # EG should be positive but less than f*EV due to variance penalty
+        # EG should be positive with positive Kelly
         assert metrics.eg_full_kelly > 0
-        assert metrics.eg_full_kelly < kelly_decimal * metrics.ev
 
     def test_median_calculations(self, known_trades_df: pd.DataFrame) -> None:
         """Median winner and loser calculations."""
@@ -638,9 +631,14 @@ class TestMetricsCalculatorExtended:
             expected_frac_kelly, rel=0.01
         )
 
-        # EG Frac Kelly should reflect the larger position size
-        # (will be lower or negative due to higher variance penalty)
-        assert metrics_with_stop.eg_frac_kelly is not None
+        # EG Frac Kelly: With stop-adjusted sizing, fractional_kelly may exceed 100%
+        # When stake > 100%, EG cannot be calculated (formula requires stake < 1)
+        # The fractional_kelly of ~118% means stake = 1.18, so eg_frac_kelly is None
+        assert metrics_with_stop.fractional_kelly > 100  # Stake exceeds 100%
+        assert metrics_with_stop.eg_frac_kelly is None  # Cannot calculate EG
+
+        # Without stop adjustment, fractional_kelly is smaller and EG can be calculated
+        assert metrics_no_stop.fractional_kelly < 100
         assert metrics_no_stop.eg_frac_kelly is not None
 
     def test_median_winner_none_with_no_winners(self) -> None:
@@ -712,7 +710,7 @@ class TestMetricsCalculatorWithAdjustments:
         assert metrics.win_rate == 25.0  # 1/4
 
     def test_adjustment_avg_winner_loser(self) -> None:
-        """Adjusted gains used for avg winner/loser calculation."""
+        """Adjusted gains affect avg_winner/loser calculations."""
         from src.core.models import AdjustmentParams
 
         calc = MetricsCalculator()

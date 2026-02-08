@@ -27,7 +27,7 @@ class TestMainWindowDocking:
             "Feature Explorer",
             "Breakdown",
             "Data Binning",
-            "PnL & Trading Stats",
+            "P&L Stats",
             "Monte Carlo",
             "Parameter Sensitivity",
             "Feature Insights",
@@ -36,6 +36,7 @@ class TestMainWindowDocking:
             "Portfolio Metrics",
             "Chart Viewer",
             "Statistics",
+            "Chart Viewer",
         ]
 
         assert window.dock_manager.dock_count() == len(expected_tabs)

@@ -163,12 +163,9 @@ MSFT,2024-01-01,09:35,-0.08,12
             breakeven_is_win=False,
         )
 
-        # Trigger the mapping completion workflow
-        # This calls _on_mapping_continue which:
-        # 1. Assigns trigger numbers
-        # 2. Filters to first triggers
-        # 3. Calculates metrics
-        tab._on_mapping_continue(mapping)
+        # Trigger the mapping completion workflow (runs on background thread)
+        with qtbot.waitSignal(tab.mapping_completed, timeout=10000):
+            tab._on_mapping_continue(mapping)
 
         # Verify baseline_metrics in AppState
         metrics = app_state.baseline_metrics
@@ -227,7 +224,8 @@ AAPL,2024-01-01,10:00,0.15,3
             breakeven_is_win=False,
         )
 
-        tab._on_mapping_continue(mapping)
+        with qtbot.waitSignal(tab.mapping_completed, timeout=10000):
+            tab._on_mapping_continue(mapping)
 
         # baseline_df should have all 3 rows
         baseline_df = app_state.baseline_df
@@ -298,7 +296,8 @@ MSFT,2024-01-01,09:35,-0.25,20
             breakeven_is_win=False,
         )
 
-        tab._on_mapping_continue(mapping)
+        with qtbot.waitSignal(tab.mapping_completed, timeout=10000):
+            tab._on_mapping_continue(mapping)
 
         metrics = app_state.baseline_metrics
         assert metrics is not None

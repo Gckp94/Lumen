@@ -59,8 +59,9 @@ class TestTimeMinutesColumnDerivation:
             win_loss_derived=True,
         )
 
-        # Trigger the mapping continue which creates baseline_df
-        tab._on_mapping_continue(mapping)
+        # Trigger the mapping continue which creates baseline_df (async worker)
+        with qtbot.waitSignal(tab.mapping_completed, timeout=10000):
+            tab._on_mapping_continue(mapping)
 
         # Verify baseline_df exists
         baseline_df = app_state.baseline_df
@@ -100,7 +101,8 @@ class TestTimeMinutesColumnDerivation:
             win_loss_derived=True,
         )
 
-        tab._on_mapping_continue(mapping)
+        with qtbot.waitSignal(tab.mapping_completed, timeout=10000):
+            tab._on_mapping_continue(mapping)
 
         baseline_df = app_state.baseline_df
         assert baseline_df is not None
@@ -148,7 +150,8 @@ class TestTimeMinutesColumnDerivation:
             win_loss_derived=True,
         )
 
-        tab._on_mapping_continue(mapping)
+        with qtbot.waitSignal(tab.mapping_completed, timeout=10000):
+            tab._on_mapping_continue(mapping)
 
         # Verify time_minutes IS added when mapping and column exist
         # The "not added" case is when mapping.time is falsy (empty string)
@@ -181,7 +184,8 @@ class TestTimeMinutesColumnDerivation:
             win_loss_derived=True,
         )
 
-        tab._on_mapping_continue(mapping)
+        with qtbot.waitSignal(tab.mapping_completed, timeout=10000):
+            tab._on_mapping_continue(mapping)
 
         # Verify initial time_minutes
         assert "time_minutes" in app_state.baseline_df.columns

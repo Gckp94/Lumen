@@ -16,10 +16,11 @@ class TestTabCategories:
         """Every tab should belong to exactly one category."""
         all_tabs = [
             "Data Input", "Feature Explorer", "Breakdown", "Data Binning",
-            "PnL & Trading Stats", "Monte Carlo", "Parameter Sensitivity",
-            "Feature Insights", "Feature Impact",
+            "P&L Stats", "Statistics",
+            "Feature Insights", "Feature Impact", "Parameter Sensitivity",
+            "Monte Carlo",
             "Portfolio Overview", "Portfolio Breakdown", "Portfolio Metrics",
-            "Chart Viewer", "Statistics",
+            "Chart Viewer",
         ]
 
         for tab in all_tabs:
@@ -28,7 +29,7 @@ class TestTabCategories:
 
     def test_category_order(self) -> None:
         """Categories should be in workflow order."""
-        expected_order = ["ANALYZE", "SIMULATE", "FEATURES", "PORTFOLIO", "CHARTS"]
+        expected_order = ["ANALYZE", "FEATURES", "MONTE CARLO", "PORTFOLIO", "CHARTS"]
         assert list(TAB_CATEGORIES.keys()) == expected_order
 
     def test_get_tabs_in_category(self) -> None:
@@ -50,13 +51,13 @@ class TestTabCategories:
     def test_get_all_categories(self) -> None:
         """Should return all category names in order."""
         categories = get_all_categories()
-        assert categories == ["ANALYZE", "SIMULATE", "FEATURES", "PORTFOLIO", "CHARTS"]
+        assert categories == ["ANALYZE", "FEATURES", "MONTE CARLO", "PORTFOLIO", "CHARTS"]
 
     def test_get_category_index(self) -> None:
         """Should return correct index for category."""
         assert get_category_index("ANALYZE") == 0
-        assert get_category_index("SIMULATE") == 1
-        assert get_category_index("FEATURES") == 2
+        assert get_category_index("FEATURES") == 1
+        assert get_category_index("MONTE CARLO") == 2
         assert get_category_index("PORTFOLIO") == 3
         assert get_category_index("CHARTS") == 4
 

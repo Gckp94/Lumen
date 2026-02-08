@@ -51,7 +51,7 @@ class TestViewMenu:
 
         # Should have category navigation entries
         assert "Go to ANALYZE" in action_texts
-        assert "Go to SIMULATE" in action_texts
+        assert "Go to MONTE CARLO" in action_texts
         assert "Go to FEATURES" in action_texts
         assert "Go to PORTFOLIO" in action_texts
         assert "Go to CHARTS" in action_texts
@@ -94,7 +94,7 @@ class TestMainWindow:
             "Feature Explorer",
             "Breakdown",
             "Data Binning",
-            "PnL & Trading Stats",
+            "P&L Stats",
             "Monte Carlo",
             "Parameter Sensitivity",
             "Feature Insights",
@@ -126,7 +126,7 @@ class TestMainWindow:
         assert window.dock_manager.get_dock("Feature Explorer") is not None
         assert window.dock_manager.get_dock("Breakdown") is not None
         assert window.dock_manager.get_dock("Data Binning") is not None
-        assert window.dock_manager.get_dock("PnL & Trading Stats") is not None
+        assert window.dock_manager.get_dock("P&L Stats") is not None
         assert window.dock_manager.get_dock("Monte Carlo") is not None
         assert window.dock_manager.get_dock("Parameter Sensitivity") is not None
         assert window.dock_manager.get_dock("Feature Insights") is not None
