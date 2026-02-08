@@ -1,4 +1,4 @@
-"""PnL & Trading Stats tab for metrics and comparison.
+"""P&L Stats tab for metrics and comparison.
 
 This is the third tab in the workflow where users view performance
 metrics and charts.

@@ -82,7 +82,7 @@ class MainWindow(QMainWindow):
             ("Feature Explorer", FeatureExplorerTab(self._app_state)),
             ("Breakdown", BreakdownTab(self._app_state)),
             ("Data Binning", DataBinningTab(self._app_state)),
-            ("PnL & Trading Stats", PnLStatsTab(self._app_state)),
+            ("P&L Stats", PnLStatsTab(self._app_state)),
             ("Monte Carlo", MonteCarloTab(self._app_state)),
             ("Parameter Sensitivity", ParameterSensitivityTab(self._app_state)),
             ("Feature Insights", FeatureInsightsTab(self._app_state)),

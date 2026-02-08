@@ -11,7 +11,7 @@ TAB_CATEGORIES: OrderedDict[str, list[str]] = OrderedDict([
         "Data Binning",
     ]),
     ("SIMULATE", [
-        "PnL & Trading Stats",
+        "P&L Stats",
         "Monte Carlo",
         "Parameter Sensitivity",
     ]),
