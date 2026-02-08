@@ -45,8 +45,8 @@ class EquityChart(QWidget):
 
     Attributes:
         _plot_widget: The underlying PyQtGraph PlotWidget.
-        _baseline_curve: PlotDataItem for baseline equity.
-        _filtered_curve: PlotDataItem for filtered equity.
+        _baseline_curve: PlotCurveItem for baseline equity with filled area.
+        _filtered_curve: PlotCurveItem for filtered equity with filled area.
         _drawdown_fill: FillBetweenItem for drawdown visualization.
         _show_drawdown: Whether drawdown fill is visible.
     """
@@ -141,23 +141,26 @@ class EquityChart(QWidget):
         self._layout.addWidget(self._plot_widget)
 
     def _setup_curves(self) -> None:
-        """Set up baseline and filtered curve items."""
-        # Baseline curve (stellar-blue)
-        self._baseline_curve = pg.PlotDataItem(
+        """Set up baseline and filtered curve items with gradient fills."""
+        # Baseline curve (stellar-blue with fill)
+        self._baseline_curve = pg.PlotCurveItem(
             pen=pg.mkPen(color=Colors.SIGNAL_BLUE, width=2),
+            fillLevel=0,
+            brush=pg.mkBrush(color=(74, 158, 255, 100)),  # SIGNAL_BLUE with 40% alpha
             antialias=True,
         )
         self._plot_widget.addItem(self._baseline_curve)
 
-        # Filtered curve (plasma-cyan)
-        self._filtered_curve = pg.PlotDataItem(
+        # Filtered curve (plasma-cyan with fill) - added on top of baseline
+        self._filtered_curve = pg.PlotCurveItem(
             pen=pg.mkPen(color=Colors.SIGNAL_CYAN, width=2),
+            fillLevel=0,
+            brush=pg.mkBrush(color=(0, 255, 212, 100)),  # SIGNAL_CYAN with 40% alpha
             antialias=True,
         )
         self._plot_widget.addItem(self._filtered_curve)
 
         # Peak curve for drawdown calculation (invisible but must have pen for path generation)
-        # Note: pen=None skips path generation; pg.mkPen(None) creates transparent pen with path
         self._peak_curve = pg.PlotDataItem(pen=pg.mkPen(None))
         self._plot_widget.addItem(self._peak_curve)
 
