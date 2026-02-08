@@ -4,7 +4,6 @@ import logging
 import math
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 from PyQt6.QtCore import Qt
@@ -30,7 +29,6 @@ from src.core.app_state import AppState
 from src.core.exceptions import ExportError
 from src.core.export_manager import ExportManager
 from src.core.models import AdjustmentParams, ComputedMetrics, TradingMetrics
-from src.ui.mixins.background_calculation import BackgroundCalculationMixin
 from src.core.statistics import (
     SCALING_TARGET_LEVELS,
     calculate_loss_chance_table,
@@ -45,7 +43,7 @@ from src.core.statistics import (
 )
 from src.ui.components.toast import Toast
 from src.ui.constants import Colors, Fonts, Spacing
-from src.utils.table_export import table_to_markdown
+from src.ui.mixins.background_calculation import BackgroundCalculationMixin
 
 logger = logging.getLogger(__name__)
 
@@ -118,23 +116,24 @@ DOLLAR_COLUMNS = {
 # =============================================================================
 
 # Three-point gradient anchors (for background colors with alpha)
-GRADIENT_LOW = QColor(255, 71, 87, 45)      # Coral-red (low values)
-GRADIENT_MID = QColor(148, 148, 168, 25)    # Neutral gray (middle values)
-GRADIENT_HIGH = QColor(0, 255, 180, 45)     # Teal-green (high values)
+GRADIENT_LOW = QColor(255, 71, 87, 45)  # Coral-red (low values)
+GRADIENT_MID = QColor(148, 148, 168, 25)  # Neutral gray (middle values)
+GRADIENT_HIGH = QColor(0, 255, 180, 45)  # Teal-green (high values)
 
 # Text colors for each gradient region
-TEXT_LOW = QColor("#FF6B7A")                 # Softer coral for readability
-TEXT_MID = QColor("#B8B8C8")                 # Neutral light gray
-TEXT_HIGH = QColor("#4FFFB0")                # Soft teal-green
+TEXT_LOW = QColor("#FF6B7A")  # Softer coral for readability
+TEXT_MID = QColor("#B8B8C8")  # Neutral light gray
+TEXT_HIGH = QColor("#4FFFB0")  # Soft teal-green
 
 # Fallback for non-numeric or excluded cells
-CELL_DEFAULT_BG = QColor(0, 0, 0, 0)         # Transparent
-CELL_DEFAULT_TEXT = QColor("#F4F4F8")        # Primary text
+CELL_DEFAULT_BG = QColor(0, 0, 0, 0)  # Transparent
+CELL_DEFAULT_TEXT = QColor("#F4F4F8")  # Primary text
 
 
 # =============================================================================
 # GRADIENT INTERPOLATION FUNCTIONS
 # =============================================================================
+
 
 def lerp_color(color1: QColor, color2: QColor, t: float) -> QColor:
     """Linear interpolation between two QColors."""
@@ -149,10 +148,7 @@ def lerp_color(color1: QColor, color2: QColor, t: float) -> QColor:
 
 
 def calculate_gradient_colors(
-    value: float,
-    min_val: float,
-    max_val: float,
-    invert: bool = False
+    value: float, min_val: float, max_val: float, invert: bool = False
 ) -> tuple[QColor, QColor]:
     """Calculate background and text colors based on value position in range."""
     if min_val == max_val:
@@ -177,15 +173,17 @@ def calculate_gradient_colors(
 
 
 # Columns to exclude from gradient styling (first/label columns)
-GRADIENT_EXCLUDED_COLUMNS = frozenset({
-    "Level",
-    "Stop Loss %",
-    "Offset %",
-    "Target %",
-    "Scale Out %",
-    "Cover %",
-    "Gain Bucket",
-})
+GRADIENT_EXCLUDED_COLUMNS = frozenset(
+    {
+        "Level",
+        "Stop Loss %",
+        "Offset %",
+        "Target %",
+        "Scale Out %",
+        "Cover %",
+        "Gain Bucket",
+    }
+)
 
 
 class GradientStyler:
@@ -208,11 +206,7 @@ class GradientStyler:
         """Clear all registered column ranges."""
         self._column_ranges.clear()
 
-    def get_cell_colors(
-        self,
-        column_name: str,
-        value: float | None
-    ) -> tuple[QColor, QColor]:
+    def get_cell_colors(self, column_name: str, value: float | None) -> tuple[QColor, QColor]:
         """Get background and text colors for a cell.
 
         Args:
@@ -244,9 +238,7 @@ class GradientStyler:
 
 
 def compute_column_ranges_from_df(
-    df: pd.DataFrame,
-    styler: GradientStyler,
-    exclude_first_column: bool = True
+    df: pd.DataFrame, styler: GradientStyler, exclude_first_column: bool = True
 ) -> None:
     """Pre-compute column ranges from a DataFrame and register them with the styler.
 
@@ -871,7 +863,7 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
 
             scale_out = self._time_stop_scale_spin.value()
 
-            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+            with open(file_path, "w", newline="", encoding="utf-8") as f:
                 f.write("# Time Statistics\n")
                 if stats_df is not None:
                     stats_df.to_csv(f, index=False)
@@ -908,6 +900,12 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
 
         # Connect to unified metrics signal (golden statistics)
         self._app_state.all_metrics_ready.connect(self._on_all_metrics_ready)
+
+        # Connect to first trigger toggle to refresh tables
+        self._app_state.first_trigger_toggled.connect(self._on_first_trigger_toggled)
+
+        # Connect to tab visibility for stale refresh
+        self._app_state.tab_became_visible.connect(self._on_tab_became_visible)
 
     def _initialize_from_state(self) -> None:
         """Populate tables if data already exists in state.
@@ -1027,6 +1025,39 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
             # Set flag to skip duplicate calculation in _update_all_tables
             self._stop_offset_from_golden = True
 
+    def _on_first_trigger_toggled(self, enabled: bool) -> None:
+        """Handle first trigger toggle state change.
+
+        Args:
+            enabled: Whether first trigger only mode is enabled.
+        """
+        # Trigger a full refresh with the new filtering
+        df = self._get_current_df()
+        if df is not None and not df.empty:
+            calc_params = self._capture_calculation_params(df)
+            self._maybe_start_background_calculation(
+                self._calculate_all_tables,
+                calc_params,
+                self._on_tables_calculated,
+            )
+
+    def _on_tab_became_visible(self, tab_name: str) -> None:
+        """Handle tab becoming visible after being marked stale.
+
+        Args:
+            tab_name: Name of the tab that became visible.
+        """
+        if tab_name == self._tab_name:
+            # Trigger a full refresh
+            df = self._get_current_df()
+            if df is not None and not df.empty:
+                calc_params = self._capture_calculation_params(df)
+                self._maybe_start_background_calculation(
+                    self._calculate_all_tables,
+                    calc_params,
+                    self._on_tables_calculated,
+                )
+
     def _scenarios_to_stop_dataframe(self, scenarios: list) -> pd.DataFrame:
         """Convert StopScenario list to DataFrame for table display.
 
@@ -1038,20 +1069,26 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         """
         rows = []
         for s in scenarios:
-            rows.append({
-                "Stop %": s.stop_pct,
-                "Win %": s.win_pct,
-                "EV %": s.ev_pct,
-                "Avg. Gain %": s.avg_gain_pct,
-                "Median Gain %": s.median_gain_pct,
-                "Edge %": s.edge_pct,
-                "Max Loss %": s.max_loss_pct,
-                "Full Kelly (Stop Adj)": s.stop_adjusted_kelly_pct,
-                "Half Kelly (Stop Adj)": s.stop_adjusted_kelly_pct / 2 if s.stop_adjusted_kelly_pct else None,
-                "Quarter Kelly (Stop Adj)": s.stop_adjusted_kelly_pct / 4 if s.stop_adjusted_kelly_pct else None,
-                "Max DD %": s.max_dd_pct,
-                "Total Kelly $": s.kelly_pnl,
-            })
+            rows.append(
+                {
+                    "Stop %": s.stop_pct,
+                    "Win %": s.win_pct,
+                    "EV %": s.ev_pct,
+                    "Avg. Gain %": s.avg_gain_pct,
+                    "Median Gain %": s.median_gain_pct,
+                    "Edge %": s.edge_pct,
+                    "Max Loss %": s.max_loss_pct,
+                    "Full Kelly (Stop Adj)": s.stop_adjusted_kelly_pct,
+                    "Half Kelly (Stop Adj)": (
+                        s.stop_adjusted_kelly_pct / 2 if s.stop_adjusted_kelly_pct else None
+                    ),
+                    "Quarter Kelly (Stop Adj)": (
+                        s.stop_adjusted_kelly_pct / 4 if s.stop_adjusted_kelly_pct else None
+                    ),
+                    "Max DD %": s.max_dd_pct,
+                    "Total Kelly $": s.kelly_pnl,
+                }
+            )
         return pd.DataFrame(rows)
 
     def _scenarios_to_offset_dataframe(self, scenarios: list) -> pd.DataFrame:
@@ -1065,13 +1102,15 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         """
         rows = []
         for s in scenarios:
-            rows.append({
-                "Offset %": s.offset_pct,
-                "# of Trades": s.num_trades,
-                "Win %": s.win_pct,
-                "Total Return %": s.total_return_pct,
-                "EG %": s.eg_pct,
-            })
+            rows.append(
+                {
+                    "Offset %": s.offset_pct,
+                    "# of Trades": s.num_trades,
+                    "Win %": s.win_pct,
+                    "Total Return %": s.total_return_pct,
+                    "EG %": s.eg_pct,
+                }
+            )
         return pd.DataFrame(rows)
 
     def _on_scale_out_changed(self, value: int) -> None:
@@ -1152,13 +1191,24 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         """Get the current DataFrame to use for calculations.
 
         Prefers filtered data, falls back to baseline.
+        Applies first trigger filter if enabled.
 
         Returns:
             Current DataFrame or None if no data available.
         """
         if self._app_state.filtered_df is not None and not self._app_state.filtered_df.empty:
-            return self._app_state.filtered_df
-        return self._app_state.baseline_df
+            df = self._app_state.filtered_df
+        else:
+            df = self._app_state.baseline_df
+
+        if df is None:
+            return None
+
+        # Apply first trigger filter if enabled
+        if self._app_state.first_trigger_enabled and "trigger_number" in df.columns:
+            df = df[df["trigger_number"] == 1].copy()
+
+        return df
 
     def _has_timing_columns(self, df: pd.DataFrame | None = None) -> bool:
         """Check if timing columns (mae_time, mfe_time) are mapped and available.
@@ -1271,9 +1321,7 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
 
         # Compute fresh adjusted_gain_pct
         if mapping.mae_pct is not None and mapping.mae_pct in df.columns:
-            adjusted_gains = params.calculate_adjusted_gains(
-                df, mapping.gain_pct, mapping.mae_pct
-            )
+            adjusted_gains = params.calculate_adjusted_gains(df, mapping.gain_pct, mapping.mae_pct)
             df = df.copy()
             df["adjusted_gain_pct"] = adjusted_gains
 
@@ -1316,16 +1364,12 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         # Scaling table (requires timing columns)
         if has_timing:
             try:
-                result["scaling_df"] = calculate_scaling_table(
-                    df, mapping, scale_out_pct, params
-                )
+                result["scaling_df"] = calculate_scaling_table(df, mapping, scale_out_pct, params)
             except Exception as e:
                 result["errors"].append(f"Scaling table: {e}")
 
             try:
-                result["cover_df"] = calculate_partial_cover_table(
-                    df, mapping, cover_pct
-                )
+                result["cover_df"] = calculate_partial_cover_table(df, mapping, cover_pct)
             except Exception as e:
                 result["errors"].append(f"Cover table: {e}")
 
@@ -1344,15 +1388,15 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         if has_time_interval:
             try:
                 from src.core.statistics import calculate_time_statistics_table
+
                 result["time_stats_df"] = calculate_time_statistics_table(df, mapping)
             except Exception as e:
                 result["errors"].append(f"Time statistics table: {e}")
 
             try:
                 from src.core.statistics import calculate_time_stop_table
-                result["time_stop_df"] = calculate_time_stop_table(
-                    df, mapping, time_stop_scale_pct
-                )
+
+                result["time_stop_df"] = calculate_time_stop_table(df, mapping, time_stop_scale_pct)
             except Exception as e:
                 result["errors"].append(f"Time stop table: {e}")
 
@@ -1480,9 +1524,7 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         # Compute fresh adjusted_gain_pct to ensure Scaling/Cover tables use current efficiency
         # This avoids race conditions with other tabs that also update adjusted_gain_pct
         if mapping.mae_pct is not None and mapping.mae_pct in df.columns:
-            adjusted_gains = params.calculate_adjusted_gains(
-                df, mapping.gain_pct, mapping.mae_pct
-            )
+            adjusted_gains = params.calculate_adjusted_gains(df, mapping.gain_pct, mapping.mae_pct)
             df = df.copy()  # Don't modify the original
             df["adjusted_gain_pct"] = adjusted_gains
 
@@ -1553,12 +1595,12 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
             try:
                 scale_out_pct = self._scale_out_spin.value() / 100.0
                 scaling_df = calculate_scaling_table(df, mapping, scale_out_pct, params)
-                
+
                 # Clear table completely before repopulating to avoid duplicate columns
                 self._scaling_table.clear()
                 self._scaling_table.setRowCount(0)
                 self._scaling_table.setColumnCount(0)
-                
+
                 self._populate_table(self._scaling_table, scaling_df)
                 self._add_scaling_radio_buttons(scaling_df)
             except Exception as e:
@@ -1634,12 +1676,12 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
             scale_out_pct = self._scale_out_spin.value() / 100.0
             adjustment_params = self._app_state.adjustment_params
             scaling_df = calculate_scaling_table(df, mapping, scale_out_pct, adjustment_params)
-            
+
             # Clear table completely before repopulating to avoid duplicate columns
             self._scaling_table.clear()
             self._scaling_table.setRowCount(0)
             self._scaling_table.setColumnCount(0)
-            
+
             self._populate_table(self._scaling_table, scaling_df)
             self._add_scaling_radio_buttons(scaling_df)
         except Exception as e:
@@ -1793,7 +1835,9 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         target = self._selected_scaling_target
         scale_out = self._scale_out_spin.value()
         default_dir = Path.home()
-        suggested_path = default_dir / f"lumen_scaling_target{target}_scale{scale_out}_{timestamp}.csv"
+        suggested_path = (
+            default_dir / f"lumen_scaling_target{target}_scale{scale_out}_{timestamp}.csv"
+        )
 
         # Show save dialog with CSV and Excel options
         path_str, selected_filter = QFileDialog.getSaveFileName(
@@ -1825,9 +1869,7 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
                 "filters": self._app_state.filters,
                 "first_trigger_enabled": self._app_state.first_trigger_enabled,
                 "total_rows": (
-                    len(self._app_state.raw_df)
-                    if self._app_state.raw_df is not None
-                    else None
+                    len(self._app_state.raw_df) if self._app_state.raw_df is not None else None
                 ),
             }
 
@@ -1897,6 +1939,7 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         try:
             # Time Statistics table
             from src.core.statistics import calculate_time_statistics_table
+
             stats_df = calculate_time_statistics_table(df, mapping)
             self._time_stats_table.clear()
             self._time_stats_table.setRowCount(0)
@@ -1905,6 +1948,7 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
 
             # Time Stop table
             from src.core.statistics import calculate_time_stop_table
+
             scale_out_pct = self._time_stop_scale_spin.value() / 100.0
             stop_df = calculate_time_stop_table(df, mapping, scale_out_pct)
             self._time_stop_table.clear()
@@ -2138,8 +2182,7 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
                     if current_bg.alpha() == 0:  # No existing background
                         item.setBackground(QBrush(ROW_OPTIMAL_BG))
 
-
-    def _table_to_dataframe(self, table: QTableWidget) -> Optional[pd.DataFrame]:
+    def _table_to_dataframe(self, table: QTableWidget) -> pd.DataFrame | None:
         """Convert a QTableWidget to a pandas DataFrame.
 
         Args:
@@ -2178,7 +2221,7 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
     def _on_export_clicked(self) -> None:
         """Handle export button click - export all tables to CSV or Excel."""
         from datetime import datetime
-        
+
         # Collect all tables with their titles
         tables_data = [
             ("MAE Before Win", self._mae_table),
@@ -2247,15 +2290,13 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
                                 if not first_table:
                                     f.write("\n")
                                 first_table = False
-                                
+
                                 # Write section header
                                 f.write(f"=== {title} ===\n")
-                                
+
                                 # Write table data
                                 df.to_csv(f, index=False)
 
-            QMessageBox.information(
-                self, "Export Complete", f"Statistics exported to:\n{path}"
-            )
+            QMessageBox.information(self, "Export Complete", f"Statistics exported to:\n{path}")
         except Exception as e:
             QMessageBox.critical(self, "Export Error", f"Failed to export:\n{e}")
