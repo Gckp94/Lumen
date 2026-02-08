@@ -275,10 +275,12 @@ class AdjustmentParams:
     Attributes:
         stop_loss: Stop loss percentage (e.g., 8 = 8%).
         efficiency: Efficiency/slippage percentage (e.g., 5 = 5% slippage subtracted).
+        is_short: Whether the strategy is short (stop above entry) or long (stop below entry).
     """
 
-    stop_loss: float = 8.0
+    stop_loss: float = 100.0
     efficiency: float = 5.0
+    is_short: bool = True
 
     def calculate_adjusted_gain(self, gain_pct: float, mae_pct: float) -> float:
         """Calculate efficiency-adjusted gain for a single trade.
