@@ -20,11 +20,12 @@ from src.core.models import AdjustmentParams, MetricsUserInputs, TradingMetrics
 from src.ui.components.vertical_bar_chart import VerticalBarChart
 from src.ui.components.year_selector_tabs import YearSelectorTabs
 from src.ui.constants import Colors, Fonts, Spacing
+from src.ui.mixins.background_calculation import BackgroundCalculationMixin
 
 logger = logging.getLogger(__name__)
 
 
-class BreakdownTab(QWidget):
+class BreakdownTab(BackgroundCalculationMixin, QWidget):
     """Tab displaying yearly and monthly performance breakdown charts.
 
     Shows 8 yearly charts in a 2x4 grid and 8 monthly charts (for selected year)
@@ -37,8 +38,8 @@ class BreakdownTab(QWidget):
         Args:
             app_state: Shared application state.
         """
-        super().__init__()
-        self._app_state = app_state
+        QWidget.__init__(self)
+        BackgroundCalculationMixin.__init__(self, app_state, "Breakdown")
         self._calculator = self._create_calculator()
 
         # Chart widgets - yearly (8 charts)
@@ -51,6 +52,7 @@ class BreakdownTab(QWidget):
         self._year_selector: YearSelectorTabs | None = None
 
         self._setup_ui()
+        self._setup_background_calculation()
         self._connect_signals()
         self._initialize_from_state()
 
@@ -334,6 +336,12 @@ class BreakdownTab(QWidget):
         Args:
             df: Updated filtered DataFrame.
         """
+        # Check visibility first
+        if self._dock_widget is not None:
+            if not self._app_state.visibility_tracker.is_visible(self._dock_widget):
+                self._app_state.visibility_tracker.mark_stale(self._tab_name)
+                return
+
         self._update_charts_with_data(df)
 
     def _on_year_changed(self, year: int) -> None:
