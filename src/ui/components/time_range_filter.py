@@ -134,8 +134,8 @@ class TimeRangeFilter(QWidget):
     def _connect_signals(self) -> None:
         """Connect internal signals."""
         self._all_times_checkbox.toggled.connect(self._on_all_times_toggled)
-        self._start_time.timeChanged.connect(self._on_time_changed)
-        self._end_time.timeChanged.connect(self._on_time_changed)
+        self._start_time.editingFinished.connect(self._on_time_changed)
+        self._end_time.editingFinished.connect(self._on_time_changed)
 
     def _on_all_times_toggled(self, checked: bool) -> None:
         """Handle 'All Times' checkbox toggle.
