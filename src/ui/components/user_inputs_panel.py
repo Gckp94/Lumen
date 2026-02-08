@@ -126,7 +126,7 @@ class UserInputsPanel(QWidget):
         self._stop_loss_spin = self._create_spinbox(
             min_val=0.0,
             max_val=100.0,
-            default=8.0,
+            default=100.0,
             step=0.5,
             decimals=1,
             suffix=" %",
