@@ -72,9 +72,7 @@ class AnalysisWorker(QThread):
         except Exception as e:
             import traceback
 
-            logging.getLogger(__name__).error(
-                "Analysis failed: %s\n%s", e, traceback.format_exc()
-            )
+            logging.getLogger(__name__).error("Analysis failed: %s\n%s", e, traceback.format_exc())
             self.error.emit(str(e))
 
 
@@ -133,12 +131,14 @@ class FeatureInsightsTab(BackgroundCalculationMixin, QWidget):
         left_frame = QFrame()
         left_frame.setMinimumWidth(180)
         left_frame.setMaximumWidth(350)
-        left_frame.setStyleSheet("""
+        left_frame.setStyleSheet(
+            """
             QFrame {
                 background-color: #2a2a2a;
                 border-radius: 8px;
             }
-        """)
+        """
+        )
         left_layout = QVBoxLayout(left_frame)
         left_layout.setContentsMargins(12, 12, 12, 12)
 
@@ -378,14 +378,10 @@ class FeatureInsightsTab(BackgroundCalculationMixin, QWidget):
     def _update_feature_details(self, feature) -> None:
         """Update the details panel with selected feature info."""
         # Update validation metrics
-        self._stability_label.setText(
-            f"Bootstrap Stability: {feature.bootstrap_stability:.1%}"
-        )
+        self._stability_label.setText(f"Bootstrap Stability: {feature.bootstrap_stability:.1%}")
 
         if feature.time_consistency is not None:
-            self._consistency_label.setText(
-                f"Time Consistency: {feature.time_consistency:.1%}"
-            )
+            self._consistency_label.setText(f"Time Consistency: {feature.time_consistency:.1%}")
         else:
             self._consistency_label.setText("Time Consistency: N/A (no date column)")
 
@@ -446,9 +442,7 @@ class FeatureInsightsTab(BackgroundCalculationMixin, QWidget):
         import pandas as pd
 
         # Get numeric columns only
-        numeric_columns = [
-            col for col in df.columns if pd.api.types.is_numeric_dtype(df[col])
-        ]
+        numeric_columns = [col for col in df.columns if pd.api.types.is_numeric_dtype(df[col])]
 
         # Load saved exclusions, falling back to defaults
         saved_exclusions = self._load_excluded_columns()

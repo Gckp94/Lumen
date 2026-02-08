@@ -65,11 +65,7 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         """
         inputs = self._app_state.metrics_user_inputs
         adjustment_params = self._app_state.adjustment_params
-        mae_col = (
-            self._app_state.column_mapping.mae_pct
-            if self._app_state.column_mapping
-            else None
-        )
+        mae_col = self._app_state.column_mapping.mae_pct if self._app_state.column_mapping else None
         return BreakdownCalculator(
             stake=inputs.flat_stake,
             start_capital=inputs.starting_capital,
@@ -579,9 +575,7 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         except (TypeError, RuntimeError):
             pass
         try:
-            self._app_state.adjustment_params_changed.disconnect(
-                self._on_adjustment_params_changed
-            )
+            self._app_state.adjustment_params_changed.disconnect(self._on_adjustment_params_changed)
         except (TypeError, RuntimeError):
             pass
         if self._year_selector:

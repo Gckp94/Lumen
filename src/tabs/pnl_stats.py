@@ -63,9 +63,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         _recalc_timer: Timer for debouncing recalculations.
     """
 
-    def __init__(
-        self, app_state: AppState, parent: QWidget | None = None
-    ) -> None:
+    def __init__(self, app_state: AppState, parent: QWidget | None = None) -> None:
         """Initialize the PnL Stats tab.
 
         Args:
@@ -86,7 +84,8 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
     def _setup_ui(self) -> None:
         """Set up the three-section layout."""
         self.setObjectName("pnlStatsTab")
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QWidget#pnlStatsTab {{
                 background-color: {Colors.BG_SURFACE};
             }}
@@ -96,7 +95,8 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
                 font-size: {FontSizes.H2}px;
                 font-weight: bold;
             }}
-        """)
+        """
+        )
 
         # Create outer layout for the tab
         outer_layout = QVBoxLayout(self)
@@ -108,12 +108,14 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        scroll_area.setStyleSheet(f"""
+        scroll_area.setStyleSheet(
+            f"""
             QScrollArea {{
                 background-color: {Colors.BG_SURFACE};
                 border: none;
             }}
-        """)
+        """
+        )
 
         # Create content widget
         content_widget = QWidget()
@@ -210,7 +212,8 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
     def _create_export_button(self) -> QPushButton:
         """Create export dropdown button."""
         btn = QPushButton("Export")
-        btn.setStyleSheet(f"""
+        btn.setStyleSheet(
+            f"""
             QPushButton {{
                 background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
@@ -228,10 +231,12 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
                 subcontrol-origin: padding;
                 right: {Spacing.SM}px;
             }}
-        """)
+        """
+        )
 
         menu = QMenu(btn)
-        menu.setStyleSheet(f"""
+        menu.setStyleSheet(
+            f"""
             QMenu {{
                 background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
@@ -251,7 +256,8 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
             QMenu::item:disabled {{
                 color: {Colors.TEXT_DISABLED};
             }}
-        """)
+        """
+        )
 
         data_action = menu.addAction("Export Data...")
         data_action.triggered.connect(self._on_export_data_clicked)
@@ -614,16 +620,12 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         """Set up debounce timer for filtered equity curve calculation."""
         self._filtered_equity_debounce_timer = QTimer()
         self._filtered_equity_debounce_timer.setSingleShot(True)
-        self._filtered_equity_debounce_timer.timeout.connect(
-            self._calculate_filtered_equity_curves
-        )
+        self._filtered_equity_debounce_timer.timeout.connect(self._calculate_filtered_equity_curves)
 
     def _connect_signals(self) -> None:
         """Connect signals for bidirectional sync."""
         # AppState -> UserInputsPanel
-        self._app_state.adjustment_params_changed.connect(
-            self._on_app_state_adjustment_changed
-        )
+        self._app_state.adjustment_params_changed.connect(self._on_app_state_adjustment_changed)
 
         # AppState -> MetricsGrid (baseline calculated)
         self._app_state.baseline_calculated.connect(self._on_baseline_calculated)
@@ -632,28 +634,16 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         self._app_state.filtered_data_updated.connect(self._on_filtered_data_updated)
 
         # UserInputsPanel -> AppState
-        self._user_inputs_panel.metrics_inputs_changed.connect(
-            self._on_panel_metrics_changed
-        )
-        self._user_inputs_panel.adjustment_params_changed.connect(
-            self._on_panel_adjustment_changed
-        )
+        self._user_inputs_panel.metrics_inputs_changed.connect(self._on_panel_metrics_changed)
+        self._user_inputs_panel.adjustment_params_changed.connect(self._on_panel_adjustment_changed)
 
         # Distribution card signals
-        self._winner_dist_card.view_histogram_clicked.connect(
-            self._on_view_winner_histogram
-        )
-        self._loser_dist_card.view_histogram_clicked.connect(
-            self._on_view_loser_histogram
-        )
+        self._winner_dist_card.view_histogram_clicked.connect(self._on_view_winner_histogram)
+        self._loser_dist_card.view_histogram_clicked.connect(self._on_view_loser_histogram)
 
         # Recalculation triggers (debounced)
-        self._app_state.metrics_user_inputs_changed.connect(
-            self._schedule_recalculation
-        )
-        self._app_state.adjustment_params_changed.connect(
-            self._schedule_recalculation
-        )
+        self._app_state.metrics_user_inputs_changed.connect(self._schedule_recalculation)
+        self._app_state.adjustment_params_changed.connect(self._schedule_recalculation)
 
         # First trigger toggle - recalculate baseline metrics.
         # Note: Feature Explorer now emits this signal AFTER updating filtered_df,
@@ -666,9 +656,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
 
         # Equity chart signals (Story 4.4)
         self._app_state.equity_curve_updated.connect(self._on_equity_curve_updated)
-        self._app_state.kelly_equity_curve_updated.connect(
-            self._on_kelly_equity_curve_updated
-        )
+        self._app_state.kelly_equity_curve_updated.connect(self._on_kelly_equity_curve_updated)
         self._app_state.filtered_equity_curve_updated.connect(
             self._on_filtered_equity_curve_updated
         )
@@ -682,13 +670,9 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
     def _initialize_from_state(self) -> None:
         """Initialize panel values from AppState."""
         if self._app_state.adjustment_params:
-            self._user_inputs_panel.set_adjustment_params(
-                self._app_state.adjustment_params
-            )
+            self._user_inputs_panel.set_adjustment_params(self._app_state.adjustment_params)
         if self._app_state.metrics_user_inputs:
-            self._user_inputs_panel.set_metrics_inputs(
-                self._app_state.metrics_user_inputs
-            )
+            self._user_inputs_panel.set_metrics_inputs(self._app_state.metrics_user_inputs)
         # Update metrics visibility based on current state
         self._update_metrics_visibility()
 
@@ -706,9 +690,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
 
         # Initialize equity charts (Story 4.4)
         if self._app_state.flat_stake_equity_curve is not None:
-            self._flat_stake_chart_panel.set_baseline(
-                self._app_state.flat_stake_equity_curve
-            )
+            self._flat_stake_chart_panel.set_baseline(self._app_state.flat_stake_equity_curve)
         if self._app_state.kelly_equity_curve is not None:
             self._kelly_chart_panel.set_baseline(self._app_state.kelly_equity_curve)
         else:
@@ -718,9 +700,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
                 self._app_state.filtered_flat_stake_equity_curve
             )
         if self._app_state.filtered_kelly_equity_curve is not None:
-            self._kelly_chart_panel.set_filtered(
-                self._app_state.filtered_kelly_equity_curve
-            )
+            self._kelly_chart_panel.set_filtered(self._app_state.filtered_kelly_equity_curve)
         else:
             self._kelly_chart_panel.set_filtered(None)
 
@@ -984,9 +964,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         # Get current parameters
         adjustment_params = self._app_state.adjustment_params
         metrics_inputs = self._app_state.metrics_user_inputs
-        fractional_kelly_pct = (
-            metrics_inputs.fractional_kelly if metrics_inputs else 25.0
-        )
+        fractional_kelly_pct = metrics_inputs.fractional_kelly if metrics_inputs else 25.0
         flat_stake = metrics_inputs.flat_stake if metrics_inputs else 10000.0
         start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
 
@@ -1061,7 +1039,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
                 adjustment_params.efficiency,
                 adjusted_gains.mean(),
             )
-            
+
             # Also update filtered_df if it exists
             # NOTE: filtered_df has reset indices (0, 1, 2, ...) after first-trigger filtering,
             # so we must recalculate directly on filtered_df, not copy from baseline_df
@@ -1091,7 +1069,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
                 fractional_kelly_pct=fractional_kelly_pct,
                 date_col=column_mapping.date,
                 time_col=column_mapping.time,
-                flat_stake=None,      # Skip equity calculation for filtered (done separately)
+                flat_stake=None,  # Skip equity calculation for filtered (done separately)
                 start_capital=None,
             )
             self._app_state.filtered_metrics = filtered_metrics
@@ -1133,9 +1111,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
 
         # Refresh equity charts from AppState (Story 4.4)
         if self._app_state.flat_stake_equity_curve is not None:
-            self._flat_stake_chart_panel.set_baseline(
-                self._app_state.flat_stake_equity_curve
-            )
+            self._flat_stake_chart_panel.set_baseline(self._app_state.flat_stake_equity_curve)
         if self._app_state.kelly_equity_curve is not None:
             self._kelly_chart_panel.set_baseline(self._app_state.kelly_equity_curve)
         else:
@@ -1146,9 +1122,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
                 self._app_state.filtered_flat_stake_equity_curve
             )
         if self._app_state.filtered_kelly_equity_curve is not None:
-            self._kelly_chart_panel.set_filtered(
-                self._app_state.filtered_kelly_equity_curve
-            )
+            self._kelly_chart_panel.set_filtered(self._app_state.filtered_kelly_equity_curve)
         else:
             self._kelly_chart_panel.set_filtered(None)
 
@@ -1234,9 +1208,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         # Get current parameters
         adjustment_params = self._app_state.adjustment_params
         metrics_inputs = self._app_state.metrics_user_inputs
-        fractional_kelly_pct = (
-            metrics_inputs.fractional_kelly if metrics_inputs else 25.0
-        )
+        fractional_kelly_pct = metrics_inputs.fractional_kelly if metrics_inputs else 25.0
 
         # Fast calculation without equity curves
         start = time.perf_counter()
@@ -1251,13 +1223,11 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
             fractional_kelly_pct=fractional_kelly_pct,
             date_col=column_mapping.date,
             time_col=column_mapping.time,
-            flat_stake=None,      # Skip flat stake equity calculation
-            start_capital=None,   # Skip Kelly equity calculation
+            flat_stake=None,  # Skip flat stake equity calculation
+            start_capital=None,  # Skip Kelly equity calculation
         )
         elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.info(
-            "Filtered core stats calculated in %.2fms (target: <100ms)", elapsed_ms
-        )
+        logger.info("Filtered core stats calculated in %.2fms (target: <100ms)", elapsed_ms)
 
         # Store filtered metrics and emit signal
         self._app_state.filtered_metrics = metrics
@@ -1281,9 +1251,12 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         else:
             self._app_state.stop_scenarios = []
 
-        if (column_mapping.mae_pct and column_mapping.mfe_pct and
-            column_mapping.mae_pct in filtered_df.columns and
-            column_mapping.mfe_pct in filtered_df.columns):
+        if (
+            column_mapping.mae_pct
+            and column_mapping.mfe_pct
+            and column_mapping.mae_pct in filtered_df.columns
+            and column_mapping.mfe_pct in filtered_df.columns
+        ):
             self._app_state.offset_scenarios = self._metrics_calculator.calculate_offset_scenarios(
                 df=filtered_df,
                 mapping=column_mapping,
@@ -1299,6 +1272,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
 
         # Emit unified metrics signal
         from src.core.models import ComputedMetrics
+
         computed = ComputedMetrics(
             trading_metrics=metrics,
             stop_scenarios=self._app_state.stop_scenarios,
@@ -1317,9 +1291,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         column_mapping = self._app_state.column_mapping
 
         if filtered_df is None or column_mapping is None:
-            logger.debug(
-                "Cannot calculate filtered equity curves: missing data or mapping"
-            )
+            logger.debug("Cannot calculate filtered equity curves: missing data or mapping")
             self._app_state.is_calculating_filtered = False
             self._app_state.filtered_calculation_completed.emit()
             return
@@ -1335,9 +1307,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         # Get current parameters
         adjustment_params = self._app_state.adjustment_params
         metrics_inputs = self._app_state.metrics_user_inputs
-        fractional_kelly_pct = (
-            metrics_inputs.fractional_kelly if metrics_inputs else 25.0
-        )
+        fractional_kelly_pct = metrics_inputs.fractional_kelly if metrics_inputs else 25.0
         flat_stake = metrics_inputs.flat_stake if metrics_inputs else 10000.0
         start_capital = metrics_inputs.starting_capital if metrics_inputs else 100000.0
 
@@ -1360,6 +1330,7 @@ class PnLStatsTab(BackgroundCalculationMixin, QWidget):
         # Update filtered metrics with flat stake and Kelly values
         if self._app_state.filtered_metrics is not None:
             from dataclasses import replace
+
             updated_metrics = replace(
                 self._app_state.filtered_metrics,
                 flat_stake_pnl=metrics.flat_stake_pnl,

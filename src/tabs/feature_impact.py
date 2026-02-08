@@ -100,23 +100,27 @@ class FeatureDetailWidget(QWidget):
         layout.setContentsMargins(Spacing.MD, Spacing.SM, Spacing.MD, Spacing.SM)
         layout.setSpacing(Spacing.SM)
 
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QWidget {{
                 background-color: {Colors.BG_ELEVATED};
                 border-radius: 4px;
             }}
-        """)
+        """
+        )
 
         # Threshold label
         self._threshold_label = QLabel()
-        self._threshold_label.setStyleSheet(f"""
+        self._threshold_label.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
                 font-family: '{Fonts.UI}';
                 font-size: {FontSizes.BODY}px;
                 font-weight: 600;
             }}
-        """)
+        """
+        )
         layout.addWidget(self._threshold_label)
 
         # Spark chart
@@ -124,8 +128,8 @@ class FeatureDetailWidget(QWidget):
         self._chart.setBackground(Colors.BG_ELEVATED)
         self._chart.setMinimumHeight(80)
         self._chart.setMaximumHeight(100)
-        self._chart.hideAxis('left')
-        self._chart.hideAxis('bottom')
+        self._chart.hideAxis("left")
+        self._chart.hideAxis("bottom")
         self._chart.setMouseEnabled(False, False)
         layout.addWidget(self._chart)
 
@@ -147,14 +151,16 @@ class FeatureDetailWidget(QWidget):
         layout.setSpacing(2)
 
         title_label = QLabel(title)
-        title_label.setStyleSheet(f"""
+        title_label.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_SECONDARY};
                 font-family: '{Fonts.UI}';
                 font-size: 10px;
                 letter-spacing: 1px;
             }}
-        """)
+        """
+        )
         layout.addWidget(title_label)
 
         # Stats labels will be added dynamically
@@ -178,7 +184,9 @@ class FeatureDetailWidget(QWidget):
 
         # Bar chart
         bar = pg.BarGraphItem(
-            x=x, height=y, width=0.8,
+            x=x,
+            height=y,
+            width=0.8,
             brush=Colors.SIGNAL_CYAN,
             pen=pg.mkPen(None),
         )
@@ -194,19 +202,26 @@ class FeatureDetailWidget(QWidget):
         self._chart.addItem(line)
 
         # Update stats cards
-        self._update_stats_card(self._below_stats, {
-            "Trades": f"{result.trades_below:,}",
-            "Win Rate": f"{result.win_rate_below:.1f}%",
-            "Expectancy": f"{result.expectancy_below:.4f}",
-        })
+        self._update_stats_card(
+            self._below_stats,
+            {
+                "Trades": f"{result.trades_below:,}",
+                "Win Rate": f"{result.win_rate_below:.1f}%",
+                "Expectancy": f"{result.expectancy_below:.4f}",
+            },
+        )
 
         lift_wr = result.win_rate_above - result.win_rate_baseline
         lift_ev = result.expectancy_above - result.expectancy_baseline
-        self._update_stats_card(self._above_stats, {
-            "Trades": f"{result.trades_above:,}",
-            "Win Rate": f"{result.win_rate_above:.1f}% ({lift_wr:+.1f}%)",
-            "Expectancy": f"{result.expectancy_above:.4f} ({lift_ev:+.4f})",
-        }, highlight=result.threshold_direction == "above")
+        self._update_stats_card(
+            self._above_stats,
+            {
+                "Trades": f"{result.trades_above:,}",
+                "Win Rate": f"{result.win_rate_above:.1f}% ({lift_wr:+.1f}%)",
+                "Expectancy": f"{result.expectancy_above:.4f} ({lift_ev:+.4f})",
+            },
+            highlight=result.threshold_direction == "above",
+        )
 
     def _update_stats_card(
         self, card: QWidget, stats: dict[str, str], highlight: bool = False
@@ -221,13 +236,15 @@ class FeatureDetailWidget(QWidget):
 
         for key, value in stats.items():
             label = QLabel(f"{key}: {value}")
-            label.setStyleSheet(f"""
+            label.setStyleSheet(
+                f"""
                 QLabel {{
                     color: {color};
                     font-family: '{Fonts.DATA}';
                     font-size: 12px;
                 }}
-            """)
+            """
+            )
             card._stats_layout.addWidget(label)
             card._stat_labels[key] = label
 
@@ -276,14 +293,16 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         # Empty state label
         self._empty_label = QLabel("Load trade data to view feature impact analysis")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_label.setStyleSheet(f"""
+        self._empty_label.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_SECONDARY};
                 font-family: '{Fonts.UI}';
                 font-size: 16px;
                 padding: 40px;
             }}
-        """)
+        """
+        )
         layout.addWidget(self._empty_label)
 
         # Detail widget (hidden by default)
@@ -294,14 +313,16 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         # Splitter with exclude panel and table
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(4)
-        splitter.setStyleSheet(f"""
+        splitter.setStyleSheet(
+            f"""
             QSplitter::handle {{
                 background-color: {Colors.BG_BORDER};
             }}
             QSplitter::handle:hover {{
                 background-color: {Colors.SIGNAL_CYAN};
             }}
-        """)
+        """
+        )
 
         # Exclude panel (left)
         self._exclude_panel = ResizableExcludePanel()
@@ -331,7 +352,8 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         title_layout.setSpacing(Spacing.XS)
 
         title = QLabel("FEATURE IMPACT")
-        title.setStyleSheet(f"""
+        title.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
                 font-family: '{Fonts.UI}';
@@ -339,17 +361,20 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
                 font-weight: 600;
                 letter-spacing: 1px;
             }}
-        """)
+        """
+        )
         title_layout.addWidget(title)
 
         self._summary_label = QLabel("Analyzing features...")
-        self._summary_label.setStyleSheet(f"""
+        self._summary_label.setStyleSheet(
+            f"""
             QLabel {{
                 color: {Colors.TEXT_SECONDARY};
                 font-family: '{Fonts.UI}';
                 font-size: {FontSizes.BODY}px;
             }}
-        """)
+        """
+        )
         title_layout.addWidget(self._summary_label)
 
         layout.addWidget(title_section)
@@ -361,22 +386,25 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         """Create the main scorecard table with baseline/filtered columns."""
         table = QTableWidget()
         table.setColumnCount(11)
-        table.setHorizontalHeaderLabels([
-            "Feature",
-            "Impact",
-            "Corr (B)",
-            "Corr (F)",
-            "WR Lift (B)",
-            "WR Lift (F)",
-            "EV Lift (B)",
-            "EV Lift (F)",
-            "Threshold",
-            "Trades (B)",
-            "Trades (F)",
-        ])
+        table.setHorizontalHeaderLabels(
+            [
+                "Feature",
+                "Impact",
+                "Corr (B)",
+                "Corr (F)",
+                "WR Lift (B)",
+                "WR Lift (F)",
+                "EV Lift (B)",
+                "EV Lift (F)",
+                "Threshold",
+                "Trades (B)",
+                "Trades (F)",
+            ]
+        )
 
         # Style the table
-        table.setStyleSheet(f"""
+        table.setStyleSheet(
+            f"""
             QTableWidget {{
                 background-color: {Colors.BG_SURFACE};
                 border: 1px solid {Colors.BG_BORDER};
@@ -400,7 +428,8 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
                 font-weight: 500;
                 text-transform: uppercase;
             }}
-        """)
+        """
+        )
 
         # Configure header
         header = table.horizontalHeader()
@@ -489,10 +518,7 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
             gain_col = self._app_state.column_mapping.gain_pct
 
         # Apply First Trigger Only filtering if enabled
-        if (
-            self._app_state.first_trigger_enabled
-            and "trigger_number" in baseline_df.columns
-        ):
+        if self._app_state.first_trigger_enabled and "trigger_number" in baseline_df.columns:
             baseline_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
             if filtered_df is not None and "trigger_number" in filtered_df.columns:
                 filtered_df = filtered_df[filtered_df["trigger_number"] == 1].copy()
@@ -506,25 +532,17 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
             gain_col=gain_col,
             excluded_cols=excluded,
         )
-        self._baseline_scores = self._calculator.calculate_impact_scores(
-            self._baseline_results
-        )
+        self._baseline_scores = self._calculator.calculate_impact_scores(self._baseline_results)
 
         # Calculate for filtered - always recalculate if filtered_df exists
         # Use 'is not' to check if it's a different DataFrame object
-        if (
-            filtered_df is not None
-            and not filtered_df.empty
-            and filtered_df is not baseline_df
-        ):
+        if filtered_df is not None and not filtered_df.empty and filtered_df is not baseline_df:
             self._filtered_results = self._calculator.calculate_all_features(
                 df=filtered_df,
                 gain_col=gain_col,
                 excluded_cols=excluded,
             )
-            self._filtered_scores = self._calculator.calculate_impact_scores(
-                self._filtered_results
-            )
+            self._filtered_scores = self._calculator.calculate_impact_scores(self._filtered_results)
         else:
             self._filtered_results = self._baseline_results
             self._filtered_scores = self._baseline_scores
@@ -547,16 +565,14 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         self._update_summary(baseline_df, filtered_df)
         self._populate_table()
 
-    def _update_summary(
-        self, baseline_df: pd.DataFrame, filtered_df: pd.DataFrame | None
-    ) -> None:
+    def _update_summary(self, baseline_df: pd.DataFrame, filtered_df: pd.DataFrame | None) -> None:
         """Update the summary label with actual trade counts."""
         n_features = len(self._baseline_results)
         n_baseline = len(baseline_df)
-        
+
         # Indicate first trigger mode
         ft_suffix = " (1st trigger)" if self._app_state.first_trigger_enabled else ""
-        
+
         if filtered_df is not None and filtered_df is not baseline_df:
             n_filtered = len(filtered_df)
             self._summary_label.setText(
@@ -595,22 +611,28 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
             self._set_gradient_item(row, 1, f"{b_score:.2f}", b_score, 0, 1)
 
             # Col 2-3: Correlation (B/F)
-            self._set_gradient_item(row, 2, f"{b_result.correlation:+.3f}",
-                                   b_result.correlation, *corr_range)
-            self._set_gradient_item(row, 3, f"{f_result.correlation:+.3f}",
-                                   f_result.correlation, *corr_range)
+            self._set_gradient_item(
+                row, 2, f"{b_result.correlation:+.3f}", b_result.correlation, *corr_range
+            )
+            self._set_gradient_item(
+                row, 3, f"{f_result.correlation:+.3f}", f_result.correlation, *corr_range
+            )
 
             # Col 4-5: WR Lift (B/F)
-            self._set_gradient_item(row, 4, f"{b_result.win_rate_lift:+.1f}%",
-                                   b_result.win_rate_lift, *wr_range)
-            self._set_gradient_item(row, 5, f"{f_result.win_rate_lift:+.1f}%",
-                                   f_result.win_rate_lift, *wr_range)
+            self._set_gradient_item(
+                row, 4, f"{b_result.win_rate_lift:+.1f}%", b_result.win_rate_lift, *wr_range
+            )
+            self._set_gradient_item(
+                row, 5, f"{f_result.win_rate_lift:+.1f}%", f_result.win_rate_lift, *wr_range
+            )
 
             # Col 6-7: EV Lift (B/F)
-            self._set_gradient_item(row, 6, f"{b_result.expectancy_lift:+.4f}",
-                                   b_result.expectancy_lift, *ev_range)
-            self._set_gradient_item(row, 7, f"{f_result.expectancy_lift:+.4f}",
-                                   f_result.expectancy_lift, *ev_range)
+            self._set_gradient_item(
+                row, 6, f"{b_result.expectancy_lift:+.4f}", b_result.expectancy_lift, *ev_range
+            )
+            self._set_gradient_item(
+                row, 7, f"{f_result.expectancy_lift:+.4f}", f_result.expectancy_lift, *ev_range
+            )
 
             # Col 8: Threshold
             direction = ">" if b_result.threshold_direction == "above" else "<"
@@ -628,8 +650,7 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         self._table.setItem(row, col, item)
 
     def _set_gradient_item(
-        self, row: int, col: int, text: str,
-        value: float, min_val: float, max_val: float
+        self, row: int, col: int, text: str, value: float, min_val: float, max_val: float
     ) -> None:
         """Set a gradient-colored table item."""
         item = QTableWidgetItem(text)
@@ -695,7 +716,9 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
             )
 
         # Update sort indicator
-        order = Qt.SortOrder.AscendingOrder if self._sort_ascending else Qt.SortOrder.DescendingOrder
+        order = (
+            Qt.SortOrder.AscendingOrder if self._sort_ascending else Qt.SortOrder.DescendingOrder
+        )
         self._table.horizontalHeader().setSortIndicator(self._sort_column, order)
 
         self._populate_table()
