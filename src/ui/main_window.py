@@ -43,6 +43,7 @@ class MainWindow(QMainWindow):
 
         # Create dock manager
         self.dock_manager = DockManager(self)
+        self.dock_manager.set_app_state(self._app_state)
 
         self._setup_docks()
         self._setup_central_widget()
