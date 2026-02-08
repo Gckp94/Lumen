@@ -918,8 +918,8 @@ class AdjustmentInputsPanel(QWidget):
 
     def _connect_signals(self) -> None:
         """Connect input signals to handlers."""
-        self._stop_loss_spin.valueChanged.connect(self._on_value_changed)
-        self._efficiency_spin.valueChanged.connect(self._on_value_changed)
+        self._stop_loss_spin.editingFinished.connect(self._on_value_changed)
+        self._efficiency_spin.editingFinished.connect(self._on_value_changed)
         self._is_short_checkbox.stateChanged.connect(self._on_value_changed)
 
     def _on_value_changed(self) -> None:
