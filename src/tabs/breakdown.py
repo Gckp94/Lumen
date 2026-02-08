@@ -263,6 +263,9 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         self._app_state.metrics_user_inputs_changed.connect(self._on_metrics_user_inputs_changed)
         self._app_state.adjustment_params_changed.connect(self._on_adjustment_params_changed)
 
+        # Connect to tab visibility for stale refresh
+        self._app_state.tab_became_visible.connect(self._on_tab_became_visible)
+
         if self._year_selector:
             self._year_selector.year_changed.connect(self._on_year_changed)
 
@@ -343,6 +346,15 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
                 return
 
         self._update_charts_with_data(df)
+
+    def _on_tab_became_visible(self, tab_name: str) -> None:
+        """Handle tab becoming visible after being marked stale.
+
+        Args:
+            tab_name: Name of the tab that became visible.
+        """
+        if tab_name == self._tab_name:
+            self._refresh_charts()
 
     def _on_year_changed(self, year: int) -> None:
         """Handle year selection change.
