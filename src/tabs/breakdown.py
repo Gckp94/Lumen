@@ -259,6 +259,9 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         self._app_state.metrics_user_inputs_changed.connect(self._on_metrics_user_inputs_changed)
         self._app_state.adjustment_params_changed.connect(self._on_adjustment_params_changed)
 
+        # Connect to first trigger toggle to refresh charts
+        self._app_state.first_trigger_toggled.connect(self._on_first_trigger_toggled)
+
         # Connect to tab visibility for stale refresh
         self._app_state.tab_became_visible.connect(self._on_tab_became_visible)
 
@@ -352,6 +355,14 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         if tab_name == self._tab_name:
             self._refresh_charts()
 
+    def _on_first_trigger_toggled(self, enabled: bool) -> None:
+        """Handle first trigger toggle state change.
+
+        Args:
+            enabled: Whether first trigger filtering is enabled.
+        """
+        self._refresh_charts()
+
     def _on_year_changed(self, year: int) -> None:
         """Handle year selection change.
 
@@ -404,13 +415,21 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         """Refresh all charts with current data.
 
         Uses filtered_df if available, otherwise falls back to baseline_df.
+        Applies first trigger filtering when first_trigger_enabled is True.
         """
         # Prefer filtered data, fallback to baseline
         df = self._app_state.filtered_df
         if df is None or df.empty:
             df = self._app_state.baseline_df
 
-        if df is not None and not df.empty:
+        if df is None or df.empty:
+            return
+
+        # Apply first trigger filter if enabled
+        if self._app_state.first_trigger_enabled and "trigger_number" in df.columns:
+            df = df[df["trigger_number"] == 1].copy()
+
+        if not df.empty:
             self._update_charts_with_data(df)
 
     def _update_yearly_charts(
