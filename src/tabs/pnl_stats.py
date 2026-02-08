@@ -40,11 +40,12 @@ from src.ui.components.distribution_histogram import HistogramDialog
 from src.ui.components.equity_chart import _ChartPanel
 from src.ui.components.export_dialog import ExportCategory, ExportDialog, ExportFormat
 from src.ui.constants import Animation, Colors, Fonts, FontSizes, Spacing
+from src.ui.mixins.background_calculation import BackgroundCalculationMixin
 
 logger = logging.getLogger(__name__)
 
 
-class PnLStatsTab(QWidget):
+class PnLStatsTab(BackgroundCalculationMixin, QWidget):
     """Tab for PnL metrics and trading statistics.
 
     Layout structure:
@@ -71,11 +72,12 @@ class PnLStatsTab(QWidget):
             app_state: Centralized application state.
             parent: Optional parent widget.
         """
-        super().__init__(parent)
-        self._app_state = app_state
+        QWidget.__init__(self, parent)
+        BackgroundCalculationMixin.__init__(self, app_state, "PnL Stats")
         self._metrics_calculator = MetricsCalculator()
         self._filtered_df_hash: str | None = None  # Track filtered DataFrame state
         self._setup_ui()
+        self._setup_background_calculation()
         self._setup_recalc_timer()
         self._setup_filtered_equity_timer()
         self._connect_signals()
@@ -1172,6 +1174,12 @@ class PnLStatsTab(QWidget):
         Args:
             filtered_df: The filtered DataFrame.
         """
+        # Check visibility first
+        if self._dock_widget is not None:
+            if not self._app_state.visibility_tracker.is_visible(self._dock_widget):
+                self._app_state.visibility_tracker.mark_stale(self._tab_name)
+                return
+
         # Emit calculation started signal
         self._app_state.is_calculating_filtered = True
         self._app_state.filtered_calculation_started.emit()

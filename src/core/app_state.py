@@ -9,6 +9,7 @@ import pandas as pd
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from src.core.models import AdjustmentParams, MetricsUserInputs
+from src.core.visibility_tracker import VisibilityTracker
 
 if TYPE_CHECKING:
     from src.core.models import ColumnMapping, FilterCriteria, TradingMetrics, StopScenario, OffsetScenario
@@ -73,6 +74,8 @@ class AppState(QObject):
     view_chart_requested = pyqtSignal(dict)  # trade data dict
     # Golden statistics signal (unified metrics)
     all_metrics_ready = pyqtSignal(object)  # ComputedMetrics
+    # Stale tab recalculation signal
+    tab_became_visible = pyqtSignal(str)  # tab_name
 
     def __init__(self) -> None:
         """Initialize AppState with default empty values."""
@@ -110,6 +113,8 @@ class AppState(QObject):
         # Scenario results storage (golden statistics)
         self.stop_scenarios: list[StopScenario] | None = None
         self.offset_scenarios: list[OffsetScenario] | None = None
+        # Visibility tracking for lazy tab updates
+        self._visibility_tracker = VisibilityTracker()
 
     @property
     def has_data(self) -> bool:
@@ -155,3 +160,18 @@ class AppState(QObject):
             value: Whether simulation is in progress.
         """
         self._monte_carlo_running = value
+
+    @property
+    def visibility_tracker(self) -> VisibilityTracker:
+        """Get the visibility tracker for lazy tab updates."""
+        return self._visibility_tracker
+
+    def notify_tab_visible(self, tab_name: str) -> None:
+        """Notify that a tab became visible, triggering recalc if stale.
+
+        Args:
+            tab_name: Name of tab that became visible.
+        """
+        if self._visibility_tracker.is_stale(tab_name):
+            self._visibility_tracker.clear_stale(tab_name)
+            self.tab_became_visible.emit(tab_name)

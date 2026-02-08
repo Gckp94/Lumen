@@ -4,11 +4,17 @@ Provides VS Code-like docking behavior where tabs can be dragged out
 to floating windows and docked back.
 """
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import PyQt6Ads as ads
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QWidget
+
+if TYPE_CHECKING:
+    from src.core.app_state import AppState
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +38,7 @@ class DockManager(ads.CDockManager):
         super().__init__(parent)
         self._dock_widgets: dict[str, ads.CDockWidget] = {}
         self._center_area: ads.CDockAreaWidget | None = None
+        self._app_state: AppState | None = None
 
         # Configure docking behavior
         self.setConfigFlag(ads.CDockManager.eConfigFlag.OpaqueSplitterResize, True)
@@ -167,6 +174,14 @@ class DockManager(ads.CDockManager):
         """
         self.setStyleSheet(stylesheet)
 
+    def set_app_state(self, app_state: AppState) -> None:
+        """Set the app state for stale tab notifications.
+
+        Args:
+            app_state: The centralized application state.
+        """
+        self._app_state = app_state
+
     def add_dock(
         self,
         title: str,
@@ -187,6 +202,11 @@ class DockManager(ads.CDockManager):
         """
         dock_widget = ads.CDockWidget(title)
         dock_widget.setWidget(widget)
+
+        # Set dock widget on tab for visibility tracking
+        if hasattr(widget, "set_dock_widget"):
+            widget.set_dock_widget(dock_widget)
+
         # Allow closing only when floating (undocked)
         dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetClosable, True)
         dock_widget.setFeature(ads.CDockWidget.DockWidgetFeature.DockWidgetFloatable, True)
@@ -260,6 +280,9 @@ class DockManager(ads.CDockManager):
         """
         if visible:
             self.dock_activated.emit(title)
+            # Notify app state for stale tab recalculation
+            if self._app_state is not None:
+                self._app_state.notify_tab_visible(title)
 
     def toggle_dock_visibility(self, title: str) -> None:
         """Toggle visibility of a dock widget.

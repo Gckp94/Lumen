@@ -147,3 +147,25 @@ class TestDockManagerConfig:
         assert "DoubleClickUndocksWidget, False" in source, (
             "Expected DoubleClickUndocksWidget to be set to False"
         )
+
+
+class TestDockManagerVisibility:
+    """Tests for dock visibility integration."""
+
+    def test_add_dock_sets_dock_widget_on_tab(self, qtbot: "QtBot") -> None:
+        """add_dock should call set_dock_widget on tab if available."""
+        from PyQt6.QtWidgets import QWidget
+
+        from src.ui.dock_manager import DockManager
+
+        manager = DockManager()
+        qtbot.addWidget(manager)
+
+        # Create a real QWidget and add set_dock_widget method via MagicMock
+        tab = QWidget()
+        tab.set_dock_widget = MagicMock()
+        qtbot.addWidget(tab)
+
+        manager.add_dock("Test", tab)
+
+        tab.set_dock_widget.assert_called_once()

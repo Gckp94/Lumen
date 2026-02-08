@@ -163,3 +163,26 @@ class TestAppStateScenarioStorage:
         assert hasattr(state, 'all_metrics_ready')
         # Verify it's a signal by checking it has emit method
         assert hasattr(state.all_metrics_ready, 'emit')
+
+
+class TestAppStateVisibilityTracker:
+    """Tests for VisibilityTracker integration."""
+
+    def test_app_state_has_visibility_tracker(self) -> None:
+        """AppState should have visibility_tracker attribute."""
+        from src.core.app_state import AppState
+
+        app_state = AppState()
+
+        assert hasattr(app_state, "visibility_tracker")
+        assert app_state.visibility_tracker is not None
+
+    def test_visibility_tracker_is_singleton(self) -> None:
+        """Same visibility_tracker instance should be returned."""
+        from src.core.app_state import AppState
+
+        app_state = AppState()
+        tracker1 = app_state.visibility_tracker
+        tracker2 = app_state.visibility_tracker
+
+        assert tracker1 is tracker2

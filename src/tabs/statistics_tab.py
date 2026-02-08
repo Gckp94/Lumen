@@ -30,6 +30,7 @@ from src.core.app_state import AppState
 from src.core.exceptions import ExportError
 from src.core.export_manager import ExportManager
 from src.core.models import AdjustmentParams, ComputedMetrics, TradingMetrics
+from src.ui.mixins.background_calculation import BackgroundCalculationMixin
 from src.core.statistics import (
     SCALING_TARGET_LEVELS,
     calculate_loss_chance_table,
@@ -274,12 +275,12 @@ def compute_column_ranges_from_df(
             pass
 
 
-class StatisticsTab(QWidget):
+class StatisticsTab(BackgroundCalculationMixin, QWidget):
     """Tab displaying 5 statistics tables as sub-tabs."""
 
     def __init__(self, app_state: AppState, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._app_state = app_state
+        QWidget.__init__(self, parent)
+        BackgroundCalculationMixin.__init__(self, app_state, "Statistics")
         self._gradient_styler = GradientStyler()
         # Scaling export state
         self._selected_scaling_target: int = SCALING_TARGET_LEVELS[0]
@@ -287,6 +288,7 @@ class StatisticsTab(QWidget):
         # Flag to skip duplicate Stop/Offset calculations when golden metrics fire
         self._stop_offset_from_golden: bool = False
         self._setup_ui()
+        self._setup_background_calculation()
         self._connect_signals()
         self._initialize_from_state()
 
@@ -968,7 +970,15 @@ class StatisticsTab(QWidget):
         # Check column availability and enable/disable tabs accordingly
         self._check_column_availability(df)
 
-        self._update_all_tables(df)
+        # Capture all UI state values needed for background calculation
+        calc_params = self._capture_calculation_params(df)
+
+        # Use visibility-aware background calculation
+        self._maybe_start_background_calculation(
+            self._calculate_all_tables,
+            calc_params,
+            self._on_tables_calculated,
+        )
 
     def _on_adjustment_params_changed(self, params: AdjustmentParams) -> None:
         """Handle adjustment parameters changed.
@@ -1190,6 +1200,269 @@ class StatisticsTab(QWidget):
             if f"change_{interval}_min" in df.columns:
                 return True
         return False
+
+    def _capture_calculation_params(self, df: pd.DataFrame) -> dict:
+        """Capture all UI state values needed for background calculation.
+
+        This must be called on the main thread BEFORE dispatching to background.
+
+        Args:
+            df: The DataFrame to calculate on.
+
+        Returns:
+            Dict with all parameters needed for calculation.
+        """
+        metrics_inputs = self._app_state.metrics_user_inputs
+        return {
+            "df": df.copy(),  # Copy to avoid race conditions
+            "mapping": self._app_state.column_mapping,
+            "params": self._app_state.adjustment_params,
+            "start_capital": metrics_inputs.starting_capital if metrics_inputs else 100000.0,
+            "fractional_kelly_pct": metrics_inputs.fractional_kelly if metrics_inputs else 25.0,
+            "scale_out_pct": self._scale_out_spin.value() / 100.0,
+            "cover_pct": self._cover_spin.value() / 100.0,
+            "time_stop_scale_pct": self._time_stop_scale_spin.value() / 100.0,
+            "stop_offset_from_golden": self._stop_offset_from_golden,
+            "has_timing": self._has_timing_columns(df),
+            "has_time_interval": self._has_time_interval_columns(df),
+        }
+
+    def _calculate_all_tables(self, calc_params: dict) -> dict:
+        """Calculate all table DataFrames in background thread.
+
+        This is a pure calculation function - NO Qt widget access allowed.
+
+        Args:
+            calc_params: Dict from _capture_calculation_params.
+
+        Returns:
+            Dict with calculated DataFrames and metadata for UI update.
+        """
+        df = calc_params["df"]
+        mapping = calc_params["mapping"]
+        params = calc_params["params"]
+        start_capital = calc_params["start_capital"]
+        fractional_kelly_pct = calc_params["fractional_kelly_pct"]
+        scale_out_pct = calc_params["scale_out_pct"]
+        cover_pct = calc_params["cover_pct"]
+        time_stop_scale_pct = calc_params["time_stop_scale_pct"]
+        stop_offset_from_golden = calc_params["stop_offset_from_golden"]
+        has_timing = calc_params["has_timing"]
+        has_time_interval = calc_params["has_time_interval"]
+
+        result: dict = {
+            "has_timing": has_timing,
+            "has_time_interval": has_time_interval,
+            "mae_df": None,
+            "mfe_df": None,
+            "stop_loss_df": None,
+            "offset_df": None,
+            "scaling_df": None,
+            "cover_df": None,
+            "profit_chance_df": None,
+            "loss_chance_df": None,
+            "time_stats_df": None,
+            "time_stop_df": None,
+            "errors": [],
+        }
+
+        if df is None or df.empty or mapping is None:
+            return result
+
+        # Compute fresh adjusted_gain_pct
+        if mapping.mae_pct is not None and mapping.mae_pct in df.columns:
+            adjusted_gains = params.calculate_adjusted_gains(
+                df, mapping.gain_pct, mapping.mae_pct
+            )
+            df = df.copy()
+            df["adjusted_gain_pct"] = adjusted_gains
+
+        # MAE Before Win table
+        try:
+            result["mae_df"] = calculate_mae_before_win(df, mapping)
+        except Exception as e:
+            result["errors"].append(f"MAE table: {e}")
+
+        # MFE Before Loss table
+        try:
+            result["mfe_df"] = calculate_mfe_before_loss(df, mapping)
+        except Exception as e:
+            result["errors"].append(f"MFE table: {e}")
+
+        # Stop Loss and Offset tables (skip if from golden metrics)
+        if not stop_offset_from_golden:
+            try:
+                result["stop_loss_df"] = calculate_stop_loss_table(
+                    df,
+                    mapping,
+                    params,
+                    start_capital=start_capital,
+                    fractional_kelly_pct=fractional_kelly_pct,
+                )
+            except Exception as e:
+                result["errors"].append(f"Stop Loss table: {e}")
+
+            try:
+                result["offset_df"] = calculate_offset_table(
+                    df,
+                    mapping,
+                    params,
+                    start_capital=start_capital,
+                    fractional_kelly_pct=fractional_kelly_pct,
+                )
+            except Exception as e:
+                result["errors"].append(f"Offset table: {e}")
+
+        # Scaling table (requires timing columns)
+        if has_timing:
+            try:
+                result["scaling_df"] = calculate_scaling_table(
+                    df, mapping, scale_out_pct, params
+                )
+            except Exception as e:
+                result["errors"].append(f"Scaling table: {e}")
+
+            try:
+                result["cover_df"] = calculate_partial_cover_table(
+                    df, mapping, cover_pct
+                )
+            except Exception as e:
+                result["errors"].append(f"Cover table: {e}")
+
+        # Profit/Loss Chance tables
+        try:
+            result["profit_chance_df"] = calculate_profit_chance_table(df, mapping, params)
+        except Exception as e:
+            result["errors"].append(f"Profit chance table: {e}")
+
+        try:
+            result["loss_chance_df"] = calculate_loss_chance_table(df, mapping, params)
+        except Exception as e:
+            result["errors"].append(f"Loss chance table: {e}")
+
+        # Time Stop tables
+        if has_time_interval:
+            try:
+                from src.core.statistics import calculate_time_statistics_table
+                result["time_stats_df"] = calculate_time_statistics_table(df, mapping)
+            except Exception as e:
+                result["errors"].append(f"Time statistics table: {e}")
+
+            try:
+                from src.core.statistics import calculate_time_stop_table
+                result["time_stop_df"] = calculate_time_stop_table(
+                    df, mapping, time_stop_scale_pct
+                )
+            except Exception as e:
+                result["errors"].append(f"Time stop table: {e}")
+
+        return result
+
+    def _on_tables_calculated(self, result: dict) -> None:
+        """Update UI with calculated table data. Runs on main thread.
+
+        Args:
+            result: Dict from _calculate_all_tables with DataFrames.
+        """
+        # Log any calculation errors
+        for error in result.get("errors", []):
+            logger.warning(f"Error calculating table: {error}")
+
+        # Capture flag before reset (used for conditional Stop/Offset table clearing)
+        was_from_golden = self._stop_offset_from_golden
+        self._stop_offset_from_golden = False
+
+        # MAE table
+        if result["mae_df"] is not None:
+            self._populate_table(self._mae_table, result["mae_df"])
+        else:
+            self._mae_table.setRowCount(0)
+
+        # MFE table
+        if result["mfe_df"] is not None:
+            self._populate_table(self._mfe_table, result["mfe_df"])
+        else:
+            self._mfe_table.setRowCount(0)
+
+        # Stop Loss table
+        if result["stop_loss_df"] is not None:
+            self._populate_table(self._stop_loss_table, result["stop_loss_df"])
+        elif not was_from_golden:
+            self._stop_loss_table.setRowCount(0)
+
+        # Offset table
+        if result["offset_df"] is not None:
+            self._populate_table(self._offset_table, result["offset_df"])
+        elif not was_from_golden:
+            self._offset_table.setRowCount(0)
+
+        # Scaling table (visibility handling)
+        has_timing = result.get("has_timing", False)
+        if has_timing:
+            self._scaling_timing_msg.hide()
+            self._scaling_table.show()
+            if result["scaling_df"] is not None:
+                self._scaling_table.clear()
+                self._scaling_table.setRowCount(0)
+                self._scaling_table.setColumnCount(0)
+                self._populate_table(self._scaling_table, result["scaling_df"])
+                self._add_scaling_radio_buttons(result["scaling_df"])
+            else:
+                self._scaling_table.setRowCount(0)
+        else:
+            self._scaling_table.hide()
+            self._scaling_timing_msg.show()
+
+        # Cover table (visibility handling)
+        if has_timing:
+            self._cover_timing_msg.hide()
+            self._cover_table.show()
+            if result["cover_df"] is not None:
+                self._populate_table(self._cover_table, result["cover_df"])
+            else:
+                self._cover_table.setRowCount(0)
+        else:
+            self._cover_table.hide()
+            self._cover_timing_msg.show()
+
+        # Profit Chance table
+        if result["profit_chance_df"] is not None:
+            self._populate_table(self._profit_chance_table, result["profit_chance_df"])
+        else:
+            self._profit_chance_table.setRowCount(0)
+
+        # Loss Chance table
+        if result["loss_chance_df"] is not None:
+            self._populate_table(self._loss_chance_table, result["loss_chance_df"])
+        else:
+            self._loss_chance_table.setRowCount(0)
+
+        # Time Stop tables (visibility handling)
+        has_time_interval = result.get("has_time_interval", False)
+        if has_time_interval:
+            self._time_stop_timing_msg.hide()
+            self._time_stats_table.show()
+            self._time_stop_table.show()
+
+            if result["time_stats_df"] is not None:
+                self._time_stats_table.clear()
+                self._time_stats_table.setRowCount(0)
+                self._time_stats_table.setColumnCount(0)
+                self._populate_table(self._time_stats_table, result["time_stats_df"])
+            else:
+                self._time_stats_table.setRowCount(0)
+
+            if result["time_stop_df"] is not None:
+                self._time_stop_table.clear()
+                self._time_stop_table.setRowCount(0)
+                self._time_stop_table.setColumnCount(0)
+                self._populate_table(self._time_stop_table, result["time_stop_df"])
+            else:
+                self._time_stop_table.setRowCount(0)
+        else:
+            self._time_stats_table.hide()
+            self._time_stop_table.hide()
+            self._time_stop_timing_msg.show()
 
     def _update_all_tables(self, df: pd.DataFrame) -> None:
         """Update all 5 tables with the given DataFrame.

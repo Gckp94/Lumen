@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from src.core.exceptions import FileLoadError
@@ -99,3 +100,74 @@ class TestFileLoaderLoad:
         loader = FileLoader()
         with pytest.raises(FileLoadError, match="Unsupported file type"):
             loader.load(bad_file)
+
+
+class TestPrecomputedColumns:
+    """Tests for pre-computed columns on load."""
+
+    def test_time_minutes_precomputed(self) -> None:
+        """Loaded DataFrame should have _time_minutes column."""
+        loader = FileLoader()
+        # Create test data with time column
+        df = pd.DataFrame({
+            "time": ["09:30:00", "10:15:00"],
+            "gain_pct": [0.01, -0.02],
+        })
+
+        result = loader._precompute_columns(df, {"time": "time"})
+
+        assert "_time_minutes" in result.columns
+        assert result["_time_minutes"].iloc[0] == 570  # 9*60 + 30
+        assert result["_time_minutes"].iloc[1] == 615  # 10*60 + 15
+
+    def test_time_minutes_with_short_format(self) -> None:
+        """Time in HH:MM format should also work."""
+        loader = FileLoader()
+        df = pd.DataFrame({
+            "time": ["09:30", "14:45"],
+            "gain_pct": [0.01, -0.02],
+        })
+
+        result = loader._precompute_columns(df, {"time": "time"})
+
+        assert result["_time_minutes"].iloc[0] == 570  # 9*60 + 30
+        assert result["_time_minutes"].iloc[1] == 885  # 14*60 + 45
+
+    def test_time_minutes_with_missing_time_column(self) -> None:
+        """DataFrame without time column should not have _time_minutes."""
+        loader = FileLoader()
+        df = pd.DataFrame({
+            "gain_pct": [0.01, -0.02],
+        })
+
+        result = loader._precompute_columns(df, {"time": None})
+
+        assert "_time_minutes" not in result.columns
+
+    def test_time_minutes_with_na_values(self) -> None:
+        """NA values in time column should produce NA in _time_minutes."""
+        loader = FileLoader()
+        df = pd.DataFrame({
+            "time": ["09:30:00", None, "10:15:00"],
+            "gain_pct": [0.01, 0.0, -0.02],
+        })
+
+        result = loader._precompute_columns(df, {"time": "time"})
+
+        assert result["_time_minutes"].iloc[0] == 570
+        assert pd.isna(result["_time_minutes"].iloc[1])
+        assert result["_time_minutes"].iloc[2] == 615
+
+    def test_precompute_does_not_modify_original(self) -> None:
+        """Precompute should not modify the original DataFrame."""
+        loader = FileLoader()
+        df = pd.DataFrame({
+            "time": ["09:30:00"],
+            "gain_pct": [0.01],
+        })
+        original_columns = list(df.columns)
+
+        loader._precompute_columns(df, {"time": "time"})
+
+        assert list(df.columns) == original_columns
+        assert "_time_minutes" not in df.columns

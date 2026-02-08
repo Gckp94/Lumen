@@ -98,3 +98,46 @@ class FileLoader:
         except Exception as e:
             logger.error("Failed to load file: %s", e)
             raise FileLoadError("Unable to read file. The file may be corrupted.") from None
+
+    def _precompute_columns(
+        self, df: pd.DataFrame, column_mapping: dict[str, str | None]
+    ) -> pd.DataFrame:
+        """Pre-compute derived columns to avoid repeated recalculation.
+
+        Args:
+            df: DataFrame to augment.
+            column_mapping: Column mapping with at least 'time' key.
+
+        Returns:
+            DataFrame with pre-computed columns added.
+        """
+        result = df.copy()
+
+        # Pre-compute time in minutes if time column exists
+        time_col = column_mapping.get("time")
+        if time_col and time_col in result.columns:
+            result["_time_minutes"] = self._parse_time_to_minutes(result[time_col])
+
+        return result
+
+    def _parse_time_to_minutes(self, time_series: pd.Series) -> pd.Series:
+        """Convert time strings to minutes since midnight.
+
+        Args:
+            time_series: Series of time strings (HH:MM:SS or HH:MM).
+
+        Returns:
+            Series of integer minutes.
+        """
+
+        def parse_single(t: object) -> int | None:
+            if pd.isna(t):
+                return None
+            if isinstance(t, str):
+                parts = t.split(":")
+                hours = int(parts[0])
+                minutes = int(parts[1]) if len(parts) > 1 else 0
+                return hours * 60 + minutes
+            return None
+
+        return time_series.apply(parse_single)

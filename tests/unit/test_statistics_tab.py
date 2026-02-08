@@ -1,7 +1,7 @@
 """Unit tests for Statistics tab."""
 import pytest
 import pandas as pd
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThreadPool
 from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import QApplication, QTableWidget, QTabWidget, QWidget
 from src.tabs.statistics_tab import (
@@ -151,6 +151,11 @@ class TestStatisticsTabDataUpdates:
 
         # Emit filtered data signal
         app_state.filtered_data_updated.emit(test_df)
+
+        # Wait for background calculation to complete
+        QThreadPool.globalInstance().waitForDone()
+        # Process pending events to ensure UI callback runs
+        app.processEvents()
 
         # Verify MAE table has data
         assert tab._mae_table.rowCount() == 7
