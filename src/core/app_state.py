@@ -9,6 +9,7 @@ import pandas as pd
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from src.core.models import AdjustmentParams, MetricsUserInputs
+from src.core.visibility_tracker import VisibilityTracker
 
 if TYPE_CHECKING:
     from src.core.models import ColumnMapping, FilterCriteria, TradingMetrics, StopScenario, OffsetScenario
@@ -110,6 +111,8 @@ class AppState(QObject):
         # Scenario results storage (golden statistics)
         self.stop_scenarios: list[StopScenario] | None = None
         self.offset_scenarios: list[OffsetScenario] | None = None
+        # Visibility tracking for lazy tab updates
+        self._visibility_tracker = VisibilityTracker()
 
     @property
     def has_data(self) -> bool:
@@ -155,3 +158,8 @@ class AppState(QObject):
             value: Whether simulation is in progress.
         """
         self._monte_carlo_running = value
+
+    @property
+    def visibility_tracker(self) -> VisibilityTracker:
+        """Get the visibility tracker for lazy tab updates."""
+        return self._visibility_tracker
