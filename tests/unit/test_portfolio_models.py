@@ -73,3 +73,34 @@ class TestStrategyConfigSheetName:
             sheet_name="Sheet2",
         )
         assert config.sheet_name == "Sheet2"
+
+
+class TestStrategyConfigMultipleEntry:
+    """Tests for allow_multiple_entry field."""
+
+    def test_allow_multiple_entry_defaults_to_true(self) -> None:
+        """Default is True (allow multiple entries)."""
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                ticker_col="ticker",
+                date_col="date",
+                gain_pct_col="gain_pct",
+            ),
+        )
+        assert config.allow_multiple_entry is True
+
+    def test_allow_multiple_entry_can_be_set_false(self) -> None:
+        """Can explicitly set to False."""
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                ticker_col="ticker",
+                date_col="date",
+                gain_pct_col="gain_pct",
+            ),
+            allow_multiple_entry=False,
+        )
+        assert config.allow_multiple_entry is False

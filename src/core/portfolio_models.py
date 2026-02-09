@@ -38,3 +38,4 @@ class StrategyConfig:
     max_compound: Optional[float] = 50000.0  # $50,000 default
     is_baseline: bool = False
     is_candidate: bool = False
+    allow_multiple_entry: bool = True  # Default allows multiple entries
