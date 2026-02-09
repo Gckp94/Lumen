@@ -2,6 +2,7 @@
 import pytest
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QCheckBox
 from src.ui.components.strategy_table import StrategyTableWidget
 from src.core.portfolio_models import (
     StrategyConfig,
@@ -222,3 +223,56 @@ class TestStrategyTableWidget:
         # Strategy should store 50.0 (percentage points)
         strategies = table.get_strategies()
         assert strategies[0].efficiency == 50.0
+
+
+class TestStrategyTableMultipleEntry:
+    """Tests for Multiple Entry checkbox column."""
+
+    def test_multi_column_exists(self, app, qtbot) -> None:
+        """Table has Multi column after CND."""
+        table = StrategyTableWidget()
+        qtbot.addWidget(table)
+        headers = [
+            table.horizontalHeaderItem(i).text()
+            for i in range(table.columnCount())
+        ]
+        assert "Multi" in headers
+        # Should be after CND (index 3), so at index 4
+        assert headers.index("Multi") == 4
+
+    def test_multi_checkbox_defaults_checked(self, app, qtbot) -> None:
+        """Multi checkbox defaults to checked (allow multiple entry)."""
+        table = StrategyTableWidget()
+        qtbot.addWidget(table)
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                ticker_col="ticker",
+                date_col="date",
+                gain_pct_col="gain_pct",
+            ),
+        )
+        table.add_strategy(config)
+        # Get checkbox from Multi column (index 4)
+        checkbox = table.cellWidget(0, 4).findChild(QCheckBox)
+        assert checkbox.isChecked() is True
+
+    def test_multi_checkbox_updates_config(self, app, qtbot) -> None:
+        """Unchecking Multi updates strategy config."""
+        table = StrategyTableWidget()
+        qtbot.addWidget(table)
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                ticker_col="ticker",
+                date_col="date",
+                gain_pct_col="gain_pct",
+            ),
+        )
+        table.add_strategy(config)
+        checkbox = table.cellWidget(0, 4).findChild(QCheckBox)
+        checkbox.setChecked(False)
+        strategies = table.get_strategies()
+        assert strategies[0].allow_multiple_entry is False

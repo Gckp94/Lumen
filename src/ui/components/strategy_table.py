@@ -33,6 +33,7 @@ class StrategyTableWidget(QTableWidget):
         ("File", 30),
         ("BL", 53),
         ("CND", 60),
+        ("Multi", 60),
         ("Stop%", 170),
         ("Efficiency", 180),
         ("Size Type", 200),
@@ -46,12 +47,13 @@ class StrategyTableWidget(QTableWidget):
     COL_FILE = 1
     COL_BL = 2
     COL_CND = 3
-    COL_STOP = 4
-    COL_EFFICIENCY = 5
-    COL_SIZE_TYPE = 6
-    COL_SIZE_VALUE = 7
-    COL_MAX_COMPOUND = 8
-    COL_MENU = 9
+    COL_MULTI = 4
+    COL_STOP = 5
+    COL_EFFICIENCY = 6
+    COL_SIZE_TYPE = 7
+    COL_SIZE_VALUE = 8
+    COL_MAX_COMPOUND = 9
+    COL_MENU = 10
 
     # Size type display names mapping
     SIZE_TYPE_DISPLAY = {
@@ -140,6 +142,15 @@ class StrategyTableWidget(QTableWidget):
             lambda state, r=row: self._on_candidate_changed(r, state)
         )
         self.setCellWidget(row, self.COL_CND, cnd_container)
+
+        # Multi checkbox
+        multi_container, multi_checkbox = self._create_centered_checkbox(
+            config.allow_multiple_entry
+        )
+        multi_checkbox.stateChanged.connect(
+            lambda state, r=row: self._on_multi_changed(r, state)
+        )
+        self.setCellWidget(row, self.COL_MULTI, multi_container)
 
         # Stop% spinbox
         stop_spin = NoScrollDoubleSpinBox()
@@ -303,6 +314,17 @@ class StrategyTableWidget(QTableWidget):
         """
         checked = state == Qt.CheckState.Checked.value
         self._strategies[row] = replace(self._strategies[row], is_candidate=checked)
+        self.strategy_changed.emit()
+
+    def _on_multi_changed(self, row: int, state: int) -> None:
+        """Handle multi entry checkbox change.
+
+        Args:
+            row: Row index.
+            state: Qt check state.
+        """
+        checked = state == Qt.CheckState.Checked.value
+        self._strategies[row] = replace(self._strategies[row], allow_multiple_entry=checked)
         self.strategy_changed.emit()
 
     def _on_stop_changed(self, row: int, value: float) -> None:
