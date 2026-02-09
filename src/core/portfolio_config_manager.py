@@ -69,6 +69,7 @@ class PortfolioConfigManager:
             "max_compound": config.max_compound,
             "is_baseline": config.is_baseline,
             "is_candidate": config.is_candidate,
+            "allow_multiple_entry": config.allow_multiple_entry,
         }
 
     def _dict_to_strategy(self, data: dict) -> StrategyConfig:
@@ -99,4 +100,5 @@ class PortfolioConfigManager:
             max_compound=data.get("max_compound"),
             is_baseline=data.get("is_baseline", False),
             is_candidate=data.get("is_candidate", False),
+            allow_multiple_entry=data.get("allow_multiple_entry", True),
         )

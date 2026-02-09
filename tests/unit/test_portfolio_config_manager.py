@@ -178,6 +178,91 @@ class TestPortfolioConfigManagerMaePctCol:
         assert strategies[0].column_mapping.mae_pct_col is None
 
 
+class TestPortfolioConfigManagerMultipleEntry:
+    """Tests for allow_multiple_entry config field with backwards compatibility."""
+
+    def test_old_config_without_allow_multiple_entry_defaults_to_true(self, tmp_path):
+        """Old configs without allow_multiple_entry should default to True."""
+        config_path = tmp_path / "test_config.json"
+        data = {
+            "account_start": 100_000,
+            "strategies": [{
+                "name": "Test",
+                "file_path": "/path/to/file.csv",
+                "column_mapping": {
+                    "date_col": "date",
+                    "gain_pct_col": "gain",
+                },
+            }],
+        }
+        with open(config_path, "w") as f:
+            json.dump(data, f)
+
+        manager = PortfolioConfigManager(config_path)
+        strategies, _ = manager.load()
+
+        assert strategies[0].allow_multiple_entry is True
+
+    def test_save_and_load_preserves_allow_multiple_entry_false(self, tmp_path):
+        """Saving and loading config with allow_multiple_entry=False preserves the value."""
+        config_path = tmp_path / "test_config.json"
+        manager = PortfolioConfigManager(config_path)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.csv",
+            column_mapping=PortfolioColumnMapping(
+                date_col="date",
+                gain_pct_col="gain",
+            ),
+            allow_multiple_entry=False,
+        )
+        manager.save([config], 100_000)
+
+        strategies, _ = manager.load()
+        assert strategies[0].allow_multiple_entry is False
+
+    def test_save_and_load_preserves_allow_multiple_entry_true(self, tmp_path):
+        """Saving and loading config with allow_multiple_entry=True preserves the value."""
+        config_path = tmp_path / "test_config.json"
+        manager = PortfolioConfigManager(config_path)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.csv",
+            column_mapping=PortfolioColumnMapping(
+                date_col="date",
+                gain_pct_col="gain",
+            ),
+            allow_multiple_entry=True,
+        )
+        manager.save([config], 100_000)
+
+        strategies, _ = manager.load()
+        assert strategies[0].allow_multiple_entry is True
+
+    def test_saves_allow_multiple_entry_to_json(self, tmp_path):
+        """The allow_multiple_entry field should be written to the JSON file."""
+        config_path = tmp_path / "test_config.json"
+        manager = PortfolioConfigManager(config_path)
+
+        config = StrategyConfig(
+            name="Test",
+            file_path="/path/to/file.csv",
+            column_mapping=PortfolioColumnMapping(
+                date_col="date",
+                gain_pct_col="gain",
+            ),
+            allow_multiple_entry=False,
+        )
+        manager.save([config], 100_000)
+
+        with open(config_path) as f:
+            data = json.load(f)
+
+        assert data["strategies"][0]["allow_multiple_entry"] is False
+
+
 def test_portfolio_overview_accepts_config_manager(tmp_path):
     """PortfolioOverviewTab should accept injected config manager."""
     from PyQt6.QtWidgets import QApplication
