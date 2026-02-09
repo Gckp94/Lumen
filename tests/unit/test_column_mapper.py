@@ -336,3 +336,34 @@ class TestDuplicateValidation:
         errors = mapping.validate(["col1", "col2", "col3", "col4", "col5"])
         # No errors from validate since columns exist
         assert len(errors) == 0
+
+
+class TestPriceIntervalAutoDetect:
+    """Tests for price interval column auto-detection."""
+
+    def test_auto_detect_price_10_min_after(self) -> None:
+        """Test that price_10_min_after is auto-detected."""
+        columns = [
+            "ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct",
+            "price_10_min_after"
+        ]
+        mapper = ColumnMapper()
+        result = mapper.auto_detect(columns)
+
+        assert result.statuses.get("price_10_min_after") == "detected"
+
+    def test_auto_detect_all_price_intervals(self) -> None:
+        """Test all price interval columns are auto-detected."""
+        columns = [
+            "ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct",
+            "price_10_min_after", "price_20_min_after", "price_30_min_after",
+            "price_60_min_after", "price_90_min_after", "price_120_min_after",
+            "price_150_min_after", "price_180_min_after", "price_240_min_after",
+        ]
+        mapper = ColumnMapper()
+        result = mapper.auto_detect(columns)
+
+        intervals = [10, 20, 30, 60, 90, 120, 150, 180, 240]
+        for interval in intervals:
+            field = f"price_{interval}_min_after"
+            assert result.statuses.get(field) == "detected", f"{field} not detected"

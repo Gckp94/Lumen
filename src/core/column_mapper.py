@@ -28,6 +28,16 @@ class ColumnMapper:
         "win_loss": ["win", "loss", "result", "outcome"],
         "mae_time": ["mae_time", "mae time", "time_mae", "adverse_time"],
         "mfe_time": ["mfe_time", "mfe time", "time_mfe", "favorable_time"],
+        # Price interval columns
+        "price_10_min_after": ["price_10_min_after", "10_min_after", "10min_after"],
+        "price_20_min_after": ["price_20_min_after", "20_min_after", "20min_after"],
+        "price_30_min_after": ["price_30_min_after", "30_min_after", "30min_after"],
+        "price_60_min_after": ["price_60_min_after", "60_min_after", "60min_after"],
+        "price_90_min_after": ["price_90_min_after", "90_min_after", "90min_after"],
+        "price_120_min_after": ["price_120_min_after", "120_min_after", "120min_after"],
+        "price_150_min_after": ["price_150_min_after", "150_min_after", "150min_after"],
+        "price_180_min_after": ["price_180_min_after", "180_min_after", "180min_after"],
+        "price_240_min_after": ["price_240_min_after", "240_min_after", "240min_after"],
     }
 
     REQUIRED_COLUMNS = ["ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct"]
