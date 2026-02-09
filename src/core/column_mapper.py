@@ -84,6 +84,15 @@ class ColumnMapper:
                 win_loss=detected.get("win_loss"),
                 mae_time=detected.get("mae_time"),
                 mfe_time=detected.get("mfe_time"),
+                price_10_min_after=detected.get("price_10_min_after"),
+                price_20_min_after=detected.get("price_20_min_after"),
+                price_30_min_after=detected.get("price_30_min_after"),
+                price_60_min_after=detected.get("price_60_min_after"),
+                price_90_min_after=detected.get("price_90_min_after"),
+                price_120_min_after=detected.get("price_120_min_after"),
+                price_150_min_after=detected.get("price_150_min_after"),
+                price_180_min_after=detected.get("price_180_min_after"),
+                price_240_min_after=detected.get("price_240_min_after"),
             )
             logger.info(
                 "Column mapping completed: ticker=%s, date=%s, time=%s, gain=%s, mae=%s, mfe=%s",

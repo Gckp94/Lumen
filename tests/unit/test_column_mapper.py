@@ -341,6 +341,22 @@ class TestDuplicateValidation:
 class TestPriceIntervalAutoDetect:
     """Tests for price interval column auto-detection."""
 
+    def test_auto_detect_populates_mapping_with_price_intervals(self) -> None:
+        """Test that detected price intervals are included in ColumnMapping."""
+        columns = [
+            "ticker", "date", "time", "gain_pct", "mae_pct", "mfe_pct",
+            "price_10_min_after", "price_60_min_after", "price_240_min_after",
+        ]
+        mapper = ColumnMapper()
+        result = mapper.auto_detect(columns)
+
+        assert result.mapping is not None
+        assert result.mapping.price_10_min_after == "price_10_min_after"
+        assert result.mapping.price_60_min_after == "price_60_min_after"
+        assert result.mapping.price_240_min_after == "price_240_min_after"
+        # Columns not present should be None
+        assert result.mapping.price_20_min_after is None
+
     def test_auto_detect_price_10_min_after(self) -> None:
         """Test that price_10_min_after is auto-detected."""
         columns = [
