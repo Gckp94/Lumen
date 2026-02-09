@@ -98,6 +98,17 @@ class TestAutoDetect:
         assert result.mapping.win_loss is None
         assert result.statuses["win_loss"] == "missing"
 
+    def test_auto_detect_trigger_time_et(self) -> None:
+        """Test that trigger_time_et is auto-detected as time column."""
+        columns = ["ticker", "date", "trigger_time_et", "gain_pct", "mae_pct", "mfe_pct"]
+        mapper = ColumnMapper()
+        result = mapper.auto_detect(columns)
+
+        assert result.all_required_detected is True
+        assert result.mapping is not None
+        assert result.mapping.time == "trigger_time_et"
+        assert result.statuses["time"] == "detected"
+
 
 class TestSaveLoadMapping:
     """Tests for save_mapping and load_mapping methods."""

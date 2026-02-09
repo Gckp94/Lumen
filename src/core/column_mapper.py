@@ -21,7 +21,7 @@ class ColumnMapper:
     PATTERNS: dict[str, list[str]] = {
         "ticker": ["ticker", "symbol", "stock", "security"],
         "date": ["date", "trade_date", "entry_date"],
-        "time": ["time", "trade_time", "entry_time"],
+        "time": ["time", "trade_time", "entry_time", "trigger_time_et"],
         "gain_pct": ["gain", "return", "pnl", "profit", "%"],
         "mae_pct": ["mae", "max_adverse", "adverse", "drawdown", "mae_pct"],
         "mfe_pct": ["mfe", "max_favorable", "favorable", "runup", "mfe_pct"],
