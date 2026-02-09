@@ -1830,6 +1830,29 @@ class StatisticsTab(BackgroundCalculationMixin, QWidget):
         export_df = df.copy()
         export_df["scale_adjusted_gain_pct"] = scale_adjusted
 
+        # Normalize date column to ISO format for consistent exports
+        date_col = mapping.date_col
+        if date_col in export_df.columns:
+            try:
+                # Parse dates with mixed format support, then format as ISO
+                parsed_dates = pd.to_datetime(
+                    export_df[date_col],
+                    format='mixed',
+                    dayfirst=True,
+                    errors='coerce'
+                )
+                # Log any failed conversions
+                failed_count = parsed_dates.isna().sum()
+                if failed_count > 0:
+                    logger.warning(
+                        f"Failed to parse {failed_count} dates in '{date_col}' - "
+                        "they will appear as 'NaT' in export"
+                    )
+                # Convert to ISO format string (YYYY-MM-DD)
+                export_df[date_col] = parsed_dates.dt.strftime('%Y-%m-%d')
+            except (ValueError, TypeError, AttributeError) as e:
+                logger.warning(f"Could not normalize date column: {e}")
+
         # Generate suggested filename with user's home directory as default
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         target = self._selected_scaling_target
