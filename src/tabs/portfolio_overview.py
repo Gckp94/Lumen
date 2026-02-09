@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.app_state import AppState
+from src.core.date_utils import DateFormat, detect_date_format
 from src.core.portfolio_calculator import PortfolioCalculator
 from src.core.portfolio_config_manager import PortfolioConfigManager
 from src.core.portfolio_models import PortfolioColumnMapping, StrategyConfig
@@ -73,6 +74,7 @@ class PortfolioOverviewTab(QWidget):
         self._recalc_timer = QTimer(self)
         self._recalc_timer.setSingleShot(True)
         self._recalc_timer.timeout.connect(self._recalculate)
+        self._format_warning_shown = False
 
         self._setup_ui()
         self._connect_signals()
@@ -365,6 +367,9 @@ class PortfolioOverviewTab(QWidget):
             except Exception as e:
                 logger.error(f"Failed to calculate combined aggregate: {e}")
 
+        # Check date format consistency (show warning if different formats detected)
+        self._check_date_format_consistency()
+
         # Update charts (guard against widget deletion during test cleanup)
         try:
             self._charts.set_data(chart_data)
@@ -378,3 +383,43 @@ class PortfolioOverviewTab(QWidget):
         except RuntimeError:
             # Widget has been deleted, skip updates
             pass
+
+    def _check_date_format_consistency(self) -> None:
+        """Check if all strategies use consistent date formats and warn if not.
+
+        Only shows warning once per session to avoid annoying the user.
+        """
+        if self._format_warning_shown:
+            return
+
+        from PyQt6.QtWidgets import QMessageBox
+
+        # Detect format for each strategy
+        formats: dict[str, DateFormat] = {}
+        strategies = self._strategy_table.get_strategies()
+
+        for config in strategies:
+            df = self._strategy_data.get(config.name)
+            if df is None:
+                continue
+            date_col = config.column_mapping.date_col
+            if date_col in df.columns:
+                formats[config.name] = detect_date_format(df[date_col])
+
+        # Get unique formats (excluding UNKNOWN)
+        unique = set(f for f in formats.values() if f != DateFormat.UNKNOWN)
+
+        if len(unique) > 1:
+            self._format_warning_shown = True
+            # Build format info string
+            format_lines = [f"  {name}: {fmt.value}" for name, fmt in formats.items()]
+            format_info = "\n".join(format_lines)
+
+            QMessageBox.warning(
+                self,
+                "Date Format Inconsistency",
+                f"Strategies use different date formats:\n{format_info}\n\n"
+                "This may affect chronological ordering. Consider re-exporting "
+                "all strategies using the Statistics tab's scaling export, which "
+                "standardizes to ISO format (YYYY-MM-DD).",
+            )
