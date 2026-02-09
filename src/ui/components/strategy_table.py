@@ -4,6 +4,7 @@ from dataclasses import replace
 from typing import Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QDropEvent
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -77,6 +78,13 @@ class StrategyTableWidget(QTableWidget):
         super().__init__(parent)
         self._strategies: list[StrategyConfig] = []
         self._setup_table()
+
+        # Enable drag-drop reordering
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
 
     def _setup_table(self) -> None:
         """Configure table appearance and behavior."""
@@ -463,3 +471,56 @@ class StrategyTableWidget(QTableWidget):
         self._strategies.clear()
         self.setRowCount(0)
         self.strategy_changed.emit()
+
+    def move_strategy(self, from_row: int, to_row: int) -> None:
+        """Move a strategy from one position to another.
+
+        Args:
+            from_row: Source row index.
+            to_row: Destination row index.
+        """
+        if from_row == to_row:
+            return
+        if not (0 <= from_row < len(self._strategies)):
+            return
+        if not (0 <= to_row <= len(self._strategies)):
+            return
+
+        # Move in internal list
+        strategy = self._strategies.pop(from_row)
+        self._strategies.insert(to_row, strategy)
+
+        # Rebuild table rows
+        self._rebuild_table()
+        self.strategy_changed.emit()
+
+    def _rebuild_table(self) -> None:
+        """Rebuild all table rows from strategies list."""
+        self.setRowCount(0)
+        for config in self._strategies:
+            row = self.rowCount()
+            self.insertRow(row)
+            self._populate_row(row, config)
+
+    def dropEvent(self, event: QDropEvent | None) -> None:
+        """Handle drop event to reorder strategies."""
+        if event is None or event.source() != self:
+            if event:
+                event.ignore()
+            return
+
+        # Get source row
+        source_row = self.currentRow()
+        if source_row < 0:
+            event.ignore()
+            return
+
+        # Get target row from drop position
+        target_row = self.rowAt(event.position().toPoint().y())
+        if target_row < 0:
+            target_row = self.rowCount() - 1
+
+        if source_row != target_row:
+            self.move_strategy(source_row, target_row)
+
+        event.accept()

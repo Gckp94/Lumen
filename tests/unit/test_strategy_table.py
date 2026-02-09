@@ -1,8 +1,7 @@
 # tests/unit/test_strategy_table.py
 import pytest
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QAbstractItemView, QApplication, QCheckBox
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QCheckBox
 from src.ui.components.strategy_table import StrategyTableWidget
 from src.core.portfolio_models import (
     StrategyConfig,
@@ -276,3 +275,63 @@ class TestStrategyTableMultipleEntry:
         checkbox.setChecked(False)
         strategies = table.get_strategies()
         assert strategies[0].allow_multiple_entry is False
+
+
+class TestStrategyTableDragDrop:
+    """Tests for drag-drop row reordering."""
+
+    def test_drag_drop_enabled(self, app, qtbot) -> None:
+        """Table supports internal drag-drop."""
+        table = StrategyTableWidget()
+        qtbot.addWidget(table)
+        assert table.dragDropMode() == QAbstractItemView.DragDropMode.InternalMove
+        assert table.dragEnabled() is True
+
+    def test_reorder_strategies_updates_list(self, app, qtbot) -> None:
+        """Reordering rows updates internal strategies list."""
+        table = StrategyTableWidget()
+        qtbot.addWidget(table)
+        config1 = StrategyConfig(
+            name="Alpha",
+            file_path="/path/to/alpha.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                ticker_col="ticker", date_col="date", gain_pct_col="gain_pct"
+            ),
+        )
+        config2 = StrategyConfig(
+            name="Beta",
+            file_path="/path/to/beta.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                ticker_col="ticker", date_col="date", gain_pct_col="gain_pct"
+            ),
+        )
+        table.add_strategy(config1)
+        table.add_strategy(config2)
+        # Simulate reorder: move Beta to top
+        table.move_strategy(1, 0)
+        strategies = table.get_strategies()
+        assert strategies[0].name == "Beta"
+        assert strategies[1].name == "Alpha"
+
+    def test_reorder_emits_strategy_changed(self, app, qtbot) -> None:
+        """Reordering emits strategy_changed signal."""
+        table = StrategyTableWidget()
+        qtbot.addWidget(table)
+        config1 = StrategyConfig(
+            name="Alpha",
+            file_path="/path/to/alpha.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                ticker_col="ticker", date_col="date", gain_pct_col="gain_pct"
+            ),
+        )
+        config2 = StrategyConfig(
+            name="Beta",
+            file_path="/path/to/beta.xlsx",
+            column_mapping=PortfolioColumnMapping(
+                ticker_col="ticker", date_col="date", gain_pct_col="gain_pct"
+            ),
+        )
+        table.add_strategy(config1)
+        table.add_strategy(config2)
+        with qtbot.waitSignal(table.strategy_changed, timeout=1000):
+            table.move_strategy(1, 0)
