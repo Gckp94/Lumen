@@ -515,3 +515,157 @@ class TestPortfolioCalculatorGainPctOutput:
         # Trade 2: -2% - 1% efficiency = -3%
         assert result.iloc[0]["gain_pct"] == pytest.approx(4.0, rel=0.01)
         assert result.iloc[1]["gain_pct"] == pytest.approx(-3.0, rel=0.01)
+
+
+class TestPortfolioCalculatorMultipleEntry:
+    """Tests for multiple entry filtering."""
+
+    def test_filter_duplicates_when_multi_entry_disabled(self) -> None:
+        """Duplicate ticker-date skipped when allow_multiple_entry=False."""
+        calc = PortfolioCalculator(starting_capital=10000.0)
+
+        # Two strategies with same ticker-date
+        mapping = PortfolioColumnMapping(
+            ticker_col="ticker", date_col="date", gain_pct_col="gain_pct"
+        )
+        config1 = StrategyConfig(
+            name="Alpha",
+            file_path="/path/alpha.xlsx",
+            column_mapping=mapping,
+            allow_multiple_entry=True,  # Takes trade
+        )
+        config2 = StrategyConfig(
+            name="Beta",
+            file_path="/path/beta.xlsx",
+            column_mapping=mapping,
+            allow_multiple_entry=False,  # Defers to Alpha
+        )
+
+        df1 = pd.DataFrame({
+            "ticker": ["AAPL"],
+            "date": ["2024-01-15"],
+            "gain_pct": [0.05],
+        })
+        df2 = pd.DataFrame({
+            "ticker": ["AAPL"],
+            "date": ["2024-01-15"],
+            "gain_pct": [0.03],
+        })
+
+        result = calc.calculate_portfolio([(df1, config1), (df2, config2)])
+
+        # Only Alpha's trade should be taken
+        assert len(result) == 1
+        assert result.iloc[0]["strategy"] == "Alpha"
+
+    def test_allow_duplicates_when_multi_entry_enabled(self) -> None:
+        """Both trades taken when allow_multiple_entry=True for both."""
+        calc = PortfolioCalculator(starting_capital=10000.0)
+
+        mapping = PortfolioColumnMapping(
+            ticker_col="ticker", date_col="date", gain_pct_col="gain_pct"
+        )
+        config1 = StrategyConfig(
+            name="Alpha",
+            file_path="/path/alpha.xlsx",
+            column_mapping=mapping,
+            allow_multiple_entry=True,
+        )
+        config2 = StrategyConfig(
+            name="Beta",
+            file_path="/path/beta.xlsx",
+            column_mapping=mapping,
+            allow_multiple_entry=True,
+        )
+
+        df1 = pd.DataFrame({
+            "ticker": ["AAPL"],
+            "date": ["2024-01-15"],
+            "gain_pct": [0.05],
+        })
+        df2 = pd.DataFrame({
+            "ticker": ["AAPL"],
+            "date": ["2024-01-15"],
+            "gain_pct": [0.03],
+        })
+
+        result = calc.calculate_portfolio([(df1, config1), (df2, config2)])
+
+        # Both trades taken
+        assert len(result) == 2
+
+    def test_no_ticker_skips_deduplication(self) -> None:
+        """When ticker is None, deduplication is skipped."""
+        calc = PortfolioCalculator(starting_capital=10000.0)
+
+        # No ticker column mapped
+        mapping = PortfolioColumnMapping(
+            ticker_col=None, date_col="date", gain_pct_col="gain_pct"
+        )
+        config1 = StrategyConfig(
+            name="Alpha",
+            file_path="/path/alpha.xlsx",
+            column_mapping=mapping,
+            allow_multiple_entry=False,
+        )
+        config2 = StrategyConfig(
+            name="Beta",
+            file_path="/path/beta.xlsx",
+            column_mapping=mapping,
+            allow_multiple_entry=False,
+        )
+
+        df1 = pd.DataFrame({
+            "date": ["2024-01-15"],
+            "gain_pct": [0.05],
+        })
+        df2 = pd.DataFrame({
+            "date": ["2024-01-15"],
+            "gain_pct": [0.03],
+        })
+
+        result = calc.calculate_portfolio([(df1, config1), (df2, config2)])
+
+        # Both trades taken (no ticker = no deduplication)
+        assert len(result) == 2
+
+    def test_priority_order_determines_which_trade_kept(self) -> None:
+        """First strategy in list has priority."""
+        calc = PortfolioCalculator(starting_capital=10000.0)
+
+        mapping = PortfolioColumnMapping(
+            ticker_col="ticker", date_col="date", gain_pct_col="gain_pct"
+        )
+        # Beta first = higher priority
+        config_beta = StrategyConfig(
+            name="Beta",
+            file_path="/path/beta.xlsx",
+            column_mapping=mapping,
+            allow_multiple_entry=True,
+        )
+        config_alpha = StrategyConfig(
+            name="Alpha",
+            file_path="/path/alpha.xlsx",
+            column_mapping=mapping,
+            allow_multiple_entry=False,  # Defers to Beta
+        )
+
+        df_beta = pd.DataFrame({
+            "ticker": ["AAPL"],
+            "date": ["2024-01-15"],
+            "gain_pct": [0.03],
+        })
+        df_alpha = pd.DataFrame({
+            "ticker": ["AAPL"],
+            "date": ["2024-01-15"],
+            "gain_pct": [0.05],
+        })
+
+        result = calc.calculate_portfolio([
+            (df_beta, config_beta),
+            (df_alpha, config_alpha),
+        ])
+
+        # Only Beta's trade (first in list = higher priority)
+        assert len(result) == 1
+        assert result.iloc[0]["strategy"] == "Beta"

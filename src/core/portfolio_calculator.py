@@ -228,6 +228,54 @@ class PortfolioCalculator:
 
         return size
 
+    def _filter_duplicate_entries(
+        self,
+        merged: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Filter duplicate ticker-date pairs based on multi-entry settings.
+
+        When multiple strategies have trades for the same ticker on the same date,
+        this method keeps or removes duplicates based on each trade's strategy
+        config.allow_multiple_entry setting. The first occurrence is always kept;
+        subsequent occurrences are kept only if their strategy allows multiple entry.
+
+        Uses column extraction with zip() for performance over large DataFrames
+        (faster than iterrows()).
+
+        Args:
+            merged: DataFrame with all trades, sorted by date. Must have columns:
+                _ticker, _date_only, _config (StrategyConfig objects).
+
+        Returns:
+            Filtered DataFrame with duplicates removed per settings, index reset.
+        """
+        if merged.empty:
+            return merged
+
+        seen_ticker_dates: set[tuple] = set()
+        keep_mask = []
+
+        # Extract columns for fast iteration (faster than iterrows)
+        tickers = merged["_ticker"].tolist()
+        date_onlys = merged["_date_only"].tolist()
+        configs = merged["_config"].tolist()
+
+        for ticker, date_only, config in zip(tickers, date_onlys, configs):
+            # Skip deduplication if no ticker mapped
+            if ticker is None:
+                keep_mask.append(True)
+                continue
+
+            ticker_date = (ticker, date_only)
+
+            if ticker_date in seen_ticker_dates and not config.allow_multiple_entry:
+                keep_mask.append(False)  # Skip: duplicate and multi-entry disabled
+            else:
+                keep_mask.append(True)
+                seen_ticker_dates.add(ticker_date)
+
+        return merged[keep_mask].reset_index(drop=True)
+
     def calculate_portfolio(
         self,
         strategies: list[tuple[pd.DataFrame, StrategyConfig]],
@@ -311,6 +359,9 @@ class PortfolioCalculator:
         merged = pd.concat(all_trades, ignore_index=True)
         merged = merged.sort_values("_date").reset_index(drop=True)
         merged["_date_only"] = merged["_date"].dt.date
+
+        # Filter duplicates based on multi-entry settings
+        merged = self._filter_duplicate_entries(merged)
 
         results = []
         account_value = self.starting_capital
