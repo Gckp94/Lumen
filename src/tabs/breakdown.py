@@ -28,8 +28,9 @@ logger = logging.getLogger(__name__)
 class BreakdownTab(BackgroundCalculationMixin, QWidget):
     """Tab displaying yearly and monthly performance breakdown charts.
 
-    Shows 8 yearly charts in a 2x4 grid and 8 monthly charts (for selected year)
-    in a 2x4 grid. Charts are updated reactively when filtered data changes.
+    Shows 9 yearly charts (2 rows of 4 + 1 overflow) and 8 monthly charts
+    (for selected year) in a 2x4 grid. Charts are updated reactively when
+    filtered data changes.
     """
 
     def __init__(self, app_state: AppState) -> None:
@@ -42,7 +43,7 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         BackgroundCalculationMixin.__init__(self, app_state, "Breakdown")
         self._calculator = self._create_calculator()
 
-        # Chart widgets - yearly (8 charts)
+        # Chart widgets - yearly (9 charts)
         self._yearly_charts: dict[str, VerticalBarChart] = {}
 
         # Chart widgets - monthly (8 charts)
@@ -140,7 +141,7 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         main_layout.addWidget(scroll_area)
 
     def _create_years_section(self) -> QWidget:
-        """Create the yearly breakdown section with 8 charts in 2x4 grid.
+        """Create the yearly breakdown section with 9 charts (2x4 + 1 overflow).
 
         Returns:
             Widget containing the yearly section.
@@ -156,12 +157,12 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         header.setStyleSheet(f"color: {Colors.TEXT_PRIMARY};")
         layout.addWidget(header)
 
-        # Charts grid: 2 rows x 4 columns
+        # Charts grid: 2 rows x 4 columns + overflow row
         grid = QGridLayout()
         grid.setHorizontalSpacing(Spacing.XS)
         grid.setVerticalSpacing(Spacing.SM)
 
-        # Define yearly charts (8 charts, matching monthly layout)
+        # Define yearly charts (9 charts: 2 rows of 4 + 1 overflow)
         yearly_chart_defs = [
             ("total_gain_pct", "Total Gain (%)"),
             ("total_flat_stake", "Flat Stake ($)"),
@@ -171,6 +172,7 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
             ("win_rate", "Win Rate (%)"),
             ("avg_winner_pct", "Avg Winner (%)"),
             ("avg_loser_pct", "Avg Loser (%)"),
+            ("ev_pct", "EV (%)"),
         ]
 
         for i, (key, title) in enumerate(yearly_chart_defs):
@@ -415,18 +417,22 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         """Refresh all charts with current data.
 
         Uses filtered_df if available, otherwise falls back to baseline_df.
-        Applies first trigger filtering when first_trigger_enabled is True.
+        Only applies first trigger filtering when using baseline_df (since
+        filtered_df already has first trigger filtering applied by Feature Explorer).
         """
         # Prefer filtered data, fallback to baseline
         df = self._app_state.filtered_df
+        using_baseline = False
         if df is None or df.empty:
             df = self._app_state.baseline_df
+            using_baseline = True
 
         if df is None or df.empty:
             return
 
-        # Apply first trigger filter if enabled
-        if self._app_state.first_trigger_enabled and "trigger_number" in df.columns:
+        # Only apply first trigger filter if using baseline data
+        # filtered_df already has first trigger filtering applied by Feature Explorer
+        if using_baseline and self._app_state.first_trigger_enabled and "trigger_number" in df.columns:
             df = df[df["trigger_number"] == 1].copy()
 
         if not df.empty:
@@ -439,7 +445,7 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         gain_col: str,
         win_loss_col: str | None,
     ) -> None:
-        """Update all 8 yearly charts with calculated metrics.
+        """Update all 9 yearly charts with calculated metrics.
 
         Args:
             df: DataFrame with trade data.
@@ -487,6 +493,10 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         # avg_loser_pct
         data = [(y, yearly_data[y]["avg_loser_pct"]) for y in years]
         self._yearly_charts["avg_loser_pct"].set_data(data, is_percentage=True)
+
+        # ev_pct
+        data = [(y, yearly_data[y]["ev_pct"]) for y in years]
+        self._yearly_charts["ev_pct"].set_data(data, is_percentage=True)
 
     def _update_monthly_charts(
         self,
