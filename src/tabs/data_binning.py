@@ -827,7 +827,7 @@ class DataBinningTab(BackgroundCalculationMixin, QWidget):
             return
 
         # Get default filename
-        default_dir = str(self._last_save_dir or Path.home())
+        default_dir = str(self._last_save_dir or DEFAULT_BIN_CONFIG_DIR)
         default_name = f"bin_config_{config.column}.json"
 
         path, _ = QFileDialog.getSaveFileName(
