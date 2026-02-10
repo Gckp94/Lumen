@@ -116,14 +116,23 @@ class FeatureImpactCalculator:
     def calculate_impact_scores(
         self,
         results: list[FeatureImpactResult],
+        min_trades_threshold: int = 30,
     ) -> dict[str, float]:
         """Calculate composite impact scores for all results.
 
-        Score formula: 50% EV lift + 25% WR lift + 25% |correlation|
-        All components normalized to 0-1 range.
+        Score formula:
+            Base = 40% EV_lift + 20% WR_lift + 20% |correlation| + 20% sample_factor
+            Final = Base × sample_penalty
+
+        Sample penalty reduces score for small samples:
+            penalty = min(1.0, trades_in_direction / min_trades_threshold)
+
+        This prevents overfitting by penalizing features that only work
+        on tiny subsets of the data.
 
         Args:
             results: List of FeatureImpactResult from calculate_all_features.
+            min_trades_threshold: Minimum trades for full score (default 30).
 
         Returns:
             Dict mapping feature_name to impact score (0-1).
@@ -135,6 +144,12 @@ class FeatureImpactCalculator:
         correlations = [abs(r.correlation) for r in results]
         wr_lifts = [r.win_rate_lift for r in results]
         ev_lifts = [r.expectancy_lift for r in results]
+
+        # Get trades in the "good" direction for sample size factor
+        def trades_in_direction(r: FeatureImpactResult) -> int:
+            return r.trades_above if r.threshold_direction == "above" else r.trades_below
+
+        trade_counts = [trades_in_direction(r) for r in results]
 
         # Normalize each metric to 0-1 range
         def normalize(values: list[float]) -> list[float]:
@@ -148,16 +163,24 @@ class FeatureImpactCalculator:
         norm_corr = normalize(correlations)
         norm_wr = normalize(wr_lifts)
         norm_ev = normalize(ev_lifts)
+        norm_trades = normalize([float(t) for t in trade_counts])
 
-        # Calculate composite scores
+        # Calculate composite scores with sample size penalty
         scores = {}
         for i, result in enumerate(results):
-            score = (
-                0.50 * norm_ev[i] +
-                0.25 * norm_wr[i] +
-                0.25 * norm_corr[i]
+            # Base score includes sample size as positive factor
+            base_score = (
+                0.40 * norm_ev[i] +
+                0.20 * norm_wr[i] +
+                0.20 * norm_corr[i] +
+                0.20 * norm_trades[i]
             )
-            scores[result.feature_name] = score
+
+            # Apply penalty for samples below threshold
+            trades = trades_in_direction(result)
+            sample_penalty = min(1.0, trades / min_trades_threshold)
+
+            scores[result.feature_name] = base_score * sample_penalty
 
         return scores
 
