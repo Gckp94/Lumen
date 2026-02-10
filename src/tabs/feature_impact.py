@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.app_state import AppState
+from src.core.feature_exclusion_manager import FeatureExclusionManager
 from src.core.feature_impact_calculator import FeatureImpactCalculator, FeatureImpactResult
 from src.ui.components.resizable_exclude_panel import ResizableExcludePanel
 from src.ui.constants import Colors, Fonts, FontSizes, Spacing
@@ -272,6 +273,7 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         self._sort_ascending = False
 
         self._user_excluded_cols: set[str] = set()
+        self._exclusion_manager = FeatureExclusionManager()
 
         self._expanded_row: int | None = None
 
@@ -463,17 +465,40 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         else:
             self._user_excluded_cols.discard(column)
 
+        # Persist exclusions for this source file
+        if self._app_state.source_file_path:
+            self._exclusion_manager.save(
+                self._app_state.source_file_path,
+                self._user_excluded_cols,
+            )
+
         # Re-analyze with updated exclusions
         self._analyze_features()
 
     def _connect_signals(self) -> None:
         """Connect to app state signals."""
+        self._app_state.data_loaded.connect(self._on_data_loaded)
         self._app_state.baseline_calculated.connect(self._on_data_updated)
         self._app_state.filtered_data_updated.connect(self._on_data_updated)
         self._app_state.first_trigger_toggled.connect(self._on_data_updated)
 
         # Connect to tab visibility for stale refresh
         self._app_state.tab_became_visible.connect(self._on_tab_became_visible)
+
+    def _on_data_loaded(self) -> None:
+        """Handle new data being loaded - restore saved exclusions."""
+        if not self._app_state.source_file_path:
+            return
+
+        # Load saved exclusions for this file
+        saved_exclusions = self._exclusion_manager.load(
+            self._app_state.source_file_path
+        )
+        self._user_excluded_cols = saved_exclusions
+
+        # Update the exclude panel UI to reflect loaded exclusions
+        if hasattr(self, "_exclude_panel"):
+            self._exclude_panel.set_excluded(saved_exclusions)
 
     def _show_empty_state(self, show: bool) -> None:
         """Toggle between empty state and table."""
@@ -517,11 +542,11 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         if self._app_state.column_mapping:
             gain_col = self._app_state.column_mapping.gain_pct
 
-        # Apply First Trigger Only filtering if enabled
+        # Apply First Trigger Only filtering to baseline data if enabled
+        # Note: filtered_df already has first trigger filtering applied by Feature Explorer,
+        # so we don't apply it again to avoid double filtering
         if self._app_state.first_trigger_enabled and "trigger_number" in baseline_df.columns:
             baseline_df = baseline_df[baseline_df["trigger_number"] == 1].copy()
-            if filtered_df is not None and "trigger_number" in filtered_df.columns:
-                filtered_df = filtered_df[filtered_df["trigger_number"] == 1].copy()
 
         # Build full exclusion list
         excluded = list(self._user_excluded_cols)
