@@ -303,3 +303,37 @@ def test_breakdown_tab_refresh_uses_baseline_fallback(qtbot, sample_trades):
 
     # Charts should have data from baseline
     assert tab._yearly_charts["total_gain_pct"]._data, "Refresh should use baseline"
+
+
+def test_yearly_ev_chart_displays_data(qtbot, sample_trades):
+    """Test that EV % chart displays correct data."""
+    from src.core.app_state import AppState
+    from src.core.models import ColumnMapping
+    from src.tabs.breakdown import BreakdownTab
+
+    state = AppState()
+    state.column_mapping = ColumnMapping(
+        ticker="ticker",
+        date="date",
+        time="time",
+        gain_pct="gain_pct",
+        mae_pct="mae_pct",
+        mfe_pct="mfe_pct",
+        win_loss=None,
+        win_loss_derived=True,
+        breakeven_is_win=False,
+    )
+    state.baseline_df = sample_trades
+    state.filtered_df = None
+
+    tab = BreakdownTab(state)
+    qtbot.addWidget(tab)
+
+    # Trigger chart update with data
+    tab._update_charts_with_data(sample_trades)
+
+    # Verify EV chart exists and has data
+    assert "ev_pct" in tab._yearly_charts, "EV % chart should exist in yearly charts"
+    ev_chart = tab._yearly_charts["ev_pct"]
+    assert ev_chart._data is not None, "EV % chart should have data"
+    assert len(ev_chart._data) > 0, "EV % chart should have at least one data point"
