@@ -33,6 +33,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Default directory for bin configuration files (project_root/bin_config)
+DEFAULT_BIN_CONFIG_DIR = Path(__file__).parent.parent.parent / "bin_config"
+
 
 def parse_time_input(value: str | int) -> str:
     """Parse HHMMSS integer or string to HH:MM:SS format.
