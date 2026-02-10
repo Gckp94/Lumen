@@ -90,6 +90,18 @@ def get_gradient_color(
     return (bg, text)
 
 
+def get_good_pnl(r: FeatureImpactResult) -> float:
+    """Get PnL in the 'good' direction based on threshold_direction.
+
+    Args:
+        r: Feature impact result containing pnl_above, pnl_below, and threshold_direction.
+
+    Returns:
+        The PnL value for the direction indicated as optimal.
+    """
+    return r.pnl_above if r.threshold_direction == "above" else r.pnl_below
+
+
 class FeatureDetailWidget(QWidget):
     """Expandable detail widget showing threshold analysis."""
 
@@ -691,10 +703,6 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         """Populate table with baseline and filtered results."""
         self._table.setRowCount(len(self._baseline_results))
 
-        # Helper to get PnL in the "good" direction based on threshold_direction
-        def get_good_pnl(r: FeatureImpactResult) -> float:
-            return r.pnl_above if r.threshold_direction == "above" else r.pnl_below
-
         # Calculate ranges for gradients (using baseline)
         b_corrs = [r.correlation for r in self._baseline_results]
         b_wr = [r.win_rate_lift for r in self._baseline_results]
@@ -783,9 +791,14 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
 
     def _format_pnl(self, pnl: float) -> str:
         """Format PnL value for display."""
-        if abs(pnl) >= 1000:
-            return f"${pnl/1000:.1f}K"
-        return f"${pnl:.0f}"
+        abs_value = abs(pnl)
+        sign = "-" if pnl < 0 else ""
+        if abs_value >= 1_000_000:
+            return f"{sign}${abs_value / 1_000_000:.1f}M"
+        elif abs_value >= 1_000:
+            return f"{sign}${abs_value / 1_000:.1f}K"
+        else:
+            return f"{sign}${abs_value:.0f}"
 
     def _on_header_clicked(self, col: int) -> None:
         """Handle column header click for sorting."""
@@ -801,10 +814,6 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         """Sort results and repopulate table."""
         if not self._baseline_results:
             return
-
-        # Helper to get PnL in the "good" direction based on threshold_direction
-        def get_good_pnl(r: FeatureImpactResult) -> float:
-            return r.pnl_above if r.threshold_direction == "above" else r.pnl_below
 
         # Define sort key based on column
         def get_sort_key(result: FeatureImpactResult) -> float:
