@@ -181,8 +181,8 @@ class TestFeatureImpactIntegration:
         tab = FeatureImpactTab(app_state_with_data)
         qtbot.addWidget(tab)
 
-        # Verify column count
-        assert tab._table.columnCount() == 11
+        # Verify column count (13 columns including PnL columns)
+        assert tab._table.columnCount() == 13
 
         # Verify key column headers
         headers = []
@@ -197,6 +197,8 @@ class TestFeatureImpactIntegration:
         assert "Corr (F)" in headers
         assert "WR Lift (B)" in headers
         assert "WR Lift (F)" in headers
+        assert "PnL (B)" in headers
+        assert "PnL (F)" in headers
 
     def test_summary_label_updates(self, app, qtbot, app_state_with_data):
         """Test that summary label shows correct counts."""

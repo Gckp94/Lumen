@@ -427,7 +427,10 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
     def _create_table(self) -> QTableWidget:
         """Create the main scorecard table with baseline/filtered columns."""
         table = QTableWidget()
-        table.setColumnCount(11)
+        # Table has 13 columns:
+        # Feature, Impact, Corr(B), Corr(F), WR Lift(B), WR Lift(F),
+        # EV Lift(B), EV Lift(F), Threshold, Trades(B), Trades(F), PnL(B), PnL(F)
+        table.setColumnCount(13)
         table.setHorizontalHeaderLabels(
             [
                 "Feature",
@@ -441,6 +444,8 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
                 "Threshold",
                 "Trades (B)",
                 "Trades (F)",
+                "PnL (B)",
+                "PnL (F)",
             ]
         )
 
@@ -476,7 +481,7 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         # Configure header
         header = table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for i in range(1, 11):
+        for i in range(1, 13):
             header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
 
         # Enable sorting via header clicks
@@ -686,18 +691,25 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         """Populate table with baseline and filtered results."""
         self._table.setRowCount(len(self._baseline_results))
 
+        # Helper to get PnL in the "good" direction based on threshold_direction
+        def get_good_pnl(r: FeatureImpactResult) -> float:
+            return r.pnl_above if r.threshold_direction == "above" else r.pnl_below
+
         # Calculate ranges for gradients (using baseline)
         b_corrs = [r.correlation for r in self._baseline_results]
         b_wr = [r.win_rate_lift for r in self._baseline_results]
         b_ev = [r.expectancy_lift for r in self._baseline_results]
+        b_pnl = [get_good_pnl(r) for r in self._baseline_results]
 
         f_corrs = [r.correlation for r in self._filtered_results]
         f_wr = [r.win_rate_lift for r in self._filtered_results]
         f_ev = [r.expectancy_lift for r in self._filtered_results]
+        f_pnl = [get_good_pnl(r) for r in self._filtered_results]
 
         corr_range = (min(b_corrs + f_corrs), max(b_corrs + f_corrs)) if b_corrs else (0, 0)
         wr_range = (min(b_wr + f_wr), max(b_wr + f_wr)) if b_wr else (0, 0)
         ev_range = (min(b_ev + f_ev), max(b_ev + f_ev)) if b_ev else (0, 0)
+        pnl_range = (min(b_pnl + f_pnl), max(b_pnl + f_pnl)) if b_pnl else (0, 0)
 
         for row, b_result in enumerate(self._baseline_results):
             f_result = self._filtered_by_name.get(b_result.feature_name, b_result)
@@ -741,6 +753,16 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
             self._set_text_item(row, 9, f"{b_result.trades_total:,}")
             self._set_text_item(row, 10, f"{f_result.trades_total:,}")
 
+            # Col 11-12: PnL (B/F) - PnL in the "good" direction
+            baseline_pnl = get_good_pnl(b_result)
+            filtered_pnl = get_good_pnl(f_result)
+            self._set_gradient_item(
+                row, 11, self._format_pnl(baseline_pnl), baseline_pnl, *pnl_range
+            )
+            self._set_gradient_item(
+                row, 12, self._format_pnl(filtered_pnl), filtered_pnl, *pnl_range
+            )
+
     def _set_text_item(self, row: int, col: int, text: str) -> None:
         """Set a plain text table item."""
         item = QTableWidgetItem(text)
@@ -759,6 +781,12 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         item.setForeground(QBrush(text_color))
         self._table.setItem(row, col, item)
 
+    def _format_pnl(self, pnl: float) -> str:
+        """Format PnL value for display."""
+        if abs(pnl) >= 1000:
+            return f"${pnl/1000:.1f}K"
+        return f"${pnl:.0f}"
+
     def _on_header_clicked(self, col: int) -> None:
         """Handle column header click for sorting."""
         if col == self._sort_column:
@@ -773,6 +801,10 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         """Sort results and repopulate table."""
         if not self._baseline_results:
             return
+
+        # Helper to get PnL in the "good" direction based on threshold_direction
+        def get_good_pnl(r: FeatureImpactResult) -> float:
+            return r.pnl_above if r.threshold_direction == "above" else r.pnl_below
 
         # Define sort key based on column
         def get_sort_key(result: FeatureImpactResult) -> float:
@@ -799,6 +831,10 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
                 return result.trades_total
             elif col == 10:  # Trades (F)
                 return f_result.trades_total
+            elif col == 11:  # PnL (B)
+                return get_good_pnl(result)
+            elif col == 12:  # PnL (F)
+                return get_good_pnl(f_result)
             else:
                 return 0
 
