@@ -854,7 +854,7 @@ class DataBinningTab(BackgroundCalculationMixin, QWidget):
 
     def _on_load_config_clicked(self) -> None:
         """Handle Load Config button click."""
-        default_dir = str(self._last_save_dir or Path.home())
+        default_dir = str(self._last_save_dir or DEFAULT_BIN_CONFIG_DIR)
 
         path, _ = QFileDialog.getOpenFileName(
             self,
