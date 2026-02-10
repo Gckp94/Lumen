@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class BreakdownTab(BackgroundCalculationMixin, QWidget):
     """Tab displaying yearly and monthly performance breakdown charts.
 
-    Shows 9 yearly charts (2 rows of 4 + 1 overflow) and 8 monthly charts
+    Shows 9 yearly charts (3x3 grid) and 8 monthly charts
     (for selected year) in a 2x4 grid. Charts are updated reactively when
     filtered data changes.
     """
@@ -141,7 +141,7 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         main_layout.addWidget(scroll_area)
 
     def _create_years_section(self) -> QWidget:
-        """Create the yearly breakdown section with 9 charts (2x4 + 1 overflow).
+        """Create the yearly breakdown section with 9 charts in 3x3 grid.
 
         Returns:
             Widget containing the yearly section.
@@ -157,12 +157,12 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         header.setStyleSheet(f"color: {Colors.TEXT_PRIMARY};")
         layout.addWidget(header)
 
-        # Charts grid: 2 rows x 4 columns + overflow row
+        # Charts grid: 3 rows x 3 columns
         grid = QGridLayout()
         grid.setHorizontalSpacing(Spacing.XS)
         grid.setVerticalSpacing(Spacing.SM)
 
-        # Define yearly charts (9 charts: 2 rows of 4 + 1 overflow)
+        # Define yearly charts (9 charts in 3x3 grid)
         yearly_chart_defs = [
             ("total_gain_pct", "Total Gain (%)"),
             ("total_flat_stake", "Flat Stake ($)"),
@@ -178,8 +178,8 @@ class BreakdownTab(BackgroundCalculationMixin, QWidget):
         for i, (key, title) in enumerate(yearly_chart_defs):
             chart = VerticalBarChart(title=title)
             self._yearly_charts[key] = chart
-            row = i // 4  # 0, 0, 0, 0, 1, 1, 1, 1
-            col = i % 4  # 0, 1, 2, 3, 0, 1, 2, 3
+            row = i // 3  # 0, 0, 0, 1, 1, 1, 2, 2, 2
+            col = i % 3  # 0, 1, 2, 0, 1, 2, 0, 1, 2
             grid.addWidget(chart, row, col)
 
         # Wrap grid in horizontal layout with stretch to prevent spreading
