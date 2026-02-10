@@ -261,6 +261,7 @@ class BreakdownCalculator:
             "max_dd_dollars": max_dd_dollars if max_dd_dollars is not None else 0.0,
             "count": count,
             "win_rate": win_rate,
+            "ev_pct": total_gain_pct / count if count > 0 else 0.0,
         }
 
         if include_avg_winner_loser:
@@ -325,6 +326,7 @@ class BreakdownCalculator:
             "max_dd_dollars": max_dd_dollars if max_dd_dollars is not None else 0.0,
             "count": count,
             "win_rate": win_rate,
+            "ev_pct": total_gain_pct / count if count > 0 else 0.0,
         }
 
         if include_avg_winner_loser:

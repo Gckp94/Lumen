@@ -143,6 +143,20 @@ def test_yearly_breakdown_avg_winner_loser(sample_df):
     assert result["2024"]["avg_loser_pct"] == pytest.approx(-2.25)
 
 
+def test_yearly_breakdown_ev_pct(sample_df: pd.DataFrame) -> None:
+    """Test that yearly breakdown calculates EV % correctly."""
+    calculator = BreakdownCalculator()
+    result = calculator.calculate_yearly(sample_df, "date", "gain_pct", None)
+
+    # 2023: gains are 0.05, -0.02, 0.035 (5%, -2%, 3.5%) = 6.5% total / 3 trades = 2.167% EV
+    assert "ev_pct" in result["2023"]
+    assert result["2023"]["ev_pct"] == pytest.approx(2.167, rel=0.01)
+
+    # 2024: gains are -0.015, 0.04, 0.02, -0.03 (-1.5%, 4%, 2%, -3%) = 1.5% total / 4 trades = 0.375% EV
+    assert "ev_pct" in result["2024"]
+    assert result["2024"]["ev_pct"] == pytest.approx(0.375, rel=0.01)
+
+
 def test_win_loss_without_column():
     """Test win rate calculation when no win_loss column is provided."""
     df = pd.DataFrame({
