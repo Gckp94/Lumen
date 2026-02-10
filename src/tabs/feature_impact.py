@@ -9,7 +9,6 @@ import logging
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
-
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
@@ -590,10 +589,12 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
     def _on_data_updated(self) -> None:
         """Handle data updates from app state."""
         # Check visibility first
-        if self._dock_widget is not None:
-            if not self._app_state.visibility_tracker.is_visible(self._dock_widget):
-                self._app_state.visibility_tracker.mark_stale(self._tab_name)
-                return
+        if (
+            self._dock_widget is not None
+            and not self._app_state.visibility_tracker.is_visible(self._dock_widget)
+        ):
+            self._app_state.visibility_tracker.mark_stale(self._tab_name)
+            return
 
         if not self._app_state.has_data:
             self._show_empty_state(True)
@@ -634,7 +635,10 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         excluded = list(self._user_excluded_cols)
 
         # Get min trades threshold from spinner (or default)
-        min_trades = self._min_trades_spinner.value() if hasattr(self, "_min_trades_spinner") else 30
+        if hasattr(self, "_min_trades_spinner"):
+            min_trades = self._min_trades_spinner.value()
+        else:
+            min_trades = 30
 
         # Calculate for baseline
         self._baseline_results = self._calculator.calculate_all_features(
@@ -691,9 +695,11 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
 
         if filtered_df is not None and filtered_df is not baseline_df:
             n_filtered = len(filtered_df)
-            self._summary_label.setText(
-                f"Analyzing {n_features} features{ft_suffix} | Baseline: {n_baseline:,} | Filtered: {n_filtered:,}"
+            summary_text = (
+                f"Analyzing {n_features} features{ft_suffix} | "
+                f"Baseline: {n_baseline:,} | Filtered: {n_filtered:,}"
             )
+            self._summary_label.setText(summary_text)
         else:
             self._summary_label.setText(
                 f"Analyzing {n_features} features across {n_baseline:,} trades{ft_suffix}"
