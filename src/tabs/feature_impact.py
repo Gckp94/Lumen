@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QSpinBox,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -382,6 +383,45 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         layout.addWidget(title_section)
         layout.addStretch()
 
+        # Minimum trades control
+        min_trades_layout = QHBoxLayout()
+        min_trades_layout.setSpacing(Spacing.SM)
+
+        min_trades_label = QLabel("Min Trades:")
+        min_trades_label.setStyleSheet(
+            f"color: {Colors.TEXT_SECONDARY}; font-family: '{Fonts.UI}'; font-size: 12px;"
+        )
+        min_trades_layout.addWidget(min_trades_label)
+
+        self._min_trades_spinner = QSpinBox()
+        self._min_trades_spinner.setRange(5, 200)
+        self._min_trades_spinner.setValue(30)
+        self._min_trades_spinner.setSingleStep(5)
+        self._min_trades_spinner.setSuffix(" trades")
+        self._min_trades_spinner.setToolTip(
+            "Minimum trades for full impact score.\n"
+            "Features with fewer trades get penalized scores."
+        )
+        self._min_trades_spinner.setStyleSheet(
+            f"""
+            QSpinBox {{
+                background-color: {Colors.BG_ELEVATED};
+                color: {Colors.TEXT_PRIMARY};
+                font-family: '{Fonts.DATA}';
+                padding: 4px 8px;
+                border: 1px solid {Colors.BG_BORDER};
+                border-radius: 4px;
+            }}
+            QSpinBox:focus {{
+                border-color: {Colors.SIGNAL_CYAN};
+            }}
+            """
+        )
+        self._min_trades_spinner.valueChanged.connect(self._on_min_trades_changed)
+        min_trades_layout.addWidget(self._min_trades_spinner)
+
+        layout.addLayout(min_trades_layout)
+
         return header
 
     def _create_table(self) -> QTableWidget:
@@ -475,6 +515,31 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         # Re-analyze with updated exclusions
         self._analyze_features()
 
+    def _on_min_trades_changed(self, value: int) -> None:
+        """Handle minimum trades threshold change."""
+        # Recalculate scores with new threshold (no need to re-analyze features)
+        self._recalculate_scores()
+
+    def _recalculate_scores(self) -> None:
+        """Recalculate impact scores without re-analyzing features."""
+        if not self._baseline_results:
+            return
+
+        min_trades = self._min_trades_spinner.value()
+
+        self._baseline_scores = self._calculator.calculate_impact_scores(
+            self._baseline_results,
+            min_trades_threshold=min_trades,
+        )
+
+        if self._filtered_results:
+            self._filtered_scores = self._calculator.calculate_impact_scores(
+                self._filtered_results,
+                min_trades_threshold=min_trades,
+            )
+
+        self._populate_table()
+
     def _connect_signals(self) -> None:
         """Connect to app state signals."""
         self._app_state.data_loaded.connect(self._on_data_loaded)
@@ -551,13 +616,19 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
         # Build full exclusion list
         excluded = list(self._user_excluded_cols)
 
+        # Get min trades threshold from spinner (or default)
+        min_trades = self._min_trades_spinner.value() if hasattr(self, "_min_trades_spinner") else 30
+
         # Calculate for baseline
         self._baseline_results = self._calculator.calculate_all_features(
             df=baseline_df,
             gain_col=gain_col,
             excluded_cols=excluded,
         )
-        self._baseline_scores = self._calculator.calculate_impact_scores(self._baseline_results)
+        self._baseline_scores = self._calculator.calculate_impact_scores(
+            self._baseline_results,
+            min_trades_threshold=min_trades,
+        )
 
         # Calculate for filtered - always recalculate if filtered_df exists
         # Use 'is not' to check if it's a different DataFrame object
@@ -567,7 +638,10 @@ class FeatureImpactTab(BackgroundCalculationMixin, QWidget):
                 gain_col=gain_col,
                 excluded_cols=excluded,
             )
-            self._filtered_scores = self._calculator.calculate_impact_scores(self._filtered_results)
+            self._filtered_scores = self._calculator.calculate_impact_scores(
+                self._filtered_results,
+                min_trades_threshold=min_trades,
+            )
         else:
             self._filtered_results = self._baseline_results
             self._filtered_scores = self._baseline_scores
