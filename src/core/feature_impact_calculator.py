@@ -34,6 +34,8 @@ class FeatureImpactResult:
         trades_above: Count of trades above threshold.
         trades_below: Count of trades at or below threshold.
         trades_total: Total trade count.
+        pnl_above: Total PnL (sum of gains) for trades above threshold.
+        pnl_below: Total PnL (sum of gains) for trades at or below threshold.
         percentile_win_rates: Win rates by percentile bins (for spark chart).
     """
 
@@ -52,6 +54,8 @@ class FeatureImpactResult:
     trades_above: int
     trades_below: int
     trades_total: int
+    pnl_above: float
+    pnl_below: float
     percentile_win_rates: list[float]
 
 
@@ -236,6 +240,11 @@ class FeatureImpactCalculator:
             feature_vals, gain_vals
         )
 
+        # Compute PnL for above/below threshold
+        above_mask = feature_vals > threshold
+        pnl_above = float(np.sum(gain_vals[above_mask]))
+        pnl_below = float(np.sum(gain_vals[~above_mask]))
+
         return FeatureImpactResult(
             feature_name=feature_col,
             correlation=correlation,
@@ -252,6 +261,8 @@ class FeatureImpactCalculator:
             trades_above=n_above,
             trades_below=n_below,
             trades_total=len(valid_df),
+            pnl_above=pnl_above,
+            pnl_below=pnl_below,
             percentile_win_rates=percentile_win_rates,
         )
 
@@ -385,5 +396,7 @@ class FeatureImpactCalculator:
             trades_above=0,
             trades_below=0,
             trades_total=n_trades,
+            pnl_above=0.0,
+            pnl_below=0.0,
             percentile_win_rates=[50.0] * self.NUM_PERCENTILE_BINS,
         )

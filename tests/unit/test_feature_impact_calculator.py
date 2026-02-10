@@ -32,6 +32,8 @@ class TestFeatureImpactResult:
             trades_above=939,
             trades_below=1402,
             trades_total=2341,
+            pnl_above=500.0,
+            pnl_below=-200.0,
             percentile_win_rates=[50.0, 52.0, 55.0, 60.0, 65.0],
         )
         assert result.feature_name == "gap_pct"
